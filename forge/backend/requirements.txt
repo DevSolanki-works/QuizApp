@@ -1,16 +1,6 @@
-# Forge: AI Trivia Showdown — Backend Dependencies
-# Pin versions for reproducible Docker builds
-
-# Web framework
-fastapi==0.115.5
-uvicorn[standard]==0.32.1      # ASGI server; [standard] adds websocket support + speedups
-
-# Pydantic (FastAPI uses this internally; we use it for AI output validation)
-pydantic==2.10.3
-pydantic-settings==2.6.1       # BaseSettings — reads from .env / env vars
-
-# Google Gemini AI
-google-generativeai==0.8.3
-
-# HTTP client (used internally by google-generativeai)
-httpx==0.28.1
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+google-genai==0.7.0
+pydantic==2.7.1
+pydantic-settings==2.2.1
+python-dotenv==1.0.1
