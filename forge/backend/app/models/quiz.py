@@ -1,98 +1,118 @@
 """
-app/models/quiz.py — All Pydantic data models for Forge.
+quiz.py — Pydantic data models for Forge.
 
-WHY Pydantic?
-  1. VALIDATION: If Gemini returns a bad response, Pydantic raises a clear error
-     instead of letting bad data silently corrupt our game state.
-  2. STRUCTURED OUTPUTS: We'll tell Gemini to match this exact schema.
-  3. SERIALIZATION: .model_dump() gives us clean dicts ready to send over WebSocket.
-
-TWO CATEGORIES of models here:
-  A) AI-output models: What we expect from Gemini (Question, Quiz)
-  B) Game-state models: What we store in memory (Player, Room)
+WHY PYDANTIC:
+  - Validates Gemini's JSON output at the boundary — if AI hallucinates a bad
+    structure we get a clear ValidationError instead of a cryptic KeyError later.
+  - Auto-generates JSON schemas which serve as implicit API docs.
+  - All models are immutable-friendly (use model_copy() to update).
 """
 
-from dataclasses import dataclass, field
+from __future__ import annotations
+
 from enum import Enum
+from typing import Dict, List, Optional
 from fastapi import WebSocket
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
-# ─────────────────────────────────────────────
-# A) AI OUTPUT MODELS (Pydantic — for validation)
-# ─────────────────────────────────────────────
+# ── Question (Gemini output unit) ────────────────────────────────────────────
 
 class Question(BaseModel):
-    """One quiz question as returned by Gemini."""
-    question: str = Field(..., description="The question text")
-    options: list[str] = Field(..., min_length=4, max_length=4, description="Exactly 4 answer choices")
-    correct_index: int = Field(..., ge=0, le=3, description="Index of the correct option (0-3)")
+    """
+    One quiz question as returned by Gemini (after JSON parsing).
+    correct_index is 0-based: 0=A, 1=B, 2=C, 3=D.
+    """
+    question: str
+    options: List[str] = Field(..., min_length=4, max_length=4)
+    correct_index: int = Field(..., ge=0, le=3)
+
+    @field_validator("options")
+    @classmethod
+    def options_must_have_four(cls, v: List[str]) -> List[str]:
+        """Gemini occasionally returns 3 or 5 options — reject early."""
+        if len(v) != 4:
+            raise ValueError(f"Expected 4 options, got {len(v)}")
+        return v
 
 
-class Quiz(BaseModel):
-    """A full 10-question quiz as returned by Gemini."""
-    questions: list[Question] = Field(..., min_length=1, max_length=10)
-
-
-# ─────────────────────────────────────────────
-# B) GAME STATE MODELS (dataclasses — lightweight, mutable)
-# WHY dataclasses here instead of Pydantic?
-#   - Game state is mutable (scores change constantly).
-#   - We don't need validation on internal state — only on external input (AI / WS messages).
-#   - Dataclasses are faster and simpler for plain data containers.
-# ─────────────────────────────────────────────
+# ── Room state machine ────────────────────────────────────────────────────────
 
 class RoomStatus(str, Enum):
-    WAITING = "waiting"       # Room created, not enough players or host hasn't started
-    IN_GAME = "in_game"       # Game is active
-    FINISHED = "finished"     # All questions answered, showing results
+    """
+    Lifecycle of a game room.
+    LOBBY  → players joining, waiting for host to start
+    ACTIVE → questions are being served
+    DONE   → game finished, scores final
+    """
+    LOBBY = "lobby"
+    ACTIVE = "active"
+    DONE = "done"
 
 
-@dataclass
-class Player:
+class Player(BaseModel):
+    """
+    Represents one connected player.
+    The WebSocket object is excluded from serialisation (it can't be JSON-ified).
+    """
     name: str
-    websocket: WebSocket
     score: int = 0
-    answered_current: bool = False  # Has this player answered the current question?
+    answered_current: bool = False   # reset each question
+    # websocket is stored but not part of any JSON output
+    websocket: Optional[object] = Field(default=None, exclude=True)
+
+    model_config = {"arbitrary_types_allowed": True}
 
 
-@dataclass
-class Room:
-    code: str
-    host_name: str
-    status: RoomStatus = RoomStatus.WAITING
+class Room(BaseModel):
+    """
+    Everything the server needs to run one game session.
 
-    # Players dict: name → Player object
-    players: dict[str, Player] = field(default_factory=dict)
+    questions       — populated when host calls start_game
+    current_q_index — which question we're on (0-based)
+    host_name       — first player to join; only they can start the game
+    """
+    code: str                                    # "1234"
+    status: RoomStatus = RoomStatus.LOBBY
+    host_name: str = ""
+    topic: str = ""
+    players: Dict[str, Player] = Field(default_factory=dict)   # keyed by name
+    questions: List[Question] = Field(default_factory=list)
+    current_q_index: int = 0
 
-    # Quiz data (populated when game starts)
-    questions: list[Question] = field(default_factory=list)
-    current_question_index: int = 0
+    model_config = {"arbitrary_types_allowed": True}
 
-    def get_scores(self) -> dict[str, int]:
-        """Return a clean {name: score} dict ready to broadcast."""
-        return {name: p.score for name, p in self.players.items()}
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def add_player(self, name: str, websocket: object) -> Player:
+        """Register a new player (or reconnect an existing one)."""
+        player = Player(name=name, websocket=websocket)
+        self.players[name] = player
+        if not self.host_name:
+            self.host_name = name   # first joiner is host
+        return player
+
+    def remove_player(self, name: str) -> None:
+        """Remove a player on disconnect."""
+        self.players.pop(name, None)
 
     def all_answered(self) -> bool:
-        """Check if every connected player has answered the current question."""
+        """True when every connected player has submitted an answer."""
         return all(p.answered_current for p in self.players.values())
 
     def reset_answers(self) -> None:
-        """Clear answered flags before a new question starts."""
+        """Clear per-question answer flags before sending next question."""
         for player in self.players.values():
             player.answered_current = False
 
+    def active_websockets(self) -> list:
+        """Return all live WebSocket connections in this room."""
+        return [p.websocket for p in self.players.values() if p.websocket]
 
-# ─────────────────────────────────────────────
-# C) WEBSOCKET MESSAGE SCHEMAS (for incoming client messages)
-# ─────────────────────────────────────────────
+    @property
+    def current_question(self) -> Optional[Question]:
+        """The question currently being played, or None if not started."""
+        if self.questions and 0 <= self.current_q_index < len(self.questions):
+            return self.questions[self.current_q_index]
+        return None
 
-class StartGameAction(BaseModel):
-    action: str  # Must be "start_game"
-    topic: str = Field(..., min_length=2, max_length=100)
-
-
-class AnswerAction(BaseModel):
-    action: str  # Must be "answer"
-    choice: int = Field(..., ge=0, le=3)
-    time_ms: int = Field(..., ge=0, le=20000)
