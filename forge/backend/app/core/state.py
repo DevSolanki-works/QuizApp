@@ -1,50 +1,23 @@
 """
-app/core/state.py — In-memory game state manager.
+state.py — Global in-memory game state.
 
-WHY in-memory instead of Redis?
-  - Redis costs money and adds complexity. Cloud Run's free tier doesn't include it.
-  - For a mobile game, rooms are short-lived (minutes). We don't need persistence.
-  - A single FastAPI instance can handle hundreds of concurrent WS connections easily.
+WHY A PLAIN DICT instead of a database:
+  - $0 infrastructure requirement. No Redis, no Postgres.
+  - All game state is ephemeral: a room lives ~15 minutes then is irrelevant.
+  - FastAPI runs in a single process (uvicorn), so one dict is shared by every
+    request handler and WebSocket coroutine inside that process.
+  - Cloud Run scale-to-zero resets state — acceptable for MVP (all players
+    reconnect on the same container via sticky sessions or simply start a new room).
 
-TRADEOFF to understand:
-  - If the Cloud Run instance restarts, ALL active rooms are wiped.
-  - Cloud Run tries to keep one instance alive if there's traffic.
-  - This is acceptable for an MVP. Future fix: Cloud Firestore free tier.
-
-DATA STRUCTURE:
-  rooms: dict[str, Room]
-    key = 4-digit room code (e.g. "4823")
-    value = Room dataclass (defined in models/quiz.py)
+Structure of `rooms`:
+  {
+    "1234": Room(...)   # keyed by the 4-digit room code string
+  }
 """
 
-from typing import TYPE_CHECKING
+from typing import Dict
+from app.models.quiz import Room
 
-if TYPE_CHECKING:
-    from app.models.quiz import Room
-
-
-class GameState:
-    """Singleton that holds all active game rooms in memory."""
-
-    def __init__(self):
-        # The entire game state lives here.
-        # Key: room_code (str), Value: Room object
-        self.rooms: dict[str, "Room"] = {}
-
-    def add_room(self, room: "Room") -> None:
-        self.rooms[room.code] = room
-
-    def get_room(self, code: str) -> "Room | None":
-        return self.rooms.get(code)
-
-    def remove_room(self, code: str) -> None:
-        self.rooms.pop(code, None)
-
-    def room_exists(self, code: str) -> bool:
-        return code in self.rooms
-
-
-# Module-level singleton — import `game_state` everywhere, never re-create it.
-# WHY module-level? Python caches module imports, so this object is shared
-# across all coroutines in the same process — exactly what we need.
-game_state = GameState()
+# The one and only source of truth for all active game rooms.
+# Every router and service imports this dict by reference.
+rooms: Dict[str, Room] = {}
