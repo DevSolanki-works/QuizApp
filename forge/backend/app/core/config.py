@@ -1,45 +1,38 @@
 """
-app/core/config.py — Centralized settings using Pydantic BaseSettings.
+config.py — Central settings for the Forge backend.
 
-WHY Pydantic BaseSettings?
-  - Reads from environment variables automatically (12-factor app pattern).
-  - In development, you can put vars in a .env file.
-  - In Cloud Run, you set them as Cloud Run env vars — no code change needed.
-  - Type-safe: if GEMINI_API_KEY is missing, startup fails loudly with a clear error.
+Uses pydantic-settings so every value can be overridden by an environment
+variable (useful for Cloud Run where secrets are injected via env vars).
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # Pydantic will look for these as ENV VARS (case-insensitive).
-    # If a .env file exists, it loads from there too.
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    """
+    All runtime configuration lives here.
+    Defaults are development-friendly; production values come from env vars.
+    """
 
-    # --- App ---
-    ENV: str = "development"
-    PORT: int = 8000
+    # ── API keys ──────────────────────────────────────────────────────────────
+    gemini_api_key: str = ""  # Set via GEMINI_API_KEY env var in production
 
-    # --- Gemini AI ---
-    # Set this in Cloud Run as a secret env var. NEVER hardcode it.
-    GEMINI_API_KEY: str = ""
+    # ── Game tuning ───────────────────────────────────────────────────────────
+    base_points: int = 1000          # Max points for a correct answer
+    time_limit_ms: int = 15_000     # 15 seconds per question
+    questions_per_game: int = 10
 
-    # --- CORS ---
-    # Capacitor origins for Android + dev browser
-    ALLOWED_ORIGINS: list[str] = [
-        "http://localhost",
-        "http://localhost:3000",
-        "capacitor://localhost",
-        "https://localhost",
-        "*",  # Loosen for dev; tighten before Play Store release
-    ]
+    # ── Server ────────────────────────────────────────────────────────────────
+    app_version: str = "0.1.0"
+    debug: bool = False
 
-    # --- Game Rules ---
-    MAX_PLAYERS_PER_ROOM: int = 8
-    QUESTION_COUNT: int = 10
-    TIME_LIMIT_MS: int = 15000      # 15 seconds per question
-    BASE_POINTS: int = 1000         # Max score per correct answer
+    model_config = SettingsConfigDict(
+        env_file=".env",          # loads a local .env in development
+        env_file_encoding="utf-8",
+        case_sensitive=False,     # GEMINI_API_KEY == gemini_api_key
+    )
 
 
-# Singleton — import this everywhere, don't re-instantiate.
+# Module-level singleton — import this everywhere:
+#   from app.core.config import settings
 settings = Settings()
