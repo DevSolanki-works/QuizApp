@@ -1,84 +1,128 @@
 """
-http.py — REST endpoints for Forge.
+HTTP REST endpoints for Forge.
 
-Endpoints defined here:
-  GET  /health        → liveness probe (used by Cloud Run + app launch screen)
-  POST /rooms/create  → create a new game room, return code + ws URL
-
-WHY SEPARATE ROUTER:
-  FastAPI routers let us split endpoints into logical files and mount them
-  all in main.py with a prefix. Keeps files small and focused.
+Kept intentionally thin — heavy game logic lives in websocket.py.
+HTTP layer only handles: health check, room creation, room info.
 """
 
 import random
 import string
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.core.config import settings
-from app.core.state import rooms
-from app.models.quiz import Room
+from app.core import state
+from app.models.quiz import Room, GameStatus
 
 router = APIRouter()
 
 
-# ── Response schemas ──────────────────────────────────────────────────────────
+# ── Request / Response schemas ────────────────────────────────────────────────
 
-class HealthResponse(BaseModel):
-    status: str
-    version: str
+class CreateRoomRequest(BaseModel):
+    """Body expected when a player creates a new room."""
+    host_name: str = "Host"
 
 
 class CreateRoomResponse(BaseModel):
+    """What the client receives after room creation."""
     room_code: str
-    ws_url: str      # ws://… or wss://… — client connects here
+    host_name: str
+    ws_url:    str   # Fully-formed WS path so the client doesn't have to build it
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _generate_room_code() -> str:
     """
-    Generate a unique 4-digit numeric room code.
-    Keeps regenerating on collision (extremely rare with <10 concurrent rooms).
+    Generate a unique 4-digit alphanumeric room code.
+
+    Uses uppercase letters + digits for easy verbal sharing ("room ALPHA-4").
+    Retries until it finds a code not already in use (collision is extremely
+    rare with 36^4 = 1.6M possibilities vs. typical concurrent rooms).
     """
     while True:
-        code = "".join(random.choices(string.digits, k=4))
-        if code not in rooms:
+        code = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        if code not in state.rooms:
             return code
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.get("/health", response_model=HealthResponse, tags=["meta"])
-async def health_check() -> HealthResponse:
+@router.get("/health")
+async def health_check():
     """
-    Liveness probe.
-    Cloud Run hits this to decide if the container is ready.
-    The frontend pings this on launch to wake the container and show
-    a 'Connecting…' spinner instead of a dead screen.
+    Lightweight liveness probe.
+
+    Cloud Run hits this to know the container is alive.
+    Also used by the frontend on app-launch to warm up the instance
+    and show 'Connecting...' while the cold-start completes.
     """
-    return HealthResponse(status="ok", version=settings.app_version)
+    return {
+        "status": "ok",
+        "active_rooms": len(state.rooms),
+    }
 
 
-@router.post("/rooms/create", response_model=CreateRoomResponse, tags=["rooms"])
-async def create_room() -> CreateRoomResponse:
+@router.post("/rooms/create", response_model=CreateRoomResponse)
+async def create_room(body: CreateRoomRequest):
     """
-    Create a new game room.
+    Create a new game room and register it in memory.
 
-    Returns a 4-digit room code + the WebSocket URL the host should
-    connect to. Other players will receive this code out-of-band (share
-    it verbally or via the UI) and connect to the same WS path.
-
-    Room creation is intentionally simple: no auth, no user accounts.
-    The host is whoever connects first over WebSocket.
+    Flow:
+      1. Generate unique 4-digit code
+      2. Instantiate Room with host as first player
+      3. Store in state.rooms
+      4. Return code + ready-to-use WS URL to the client
     """
     code = _generate_room_code()
-    rooms[code] = Room(code=code)
 
-    # Build the WS URL.
-    # In development this will be ws://localhost:8000/ws/1234/{player_name}.
-    # Cloud Run strips the path prefix so the URL stays the same shape.
-    ws_url = f"/ws/{code}"   # relative — frontend prepends the host
+    room = Room(
+        code=code,
+        host=body.host_name,
+        status=GameStatus.WAITING,
+    )
+    state.rooms[code] = room
 
-    return CreateRoomResponse(room_code=code, ws_url=ws_url)
+    return CreateRoomResponse(
+        room_code=code,
+        host_name=body.host_name,
+        # Client plugs this straight into new WebSocket(ws_url)
+        ws_url=f"/ws/{code}/{body.host_name}",
+    )
+
+
+@router.get("/rooms/{code}")
+async def get_room(code: str):
+    """
+    Return current state of a room (for debugging / reconnect use).
+
+    Raises 404 if the code doesn't exist, so the client can show
+    'Room not found' before even attempting a WS connection.
+    """
+    room = state.rooms.get(code.upper())
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    return {
+        "code":    room.code,
+        "host":    room.host,
+        "status":  room.status,
+        "players": list(room.players.keys()),
+        "current_question": room.current_q_index,
+    }
+
+
+@router.delete("/rooms/{code}")
+async def delete_room(code: str):
+    """
+    Manually delete a room (admin/testing convenience).
+
+    In production, rooms are cleaned up when all WebSocket
+    connections close (handled in websocket.py).
+    """
+    code = code.upper()
+    if code not in state.rooms:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    del state.rooms[code]
+    return {"deleted": code}
