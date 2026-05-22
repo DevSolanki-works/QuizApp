@@ -143,7 +143,7 @@ async def generate_questions(topic: str) -> List[Question]:
             prompt,
             generation_config=genai.types.GenerationConfig(
                 temperature=0.8,      # Some creativity, but not wild
-                max_output_tokens=2048,
+                max_output_tokens=8192,
             ),
         )
     except Exception as e:
