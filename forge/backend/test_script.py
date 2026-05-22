@@ -1,39 +1,50 @@
-"""
-Tests app/models/quiz.py and app/core/state.py
-"""
-from app.models.quiz import Question, Player, Room, GameStatus
-from app.core.state import rooms
+import asyncio
+import json
+import websockets
+import httpx
 
-print("--- Models ---")
+BASE = "ws://localhost:8000"
+HTTP = "http://localhost:8000"
 
-# Question model
-q = Question(
-    question="What is 2+2?",
-    options=["1", "2", "3", "4"],
-    correct_index=3
-)
-print(f"Question OK: {q.question}")
+async def player(room_code, name, is_host, topic="The Moon"):
+    uri = f"{BASE}/ws/{room_code}/{name}"
+    async with websockets.connect(uri) as ws:
+        print(f"[{name}] connected")
 
-# Player model
-p = Player(name="Alice")
-print(f"Player OK: name={p.name}, score={p.score}")
+        async for raw in ws:
+            msg = json.loads(raw)
+            t = msg["type"]
+            print(f"[{name}] ← {t}")
 
-# Room model
-r = Room(code="TEST", host="Alice")
-print(f"Room OK: code={r.code}, status={r.status}")
+            # Host starts the game once 2 players have joined
+            if is_host and t == "PLAYER_JOINED":
+                if len(msg["data"]["players"]) >= 2:
+                    await ws.send(json.dumps({"action": "start_game", "topic": topic}))
+                    print(f"[{name}] → start_game")
 
-print("\n--- State ---")
+            elif t == "QUESTION":
+                await asyncio.sleep(2)
+                choice = 1 if name == "Alice" else 2
+                await ws.send(json.dumps({"action": "answer", "choice": choice, "time_ms": 2000}))
+                print(f"[{name}] → answer {choice}")
 
-# Add a room to global state
-rooms["TEST"] = r
-print(f"Room stored: {rooms['TEST'].code}")
+            elif t == "GAME_OVER":
+                print(f"[{name}] Final scores: {msg['data']['final_scores']}")
+                break
 
-# Add player to room
-rooms["TEST"].players["Alice"] = p
-print(f"Player in room: {list(rooms['TEST'].players.keys())}")
+            elif t == "ERROR":
+                print(f"[{name}] ERROR: {msg['data']['message']}")
+                break
 
-# Check default status
-assert r.status == GameStatus.WAITING, "Status should be WAITING"
-print(f"Status OK: {r.status}")
+async def main():
+    async with httpx.AsyncClient() as client:
+        r = await client.post(f"{HTTP}/rooms/create", json={"host_name": "Alice"})
+        room_code = r.json()["room_code"]
+        print(f"Room created: {room_code}")
 
-print("\n✅ All good — ready for Milestone 5")
+    await asyncio.gather(
+        player(room_code, "Alice", is_host=True),
+        player(room_code, "Bob",   is_host=False),
+    )
+
+asyncio.run(main())

@@ -49,7 +49,7 @@ async def broadcast(room_code: str, message: Dict[str, Any]) -> None:
         return
 
     dead = []
-    for name, player in rooms[room_code].players.items():
+    for name, player in list(rooms[room_code].players.items()):
         try:
             await player.websocket.send_text(json.dumps(message))
         except Exception:
