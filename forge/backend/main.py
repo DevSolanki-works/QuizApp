@@ -2,12 +2,14 @@
 Forge — AI Trivia Showdown
 FastAPI application entry point.
 """
-
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import http as http_router
 from app.routers import websocket as ws_router          # Milestone 5
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 app = FastAPI(
     title="Forge — AI Trivia Showdown",
