@@ -1,32 +1,159 @@
 """
-ai.py — Gemini AI service for quiz generation.
+ai.py — Gemini AI service for quiz question generation.
 
-STUB for Milestone 2. The actual Gemini API call is implemented in Milestone 4.
-Having the file now lets other modules import it without breaking.
+FLOW:
+  1. Build a strict prompt asking for a raw JSON array of 10 questions.
+  2. Call Gemini 1.5 Flash (free tier: 15 rpm, 1M tokens/day).
+  3. Strip any accidental markdown fences Gemini sometimes adds.
+  4. Parse the JSON → validate each item with the Question Pydantic model.
+  5. Return a List[Question] to the caller.
 
-WHY GEMINI 1.5 FLASH:
-  - Free tier: 15 requests/minute, 1 million tokens/day — more than enough.
-  - Fast: Flash is optimised for low latency (important for game UX).
-  - Structured output: we can prompt for raw JSON and validate with Pydantic.
+WHY NO STRUCTURED OUTPUT API:
+  Gemini's native structured-output feature requires a JSON Schema passed as
+  `response_schema`. It works, but the google-genai SDK version pinned here
+  exposes it differently across minor versions. Prompting for raw JSON + manual
+  validation is simpler, equally reliable, and easier to debug.
 """
 
+import json
 import logging
+import re
 from typing import List
 
+import google.generativeai as genai
+
+from app.core.config import settings
 from app.models.quiz import Question
 
 logger = logging.getLogger(__name__)
 
+# ── Gemini client setup ───────────────────────────────────────────────────────
+# Configure once at module load time using the API key from settings.
+# All calls in this module reuse this configuration.
+genai.configure(api_key=settings.GEMINI_API_KEY)
+
+# ── Prompt template ───────────────────────────────────────────────────────────
+# Kept as a module-level constant so it's easy to tweak without touching logic.
+# {topic} is the only variable — filled in at call time.
+QUIZ_PROMPT = """You are a quiz generator. Return ONLY a JSON array of exactly 10 objects.
+Each object must have exactly these fields:
+  "question": a string with the question text
+  "options":  an array of exactly 4 strings (the answer choices)
+  "correct_index": an integer 0-3 indicating which option is correct
+
+Rules:
+- No markdown, no code fences, no explanation — just the raw JSON array.
+- Make questions interesting and specific, not generic trivia.
+- Difficulty: medium.
+- Topic: {topic}
+
+Example of the required format (2 questions shown):
+[
+  {{"question": "...", "options": ["A", "B", "C", "D"], "correct_index": 2}},
+  {{"question": "...", "options": ["A", "B", "C", "D"], "correct_index": 0}}
+]"""
+
+
+def _strip_markdown_fences(text: str) -> str:
+    """
+    Remove ```json ... ``` or ``` ... ``` wrappers that Gemini sometimes adds
+    despite being told not to.
+
+    WHY THIS EXISTS:
+      Even with explicit instructions, LLMs occasionally wrap JSON in markdown.
+      A small sanitiser here prevents the entire quiz from failing due to a
+      single backtick character.
+    """
+    # Remove ```json or ``` at the start, and ``` at the end
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+    text = re.sub(r"\s*```$", "", text.strip())
+    return text.strip()
+
+
+def _parse_and_validate(raw_text: str) -> List[Question]:
+    """
+    Parse Gemini's raw text response into validated Question objects.
+
+    Raises:
+        ValueError: if the JSON is malformed or doesn't match the Question schema.
+
+    WHY EXPLICIT VALIDATION:
+      We never trust raw LLM output directly. Pydantic validation ensures every
+      question has exactly 4 options and a valid correct_index before the game
+      starts. A bad question mid-game would be far worse than a failed room creation.
+    """
+    cleaned = _strip_markdown_fences(raw_text)
+
+    try:
+        raw_list = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        logger.error("Gemini returned invalid JSON: %s\nRaw text: %s", e, cleaned[:500])
+        raise ValueError(f"Gemini response was not valid JSON: {e}") from e
+
+    if not isinstance(raw_list, list):
+        raise ValueError(f"Expected a JSON array, got {type(raw_list).__name__}")
+
+    questions: List[Question] = []
+    for i, item in enumerate(raw_list):
+        try:
+            questions.append(Question(**item))
+        except Exception as e:
+            # Log which question failed so debugging is easy
+            logger.error("Question %d failed Pydantic validation: %s\nItem: %s", i, e, item)
+            raise ValueError(f"Question {i} is malformed: {e}") from e
+
+    if len(questions) != 10:
+        raise ValueError(f"Expected 10 questions, got {len(questions)}")
+
+    return questions
+
 
 async def generate_questions(topic: str) -> List[Question]:
     """
-    Call Gemini to produce 10 quiz questions on `topic`.
+    Call Gemini 1.5 Flash to generate 10 quiz questions on the given topic.
 
-    Returns a list of validated Question objects.
-    Raises ValueError if Gemini's response can't be parsed.
+    Args:
+        topic: Any subject string, e.g. "Marvel Movies" or "Quantum Physics".
 
-    NOTE: Full implementation in Milestone 4.
+    Returns:
+        A list of exactly 10 validated Question objects.
+
+    Raises:
+        ValueError:   if Gemini's response can't be parsed or validated.
+        Exception:    if the Gemini API call itself fails (network, quota, etc.).
+
+    WHY ASYNC:
+      FastAPI runs on an async event loop. Blocking calls inside an async route
+      freeze the entire server. google-generativeai's generate_content() is
+      synchronous, so we run it in a thread pool via asyncio.to_thread() to
+      avoid blocking.
     """
-    # Placeholder — will be replaced with real Gemini call
-    logger.warning("ai.generate_questions called but Gemini integration not yet implemented")
-    raise NotImplementedError("Gemini integration coming in Milestone 4")
+    import asyncio
+
+    prompt = QUIZ_PROMPT.format(topic=topic)
+    model = genai.GenerativeModel(settings.GEMINI_MODEL)
+
+    logger.info("Generating quiz questions for topic: '%s'", topic)
+
+    # Run the synchronous Gemini call in a thread pool so we don't block the
+    # event loop while waiting for the API response (~1-3 seconds).
+    try:
+        response = await asyncio.to_thread(
+            model.generate_content,
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.8,      # Some creativity, but not wild
+                max_output_tokens=2048,
+            ),
+        )
+    except Exception as e:
+        logger.error("Gemini API call failed for topic '%s': %s", topic, e)
+        raise
+
+    raw_text = response.text
+    logger.debug("Raw Gemini response for '%s': %s", topic, raw_text[:200])
+
+    questions = _parse_and_validate(raw_text)
+    logger.info("Successfully generated %d questions for topic '%s'", len(questions), topic)
+
+    return questions

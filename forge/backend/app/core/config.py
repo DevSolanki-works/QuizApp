@@ -1,38 +1,33 @@
 """
-config.py — Central settings for the Forge backend.
+config.py — Centralised settings loaded from environment variables.
 
-Uses pydantic-settings so every value can be overridden by an environment
-variable (useful for Cloud Run where secrets are injected via env vars).
+WHY PYDANTIC SETTINGS:
+  Pydantic's BaseSettings reads values from environment variables automatically.
+  This means the same code works locally (via .env file) and on Cloud Run
+  (via --set-env-vars flag) with zero code changes.
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """
-    All runtime configuration lives here.
-    Defaults are development-friendly; production values come from env vars.
+    All configurable values for the Forge backend.
+    Add new env vars here — never hardcode secrets in source files.
     """
 
-    # ── API keys ──────────────────────────────────────────────────────────────
-    gemini_api_key: str = ""  # Set via GEMINI_API_KEY env var in production
+    # Gemini API key — get yours free at https://aistudio.google.com
+    GEMINI_API_KEY: str
 
-    # ── Game tuning ───────────────────────────────────────────────────────────
-    base_points: int = 1000          # Max points for a correct answer
-    time_limit_ms: int = 15_000     # 15 seconds per question
-    questions_per_game: int = 10
+    # Optional: override the model name without redeploying
+    GEMINI_MODEL: str = "gemini-1.5-flash"
 
-    # ── Server ────────────────────────────────────────────────────────────────
-    app_version: str = "0.1.0"
-    debug: bool = False
-
-    model_config = SettingsConfigDict(
-        env_file=".env",          # loads a local .env in development
-        env_file_encoding="utf-8",
-        case_sensitive=False,     # GEMINI_API_KEY == gemini_api_key
-    )
+    class Config:
+        # Load from a .env file when present (local dev).
+        # In production (Cloud Run), real env vars take precedence automatically.
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 
-# Module-level singleton — import this everywhere:
-#   from app.core.config import settings
+# Single shared instance — import this everywhere instead of re-instantiating.
 settings = Settings()
