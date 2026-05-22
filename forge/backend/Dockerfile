@@ -13,7 +13,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy installed packages from builder
-COPY --from=/install /install /usr/local
+COPY --from=builder /install /usr/local
 
 # Copy application source
 COPY . .
@@ -25,4 +25,4 @@ EXPOSE 8080
 
 # Use uvicorn directly (no gunicorn — single process is fine for Cloud Run)
 # --workers 1 is intentional: in-memory state must not be split across workers
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
