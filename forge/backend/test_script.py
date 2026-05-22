@@ -3,11 +3,11 @@ import json
 import websockets
 import httpx
 
-BASE = "ws://localhost:8000"
-HTTP = "http://localhost:8000"
+BASE = "forge-backend-878124462453.us-central1.run.app"
+HTTP = f"https://{BASE}"
 
 async def player(room_code, name, is_host, topic="The Moon"):
-    uri = f"{BASE}/ws/{room_code}/{name}"
+    uri = f"wss://{BASE}/ws/{room_code}/{name}"
     async with websockets.connect(uri) as ws:
         print(f"[{name}] connected")
 
