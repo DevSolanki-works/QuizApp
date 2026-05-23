@@ -1,0 +1,563 @@
+<!--
+  GAME SCREEN
+  Shows: question progress bar · question text · 4 answer options
+  · countdown timer ring · per-round leaderboard flash
+-->
+<style>
+  .game-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; padding: 0 20px 32px;
+  }
+
+  /* ── TOP STATUS BAR ─────────────────────────────────────── */
+  .game-topbar {
+    width: 100%; display: flex;
+    align-items: center; justify-content: space-between;
+    padding: 18px 0 12px;
+  }
+  .game-q-counter {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.55); letter-spacing: 0.5px;
+  }
+  .game-score-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.15);
+    border: 1px solid rgba(255,217,61,0.3);
+    font-family: var(--font-pixel); font-size: 9px;
+    color: var(--yellow);
+  }
+  .game-topic-chip {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.45); letter-spacing: 0.3px;
+    max-width: 100px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ── PROGRESS STRIP ─────────────────────────────────────── */
+  .game-progress-track {
+    width: 100%; height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px; overflow: hidden;
+  }
+  .game-progress-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--yellow), var(--green));
+    transition: width 0.5s ease;
+  }
+
+  /* ── TIMER RING ─────────────────────────────────────────── */
+  .timer-wrap {
+    margin: 24px 0 8px;
+    position: relative; width: 80px; height: 80px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .timer-svg {
+    position: absolute; top: 0; left: 0;
+    width: 80px; height: 80px;
+    transform: rotate(-90deg);   /* start stroke from top */
+  }
+  .timer-bg-circle {
+    fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 5;
+  }
+  .timer-fg-circle {
+    fill: none; stroke: var(--yellow); stroke-width: 5;
+    stroke-linecap: round;
+    stroke-dasharray: 220;       /* circumference ≈ 2π×35 */
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+  }
+  .timer-fg-circle.urgent { stroke: var(--red); }
+  .timer-number {
+    font-family: var(--font-pixel); font-size: 20px;
+    color: var(--white); z-index: 1;
+    transition: color 0.3s;
+  }
+  .timer-number.urgent { color: var(--red); }
+
+  /* ── QUESTION CARD ──────────────────────────────────────── */
+  .game-question-card {
+    width: 100%; padding: 22px 20px;
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.15);
+    text-align: center;
+  }
+  .game-question-number {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--yellow); letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+  .game-question-text {
+    font-family: var(--font-body); font-size: 18px;
+    font-weight: 800; color: var(--white);
+    line-height: 1.45;
+  }
+
+  /* ── ANSWER OPTIONS GRID ────────────────────────────────── */
+  /* 2×2 grid on wide screens, 1-col on narrow */
+  .game-options-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  @media (max-width: 300px) {
+    .game-options-grid { grid-template-columns: 1fr; }
+  }
+
+  .option-btn {
+    min-height: 72px; padding: 12px 14px;
+    border-radius: var(--radius-md);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    transition: transform 0.1s, filter 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; text-align: left;
+    position: relative; overflow: hidden;
+  }
+  .option-btn:active:not([disabled]) { transform: scale(0.97); }
+  .option-btn[disabled] { cursor: default; }
+
+  /* Each option has its own colour */
+  .option-btn[data-idx="0"] { background: var(--opt-a); box-shadow: 0 5px 0 #8b0011; }
+  .option-btn[data-idx="1"] { background: var(--opt-b); box-shadow: 0 5px 0 #0d5fa3; }
+  .option-btn[data-idx="2"] { background: var(--opt-c); box-shadow: 0 5px 0 #038a67; }
+  .option-btn[data-idx="3"] { background: var(--opt-d); box-shadow: 0 5px 0 #5a2d8e; }
+
+  .option-btn:active:not([disabled])[data-idx="0"] { box-shadow: 0 1px 0 #8b0011; transform: translateY(4px); }
+  .option-btn:active:not([disabled])[data-idx="1"] { box-shadow: 0 1px 0 #0d5fa3; transform: translateY(4px); }
+  .option-btn:active:not([disabled])[data-idx="2"] { box-shadow: 0 1px 0 #038a67; transform: translateY(4px); }
+  .option-btn:active:not([disabled])[data-idx="3"] { box-shadow: 0 1px 0 #5a2d8e; transform: translateY(4px); }
+
+  /* Letter badge A/B/C/D */
+  .option-letter {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: rgba(0,0,0,0.22); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-pixel); font-size: 11px; color: #fff;
+  }
+  .option-text {
+    flex: 1; font-family: var(--font-body);
+    font-size: 14px; font-weight: 800; color: #fff; line-height: 1.3;
+  }
+
+  /* ── ANSWER FEEDBACK states ─────────────────────────────── */
+  .option-btn.correct {
+    animation: correct-flash 0.4s ease;
+    box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(6,214,160,0.7) !important;
+    filter: brightness(1.15);
+  }
+  .option-btn.wrong {
+    opacity: 0.4; filter: grayscale(60%);
+    box-shadow: none !important;
+    transform: scale(0.96);
+  }
+  .option-btn.reveal-correct {
+    box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(6,214,160,0.5) !important;
+    filter: brightness(1.1);
+  }
+  @keyframes correct-flash {
+    0%  { transform: scale(1);    }
+    40% { transform: scale(1.06); }
+    100%{ transform: scale(1);    }
+  }
+
+  /* Tick / Cross overlay on answered options */
+  .option-result-icon {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px;
+    animation: icon-pop 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes icon-pop {
+    from { transform: translateY(-50%) scale(0); }
+    to   { transform: translateY(-50%) scale(1); }
+  }
+
+  /* ── MINI LEADERBOARD OVERLAY ───────────────────────────── */
+  /* Slides up from bottom between questions */
+  .leaderboard-overlay {
+    position: fixed; inset: 0;
+    background: rgba(13,27,142,0.96);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100; padding: 32px 24px;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
+  }
+  .leaderboard-overlay.visible {
+    transform: translateY(0);
+  }
+  .lb-title {
+    font-family: var(--font-pixel); font-size: 12px;
+    color: var(--yellow); letter-spacing: 1px;
+    margin-bottom: 24px; text-align: center;
+  }
+  .lb-list {
+    width: 100%; max-width: var(--max-w);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .lb-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    animation: lb-slide 0.35s ease both;
+  }
+  .lb-row:nth-child(2) { animation-delay: 0.05s; }
+  .lb-row:nth-child(3) { animation-delay: 0.10s; }
+  .lb-row:nth-child(4) { animation-delay: 0.15s; }
+  .lb-row:nth-child(5) { animation-delay: 0.20s; }
+  @keyframes lb-slide {
+    from { opacity:0; transform:translateY(12px); }
+    to   { opacity:1; transform:translateY(0);    }
+  }
+  /* Top-3 special styling */
+  .lb-row.rank-1 { background: rgba(255,217,61,0.18); border-color: rgba(255,217,61,0.4); }
+  .lb-row.rank-2 { background: rgba(192,192,192,0.12); border-color: rgba(192,192,192,0.3); }
+  .lb-row.rank-3 { background: rgba(205,127,50,0.12); border-color: rgba(205,127,50,0.3); }
+
+  .lb-rank {
+    font-family: var(--font-pixel); font-size: 10px;
+    color: rgba(255,255,255,0.5); width: 24px; text-align: center;
+  }
+  .lb-rank.rank-1 { color: var(--yellow); }
+  .lb-rank.rank-2 { color: #C0C0C0; }
+  .lb-rank.rank-3 { color: #CD7F32; }
+  .lb-name {
+    flex:1; font-family: var(--font-body);
+    font-size: 16px; font-weight: 800; color: var(--white);
+  }
+  .lb-name.is-you { color: var(--yellow); }
+  .lb-score {
+    font-family: var(--font-pixel); font-size: 10px;
+    color: var(--white);
+  }
+  .lb-next-btn {
+    margin-top: 28px; width: 100%; max-width: var(--max-w);
+  }
+
+  /* ── LOADING STATE ──────────────────────────────────────── */
+  .game-loading {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 18px;
+    padding: 60px 0;
+  }
+  .game-loading-text {
+    font-family: var(--font-pixel); font-size: 9px;
+    color: rgba(255,255,255,0.6); text-align: center;
+    letter-spacing: 0.5px; line-height: 2;
+  }
+  .big-emoji { font-size: 52px; animation: trophy-bounce 2s infinite ease-in-out; }
+</style>
+
+<div class="game-wrap" id="game-wrap">
+  <div class="stars-bg" id="game-stars"></div>
+
+  <!-- TOP STATUS BAR -->
+  <div class="game-topbar z1">
+    <span class="game-q-counter" id="game-q-counter">Q 1 / 10</span>
+    <div class="game-score-chip">
+      ⭐ <span id="game-my-score">0</span>
+    </div>
+    <span class="game-topic-chip" id="game-topic-label">—</span>
+  </div>
+
+  <!-- PROGRESS STRIP -->
+  <div class="game-progress-track z1" style="width:100%">
+    <div class="game-progress-fill" id="game-progress" style="width:0%"></div>
+  </div>
+
+  <!-- TIMER RING -->
+  <div class="timer-wrap z1">
+    <svg class="timer-svg" viewBox="0 0 80 80">
+      <circle class="timer-bg-circle" cx="40" cy="40" r="35"/>
+      <circle class="timer-fg-circle" id="timer-circle" cx="40" cy="40" r="35"/>
+    </svg>
+    <span class="timer-number" id="timer-number">15</span>
+  </div>
+
+  <!-- QUESTION CARD -->
+  <div class="game-question-card z1" id="game-question-card">
+    <!-- Loading state shown while waiting for first question -->
+    <div class="game-loading">
+      <div class="big-emoji">🤖</div>
+      <div class="dot-loader" style="justify-content:center">
+        <span></span><span></span><span></span>
+      </div>
+      <p class="game-loading-text">
+        AI IS GENERATING<br>YOUR QUIZ...
+      </p>
+    </div>
+  </div>
+
+  <!-- ANSWER OPTIONS -->
+  <div class="game-options-grid z1" id="game-options-grid" style="visibility:hidden">
+    <!-- populated by JS -->
+  </div>
+</div>
+
+<!-- LEADERBOARD OVERLAY (between rounds) -->
+<div class="leaderboard-overlay" id="lb-overlay">
+  <p class="lb-title" id="lb-title">🏅 LEADERBOARD</p>
+  <div class="lb-list" id="lb-list"></div>
+  <div class="lb-next-btn">
+    <div class="dot-loader" style="justify-content:center;margin-top:8px">
+      <span></span><span></span><span></span>
+    </div>
+    <p style="font-family:var(--font-pixel);font-size:8px;color:rgba(255,255,255,0.4);
+              text-align:center;margin-top:10px;letter-spacing:0.5px;">
+      NEXT QUESTION LOADING...
+    </p>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   GAME SCREEN LOGIC
+   ═══════════════════════════════════════════════════════════ */
+
+const OPTION_LETTERS = ['A','B','C','D'];
+const TIME_LIMIT_MS  = 15000;
+const CIRCUMFERENCE  = 220;  /* 2π × 35 ≈ 220 */
+
+let _timerInterval  = null;   // setInterval handle
+let _timerStart     = null;   // timestamp when question appeared
+let _answered       = false;  // has this player answered this round?
+let _qIndex         = 0;      // current question index (0-based)
+
+/** Called by router when screen becomes active */
+function onGameShow() {
+  const starsEl = document.getElementById('game-stars');
+  if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
+
+  // Set topic label
+  const topicEl = document.getElementById('game-topic-label');
+  if (topicEl) topicEl.textContent = State.topic || '—';
+
+  // Reset local state
+  _answered = false;
+  _qIndex   = 0;
+
+  // Attach WebSocket handlers
+  WS.on('QUESTION',    _onQuestion);
+  WS.on('LEADERBOARD', _onLeaderboard);
+  WS.on('GAME_OVER',   _onGameOver);
+  WS.on('ERROR', (d)  => Toast.error(d.message || 'Error'));
+}
+
+/* ── QUESTION ────────────────────────────────────────────── */
+
+function _onQuestion(data) {
+  // data: { index, text, options: [str,str,str,str], time_limit_ms }
+  _answered = false;
+  _qIndex   = data.index;
+
+  // Hide leaderboard overlay
+  _hideLB();
+
+  // Update progress & counter
+  const total = State.totalQ;
+  const pct   = (data.index / total) * 100;
+  const progressEl = document.getElementById('game-progress');
+  if (progressEl) progressEl.style.width = `${pct}%`;
+
+  const counterEl = document.getElementById('game-q-counter');
+  if (counterEl) counterEl.textContent = `Q ${data.index + 1} / ${total}`;
+
+  // Render question card
+  const card = document.getElementById('game-question-card');
+  if (card) {
+    card.innerHTML = `
+      <p class="game-question-number">QUESTION ${data.index + 1}</p>
+      <p class="game-question-text">${_escHtml(data.text)}</p>
+    `;
+    card.style.animation = 'none';
+    void card.offsetWidth;
+    card.style.animation = 'fade-up 0.3s ease';
+  }
+
+  // Render answer options
+  const grid = document.getElementById('game-options-grid');
+  if (grid) {
+    grid.style.visibility = 'visible';
+    grid.innerHTML = data.options.map((opt, i) => `
+      <button class="option-btn" data-idx="${i}"
+              onclick="gameAnswer(${i})">
+        <span class="option-letter">${OPTION_LETTERS[i]}</span>
+        <span class="option-text">${_escHtml(opt)}</span>
+      </button>
+    `).join('');
+  }
+
+  // Start countdown timer
+  _startTimer(data.time_limit_ms || TIME_LIMIT_MS);
+}
+
+/* ── TIMER ───────────────────────────────────────────────── */
+
+function _startTimer(limitMs) {
+  _stopTimer();
+  _timerStart = Date.now();
+  const totalSecs = limitMs / 1000;
+
+  const circleEl = document.getElementById('timer-circle');
+  const numberEl = document.getElementById('timer-number');
+  if (!circleEl || !numberEl) return;
+
+  // Reset ring
+  circleEl.style.strokeDashoffset = 0;
+  circleEl.classList.remove('urgent');
+  numberEl.classList.remove('urgent');
+
+  _timerInterval = setInterval(() => {
+    const elapsed = Date.now() - _timerStart;
+    const remaining = Math.max(0, limitMs - elapsed);
+    const secsLeft  = Math.ceil(remaining / 1000);
+    const progress  = elapsed / limitMs;   /* 0 → 1 */
+
+    // Update number
+    numberEl.textContent = secsLeft;
+
+    // Shrink ring stroke (dashoffset goes from 0 → CIRCUMFERENCE)
+    circleEl.style.strokeDashoffset = progress * CIRCUMFERENCE;
+
+    // Go red in last 5s
+    if (secsLeft <= 5) {
+      circleEl.classList.add('urgent');
+      numberEl.classList.add('urgent');
+    }
+
+    if (remaining <= 0) {
+      _stopTimer();
+      // Time's up — disable all options without answer
+      if (!_answered) _disableOptions();
+    }
+  }, 200);
+}
+
+function _stopTimer() {
+  if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+}
+
+/* ── ANSWER ──────────────────────────────────────────────── */
+
+/**
+ * Player taps an answer option.
+ * Sends { action:'answer', choice:i, time_ms } to server.
+ * Disables all buttons immediately to prevent double-tap.
+ */
+function gameAnswer(choiceIndex) {
+  if (_answered) return;
+  _answered = true;
+  _stopTimer();
+
+  const timeMs = Date.now() - (_timerStart || Date.now());
+  WS.send({ action: 'answer', choice: choiceIndex, time_ms: timeMs });
+
+  // Dim un-chosen options; pulse chosen one
+  _disableOptions(choiceIndex);
+}
+
+/** Disable all option buttons; optionally highlight the chosen one */
+function _disableOptions(chosenIdx = null) {
+  document.querySelectorAll('.option-btn').forEach((btn, i) => {
+    btn.setAttribute('disabled', 'true');
+    if (chosenIdx !== null && i !== chosenIdx) {
+      btn.style.opacity   = '0.45';
+      btn.style.transform = 'scale(0.97)';
+    }
+  });
+}
+
+/* ── LEADERBOARD ─────────────────────────────────────────── */
+
+/**
+ * Server broadcasts LEADERBOARD after all players answer.
+ * data: { scores: {name: pts}, correct_index: int }
+ */
+function _onLeaderboard(data) {
+  _stopTimer();
+
+  // Show correct / wrong feedback on options
+  const correctIdx = data.correct_index;
+  document.querySelectorAll('.option-btn').forEach((btn, i) => {
+    btn.setAttribute('disabled', 'true');
+    if (i === correctIdx) {
+      btn.classList.add('reveal-correct');
+      // Show tick
+      const icon = document.createElement('span');
+      icon.className = 'option-result-icon';
+      icon.textContent = '✓';
+      btn.appendChild(icon);
+    } else if (_answered) {
+      btn.classList.add('wrong');
+    }
+  });
+
+  // Update my score in topbar
+  const myScore = data.scores[State.playerName] || 0;
+  State.scores  = data.scores;
+  const scoreEl = document.getElementById('game-my-score');
+  if (scoreEl) scoreEl.textContent = myScore.toLocaleString();
+
+  // Build sorted leaderboard
+  const sorted = Object.entries(data.scores)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+
+  const lbList = document.getElementById('lb-list');
+  if (lbList) {
+    const medals = ['🥇','🥈','🥉'];
+    lbList.innerHTML = sorted.map(([name, score], i) => {
+      const rank    = i + 1;
+      const isYou   = name === State.playerName;
+      const rankCls = rank <= 3 ? `rank-${rank}` : '';
+      const medal   = rank <= 3 ? medals[i] : `${rank}`;
+      return `
+        <div class="lb-row ${rankCls}">
+          <span class="lb-rank ${rankCls}">${medal}</span>
+          <span class="lb-name ${isYou ? 'is-you' : ''}">${_escHtml(name)}${isYou ? ' ★' : ''}</span>
+          <span class="lb-score">${score.toLocaleString()}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // Show after a short delay (give time to see correct answer)
+  setTimeout(_showLB, 1200);
+}
+
+function _showLB() {
+  const overlay = document.getElementById('lb-overlay');
+  if (overlay) overlay.classList.add('visible');
+}
+function _hideLB() {
+  const overlay = document.getElementById('lb-overlay');
+  if (overlay) overlay.classList.remove('visible');
+}
+
+/* ── GAME OVER ───────────────────────────────────────────── */
+
+/**
+ * Server broadcasts GAME_OVER with final scores.
+ * Store results in State and navigate to results screen.
+ */
+function _onGameOver(data) {
+  _stopTimer();
+  // data.final_scores: { name: pts }
+  State.scores = data.final_scores;
+  // Brief delay so player can see last leaderboard state
+  setTimeout(() => goTo('results'), 2000);
+}
+
+/* ── UTILS ───────────────────────────────────────────────── */
+function _escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
