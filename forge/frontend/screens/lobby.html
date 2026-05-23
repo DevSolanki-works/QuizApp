@@ -1,0 +1,473 @@
+<!--
+  LOBBY SCREEN
+  Host view: shows room code + topic input + Start Game button
+  Guest view: shows room code + waiting message (no start button)
+  Both views: live player list that updates via WS PLAYER_JOINED
+-->
+<style>
+  .lobby-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; padding: 0 24px 36px;
+  }
+
+  /* ── TOP BAR ─────────────────────────────────────────────── */
+  .lobby-topbar {
+    width: 100%; display: flex;
+    align-items: center; justify-content: space-between;
+    padding: 20px 0 0;
+  }
+  .lobby-back-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: var(--radius-pill);
+    color: var(--white); font-family: var(--font-pixel);
+    font-size: 8px; padding: 8px 14px;
+    cursor: pointer; letter-spacing: 0.3px;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .lobby-back-btn:active { background: rgba(255,255,255,0.18); }
+  .lobby-screen-label {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.4); letter-spacing: 1px;
+  }
+
+  /* ── ROOM CODE HERO ──────────────────────────────────────── */
+  .lobby-code-section {
+    width: 100%; text-align: center;
+    padding: 28px 0 24px; display: flex;
+    flex-direction: column; align-items: center; gap: 10px;
+  }
+  .lobby-code-label {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.5); letter-spacing: 2px;
+  }
+  /* The big room code display */
+  .lobby-code-box {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .lobby-code-digit {
+    width: 56px; height: 64px;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.25);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-pixel); font-size: 26px;
+    color: var(--yellow); letter-spacing: 0;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.25);
+    /* pop-in animation */
+    animation: digit-pop 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  .lobby-code-digit:nth-child(2) { animation-delay: 0.05s; }
+  .lobby-code-digit:nth-child(3) { animation-delay: 0.10s; }
+  .lobby-code-digit:nth-child(4) { animation-delay: 0.15s; }
+  @keyframes digit-pop {
+    from { transform: scale(0.5) translateY(10px); opacity: 0; }
+    to   { transform: scale(1)   translateY(0);    opacity: 1; }
+  }
+  .lobby-copy-btn {
+    margin-top: 6px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: var(--radius-pill);
+    color: rgba(255,255,255,0.6); font-family: var(--font-pixel);
+    font-size: 7px; padding: 7px 16px;
+    cursor: pointer; letter-spacing: 0.3px;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .lobby-copy-btn:active { color: var(--yellow); border-color: var(--yellow); }
+
+  /* ── PLAYER LIST CARD ────────────────────────────────────── */
+  .lobby-players-card {
+    width: 100%; padding: 20px;
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .players-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .players-card-title {
+    font-family: var(--font-pixel); font-size: 9px;
+    color: var(--white); letter-spacing: 0.5px;
+  }
+  .players-count-badge {
+    font-family: var(--font-pixel); font-size: 8px;
+    padding: 4px 10px; border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.18);
+    border: 1px solid rgba(255,217,61,0.35);
+    color: var(--yellow);
+  }
+
+  /* Individual player row */
+  .player-list { display: flex; flex-direction: column; gap: 8px; }
+  .player-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    animation: player-slide-in 0.3s ease both;
+  }
+  @keyframes player-slide-in {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0);     }
+  }
+  .player-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+    /* background assigned per-player from JS */
+  }
+  .player-name {
+    flex: 1; font-family: var(--font-body); font-size: 16px;
+    font-weight: 700; color: var(--white);
+  }
+  .player-you-tag {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: var(--yellow); padding: 3px 8px;
+    border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.15);
+    border: 1px solid rgba(255,217,61,0.3);
+  }
+  .player-host-tag {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: var(--cyan, #4FC3F7); padding: 3px 8px;
+    border-radius: var(--radius-pill);
+    background: rgba(79,195,247,0.12);
+    border: 1px solid rgba(79,195,247,0.3);
+  }
+
+  /* Empty state */
+  .player-empty {
+    text-align: center; padding: 16px 0;
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.3); line-height: 2;
+  }
+
+  /* ── WAITING ANIMATION (for guests) ─────────────────────── */
+  .lobby-waiting {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 10px;
+    padding: 20px 0 4px;
+  }
+  .lobby-waiting-text {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.5); letter-spacing: 0.5px;
+    text-align: center; line-height: 2;
+  }
+
+  /* ── HOST CONTROLS ───────────────────────────────────────── */
+  .lobby-host-controls {
+    width: 100%; display: flex; flex-direction: column; gap: 16px;
+  }
+  .topic-char-count {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.35); text-align: right;
+    margin-top: -10px;
+  }
+  .start-hint {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.35); text-align: center;
+    line-height: 2; letter-spacing: 0.3px;
+  }
+
+  /* "Start Game" button disabled state */
+  .btn-start:disabled, .btn-start[disabled] {
+    opacity: 0.45 !important; pointer-events: none !important;
+  }
+  .btn-loading { opacity: 0.65 !important; pointer-events: none !important; }
+
+  /* ── TOPIC SUGGESTIONS ───────────────────────────────────── */
+  .topic-suggestions {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .topic-chip {
+    padding: 6px 12px; border-radius: var(--radius-pill);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    font-family: var(--font-body); font-size: 13px;
+    font-weight: 700; color: rgba(255,255,255,0.7);
+    cursor: pointer; transition: background 0.15s, color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .topic-chip:active,
+  .topic-chip.selected {
+    background: rgba(255,217,61,0.2);
+    border-color: rgba(255,217,61,0.5);
+    color: var(--yellow);
+  }
+</style>
+
+<div class="lobby-wrap">
+  <div class="stars-bg" id="lobby-stars"></div>
+
+  <!-- TOP BAR -->
+  <div class="lobby-topbar z1">
+    <button class="lobby-back-btn" onclick="lobbyGoHome()">← BACK</button>
+    <span class="lobby-screen-label">LOBBY</span>
+    <div style="width:64px"></div><!-- spacer -->
+  </div>
+
+  <!-- ROOM CODE HERO -->
+  <div class="lobby-code-section z1">
+    <p class="lobby-code-label">ROOM CODE</p>
+    <div class="lobby-code-box" id="lobby-code-box">
+      <!-- digits rendered by JS -->
+    </div>
+    <button class="lobby-copy-btn" onclick="lobbyCopyCode()">
+      📋 &nbsp;COPY CODE
+    </button>
+  </div>
+
+  <!-- PLAYER LIST -->
+  <div class="lobby-players-card z1">
+    <div class="players-card-header">
+      <span class="players-card-title">👥 PLAYERS</span>
+      <span class="players-count-badge" id="lobby-player-count">0 / ∞</span>
+    </div>
+    <div class="player-list" id="lobby-player-list">
+      <div class="player-empty">
+        Waiting for players to join...<br>Share the room code!
+      </div>
+    </div>
+  </div>
+
+  <!-- HOST CONTROLS (shown only to host) -->
+  <div class="lobby-host-controls z1" id="lobby-host-controls" style="display:none; margin-top:20px;">
+
+    <!-- Topic input -->
+    <div>
+      <label class="input-label" for="input-topic">QUIZ TOPIC</label>
+      <input id="input-topic" class="input-field" type="text"
+        placeholder="e.g. Marvel Movies, Space, Cricket..."
+        maxlength="60" autocomplete="off" autocorrect="off"
+        oninput="lobbyOnTopicInput()" />
+      <p class="topic-char-count"><span id="topic-char-count">0</span>/60</p>
+    </div>
+
+    <!-- Topic suggestion chips -->
+    <div>
+      <label class="input-label">QUICK PICKS</label>
+      <div class="topic-suggestions" id="topic-chips"></div>
+    </div>
+
+    <!-- Start button -->
+    <button class="btn btn-primary btn-start" id="btn-start-game"
+            onclick="lobbyStartGame()" disabled>
+      ⚡ &nbsp;START GAME
+    </button>
+
+    <p class="start-hint">
+      NEED AT LEAST 1 PLAYER · TOPIC REQUIRED<br>
+      AI WILL GENERATE 10 QUESTIONS
+    </p>
+  </div>
+
+  <!-- GUEST VIEW (shown to non-hosts) -->
+  <div class="lobby-waiting z1" id="lobby-guest-waiting" style="display:none; margin-top:20px;">
+    <div class="dot-loader">
+      <span></span><span></span><span></span>
+    </div>
+    <p class="lobby-waiting-text">
+      WAITING FOR HOST<br>TO START THE GAME...
+    </p>
+  </div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   LOBBY SCREEN LOGIC
+   ═══════════════════════════════════════════════════════════ */
+
+const TOPIC_SUGGESTIONS = [
+  '🎬 Marvel Movies', '🚀 Space & Astronomy', '🏏 Cricket',
+  '🎮 Video Games', '🌍 World Geography', '🧪 Science',
+  '🎵 Music', '⚽ Football', '🍕 Food & Cuisine',
+  '🤖 AI & Tech', '📚 Harry Potter', '🦁 Animals',
+];
+
+// Avatar colours — rotate through these for each player slot
+const AVATAR_COLOURS = [
+  '#E63946','#2196F3','#06D6A0','#9B5DE5',
+  '#FF9F1C','#4FC3F7','#FFD93D','#FF6B9D',
+];
+const AVATARS = ['😀','🤩','🧠','🦊','🐼','🦁','🐯','🤖','👾','🎩','🦄','🐸'];
+
+/** Called by the router when this screen becomes active */
+function onLobbyShow() {
+  const starsEl = document.getElementById('lobby-stars');
+  if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
+
+  // Render room code as individual digit boxes
+  _renderCodeBoxes(State.roomCode);
+
+  // Show correct panel for host vs guest
+  const hostPanel  = document.getElementById('lobby-host-controls');
+  const guestPanel = document.getElementById('lobby-guest-waiting');
+  if (State.isHost) {
+    hostPanel.style.display  = 'flex';
+    guestPanel.style.display = 'none';
+    _renderTopicChips();
+  } else {
+    hostPanel.style.display  = 'none';
+    guestPanel.style.display = 'flex';
+  }
+
+  // Initial player list render
+  _renderPlayerList(State.players);
+
+  // Subscribe to WebSocket events
+  WS.on('PLAYER_JOINED',  (data) => {
+    State.players = data.players;
+    _renderPlayerList(data.players);
+  });
+  WS.on('GAME_STARTING', (data) => {
+    State.topic  = data.topic;
+    State.totalQ = data.total_questions;
+    goTo('game');
+  });
+  WS.on('ERROR', (data) => {
+    Toast.error(data.message || 'Something went wrong.');
+  });
+}
+
+/** Render the 4 digit boxes for the room code */
+function _renderCodeBoxes(code) {
+  const box = document.getElementById('lobby-code-box');
+  if (!box || !code) return;
+  box.innerHTML = code.split('').map(ch =>
+    `<div class="lobby-code-digit">${ch}</div>`
+  ).join('');
+}
+
+/** Render topic suggestion chips */
+function _renderTopicChips() {
+  const container = document.getElementById('topic-chips');
+  if (!container) return;
+  container.innerHTML = TOPIC_SUGGESTIONS.map((t, i) =>
+    `<div class="topic-chip" onclick="lobbyPickTopic(this,'${t}')">${t}</div>`
+  ).join('');
+}
+
+/** Render the live player list */
+function _renderPlayerList(players) {
+  const listEl  = document.getElementById('lobby-player-list');
+  const countEl = document.getElementById('lobby-player-count');
+  if (!listEl) return;
+
+  if (!players || players.length === 0) {
+    listEl.innerHTML = `<div class="player-empty">Waiting for players to join...<br>Share the room code!</div>`;
+    if (countEl) countEl.textContent = '0 / ∞';
+    _updateStartBtn();
+    return;
+  }
+
+  listEl.innerHTML = players.map((name, i) => {
+    const isYou  = name === State.playerName;
+    // First player is always the host (server guarantees ordering)
+    const isHost = i === 0;
+    const col    = AVATAR_COLOURS[i % AVATAR_COLOURS.length];
+    const emoji  = AVATARS[i % AVATARS.length];
+    const tag    = isYou  ? '<span class="player-you-tag">YOU</span>'
+                 : isHost ? '<span class="player-host-tag">HOST</span>'
+                 : '';
+    return `
+      <div class="player-row">
+        <div class="player-avatar" style="background:${col}22; border: 2px solid ${col}66;">
+          ${emoji}
+        </div>
+        <span class="player-name">${_escHtml(name)}</span>
+        ${tag}
+      </div>`;
+  }).join('');
+
+  if (countEl) countEl.textContent = `${players.length} JOINED`;
+  _updateStartBtn();
+}
+
+/** Enable/disable Start Game button based on validation */
+function _updateStartBtn() {
+  const btn = document.getElementById('btn-start-game');
+  if (!btn) return;
+  const topic    = document.getElementById('input-topic')?.value.trim();
+  const hasPlayers = State.players.length >= 1;
+  const hasTopic   = topic && topic.length > 0;
+  btn.disabled = !(hasPlayers && hasTopic);
+}
+
+/** HTML escape helper */
+function _escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── TOPIC CONTROLS ─────────────────────────────────────── */
+
+function lobbyOnTopicInput() {
+  const input  = document.getElementById('input-topic');
+  const count  = document.getElementById('topic-char-count');
+  const val    = input?.value || '';
+  if (count) count.textContent = val.length;
+
+  // Deselect all chips when typing manually
+  document.querySelectorAll('.topic-chip').forEach(c => c.classList.remove('selected'));
+  _updateStartBtn();
+}
+
+function lobbyPickTopic(el, topic) {
+  const input = document.getElementById('input-topic');
+  // Strip emoji prefix for the actual topic value sent to server
+  const clean = topic.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{27FF}]\s*/u, '');
+  if (input) {
+    input.value = clean;
+    const count = document.getElementById('topic-char-count');
+    if (count) count.textContent = clean.length;
+  }
+  // Toggle chip selection
+  document.querySelectorAll('.topic-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _updateStartBtn();
+}
+
+/* ── ACTIONS ────────────────────────────────────────────── */
+
+/** Copy room code to clipboard */
+function lobbyCopyCode() {
+  navigator.clipboard?.writeText(State.roomCode).then(() => {
+    Toast.success(`Code ${State.roomCode} copied!`);
+  }).catch(() => {
+    Toast.info(`Room code: ${State.roomCode}`);
+  });
+}
+
+/** Go back to home screen, close WS */
+function lobbyGoHome() {
+  if (State.ws) { State.ws.close(); State.ws = null; }
+  State.roomCode = '';
+  State.isHost   = false;
+  State.players  = [];
+  WS.off('PLAYER_JOINED');
+  WS.off('GAME_STARTING');
+  WS.off('ERROR');
+  goTo('home');
+}
+
+/**
+ * Host only: send start_game action to server.
+ * Server → broadcasts GAME_STARTING to all clients → everyone navigates to game screen.
+ */
+function lobbyStartGame() {
+  const topic = document.getElementById('input-topic')?.value.trim();
+  if (!topic) { Toast.error('Enter a topic first!'); return; }
+  if (State.players.length < 1) { Toast.error('At least 1 player required!'); return; }
+
+  const btn = document.getElementById('btn-start-game');
+  if (btn) { btn.textContent = '⏳  GENERATING...'; btn.disabled = true; }
+
+  WS.send({ action: 'start_game', topic });
+  Toast.info('Generating your quiz...');
+}
+</script>

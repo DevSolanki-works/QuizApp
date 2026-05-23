@@ -1,0 +1,257 @@
+<!--
+  HOME SCREEN
+  Two flows: Host (create room) | Guest (join with code)
+-->
+<style>
+  .home-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; padding: 0 24px 32px;
+  }
+  .home-hero {
+    width: 100%; display: flex; flex-direction: column;
+    align-items: center; padding: 52px 0 36px; gap: 14px;
+  }
+  .home-trophy {
+    font-size: 56px; line-height: 1;
+    animation: trophy-bounce 2.4s ease-in-out infinite;
+    filter: drop-shadow(0 4px 24px rgba(255,217,61,0.5));
+  }
+  @keyframes trophy-bounce {
+    0%,100% { transform: translateY(0) rotate(-3deg) scale(1); }
+    50%      { transform: translateY(-10px) rotate(3deg) scale(1.05); }
+  }
+  .home-title {
+    font-family: var(--font-pixel); font-size: 26px;
+    color: var(--white); letter-spacing: 2px;
+    text-align: center; line-height: 1.5;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.4);
+  }
+  .home-title-accent { color: var(--yellow); font-size: 12px; }
+  .home-tagline {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.5); text-align: center;
+    letter-spacing: 1px; line-height: 2;
+  }
+  .home-live-badge {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: var(--radius-pill);
+    background: rgba(6,214,160,0.12);
+    border: 1px solid rgba(6,214,160,0.3); margin-top: 4px;
+  }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 8px var(--green);
+    animation: pulse-dot 1.5s infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:0.4; transform:scale(0.75); }
+  }
+  .live-text {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: var(--green); letter-spacing: 0.5px;
+  }
+  .home-card {
+    width: 100%; padding: 28px 22px;
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.16);
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .card-heading {
+    font-family: var(--font-pixel); font-size: 9px;
+    color: var(--yellow); letter-spacing: 0.8px; text-align: center;
+  }
+  .code-input {
+    text-align: center !important; text-transform: uppercase;
+    letter-spacing: 10px !important; font-size: 24px !important;
+    font-weight: 900 !important; color: var(--yellow) !important;
+  }
+  .code-input::placeholder {
+    letter-spacing: 4px !important; font-size: 18px !important;
+    color: rgba(255,255,255,0.2) !important;
+  }
+  .home-features {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    justify-content: center; margin-top: 14px;
+  }
+  .feature-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: var(--radius-pill);
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.5); letter-spacing: 0.3px;
+  }
+  .feature-pill .fi { font-size: 13px; }
+  .home-footer {
+    margin-top: auto; padding-top: 28px;
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.2); text-align: center; line-height: 2.2;
+  }
+  .input-field.error {
+    border-color: var(--red) !important;
+    box-shadow: 0 0 0 4px rgba(239,35,60,0.18) !important;
+    animation: shake 0.3s ease;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0);  }
+    25%      { transform: translateX(-6px); }
+    75%      { transform: translateX(6px);  }
+  }
+  .btn-loading { opacity: 0.65 !important; pointer-events: none !important; }
+</style>
+
+<div class="home-wrap">
+  <div class="confetti-bg" id="home-confetti"></div>
+  <div class="stars-bg"    id="home-stars"></div>
+
+  <!-- HERO -->
+  <div class="home-hero z1">
+    <div class="home-trophy">🏆</div>
+    <h1 class="home-title">
+      FORGE<br>
+      <span class="home-title-accent">AI TRIVIA SHOWDOWN</span>
+    </h1>
+    <p class="home-tagline">TYPE ANY TOPIC · AI BUILDS YOUR QUIZ · PLAY LIVE</p>
+    <div class="home-live-badge">
+      <div class="live-dot"></div>
+      <span class="live-text" id="home-status-text">CONNECTING...</span>
+    </div>
+  </div>
+
+  <!-- ACTION CARD -->
+  <div class="home-card z1">
+    <p class="card-heading">✦ LET'S PLAY ✦</p>
+
+    <div>
+      <label class="input-label" for="input-name">YOUR NAME</label>
+      <input id="input-name" class="input-field" type="text"
+        placeholder="e.g. QuizMaster99" maxlength="20"
+        autocomplete="off" autocorrect="off" spellcheck="false" />
+    </div>
+
+    <button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()">
+      🎮 &nbsp;CREATE ROOM
+    </button>
+
+    <div class="divider-text">OR JOIN A ROOM</div>
+
+    <div>
+      <label class="input-label" for="input-code">ROOM CODE</label>
+      <input id="input-code" class="input-field code-input" type="text"
+        placeholder="XXXX" maxlength="4"
+        autocomplete="off" autocorrect="off" spellcheck="false" />
+    </div>
+
+    <button class="btn btn-secondary" id="btn-join" onclick="homeJoinRoom()">
+      🚀 &nbsp;JOIN ROOM
+    </button>
+  </div>
+
+  <!-- FEATURE PILLS -->
+  <div class="home-features z1">
+    <div class="feature-pill"><span class="fi">🤖</span> AI-GENERATED</div>
+    <div class="feature-pill"><span class="fi">⚡</span> REAL-TIME</div>
+    <div class="feature-pill"><span class="fi">🌐</span> ANY TOPIC</div>
+    <div class="feature-pill"><span class="fi">👥</span> MULTIPLAYER</div>
+  </div>
+
+  <div class="home-footer z1">
+    POWERED BY GEMINI AI &nbsp;·&nbsp; &copy; 2025 FORGE
+  </div>
+</div>
+
+<script>
+function onHomeShow() {
+  const confettiEl = document.getElementById('home-confetti');
+  const starsEl    = document.getElementById('home-stars');
+  if (confettiEl) { confettiEl.innerHTML = ''; spawnConfetti(confettiEl); }
+  if (starsEl)    { starsEl.innerHTML    = ''; spawnStars(starsEl);       }
+  _homeUpdateStatus();
+
+  const codeInput = document.getElementById('input-code');
+  if (codeInput) {
+    codeInput.addEventListener('input', () => {
+      codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
+    codeInput.addEventListener('keydown', e => { if (e.key==='Enter') homeJoinRoom(); });
+  }
+  const nameInput = document.getElementById('input-name');
+  if (nameInput) {
+    nameInput.addEventListener('keydown', e => { if (e.key==='Enter') homeCreateRoom(); });
+  }
+}
+
+async function _homeUpdateStatus() {
+  const badge = document.getElementById('home-status-text');
+  if (!badge) return;
+  try {
+    const d = await API.health();
+    badge.textContent = `${d.active_rooms ?? 0} ROOMS ACTIVE`;
+  } catch {
+    badge.textContent = 'SERVER OFFLINE';
+  }
+}
+
+function _validateName() {
+  const el  = document.getElementById('input-name');
+  const val = el?.value.trim();
+  if (!val) { _shakeEl(el); Toast.error('Enter your name first!'); return null; }
+  return val;
+}
+function _shakeEl(el) {
+  if (!el) return;
+  el.classList.add('error');
+  setTimeout(() => el.classList.remove('error'), 800);
+}
+function _setLoading(id, on) {
+  const b = document.getElementById(id);
+  if (b) { b.classList.toggle('btn-loading', on); b.disabled = on; }
+}
+
+async function homeCreateRoom() {
+  const name = _validateName();
+  if (!name) return;
+  _setLoading('btn-create', true);
+  try {
+    const data = await API.createRoom(name);
+    State.playerName = name;
+    State.roomCode   = data.room_code;
+    State.isHost     = true;
+    State.players    = [name];
+    WS.connect(State.roomCode, State.playerName);
+    await goTo('lobby');
+  } catch(e) {
+    console.error(e);
+    Toast.error('Could not create room. Try again.');
+  } finally {
+    _setLoading('btn-create', false);
+  }
+}
+
+async function homeJoinRoom() {
+  const name = _validateName();
+  if (!name) return;
+  const codeEl = document.getElementById('input-code');
+  const code   = codeEl?.value.trim().toUpperCase();
+  if (!code || code.length !== 4) {
+    _shakeEl(codeEl); Toast.error('Enter a 4-digit room code!'); return;
+  }
+  _setLoading('btn-join', true);
+  try {
+    await API.getRoom(code);
+    State.playerName = name;
+    State.roomCode   = code;
+    State.isHost     = false;
+    WS.connect(State.roomCode, State.playerName);
+    await goTo('lobby');
+  } catch(e) {
+    console.error(e);
+    _shakeEl(codeEl); Toast.error('Room not found. Check the code!');
+  } finally {
+    _setLoading('btn-join', false);
+  }
+}
+</script>
