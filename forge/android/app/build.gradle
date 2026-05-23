@@ -16,10 +16,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            storeFile file("C:/QuizApp/forge-release.jks")   // path to your .jks
+            storePassword "YOUR_KEYSTORE_PASSWORD"
+            keyAlias "forge"
+            keyPassword "YOUR_KEYSTORE_PASSWORD"
+        }
+    }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+            minifyEnabled false      // keep false for now — ProGuard can break Capacitor
+            shrinkResources false
         }
     }
 }
