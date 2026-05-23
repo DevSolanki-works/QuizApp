@@ -1,27 +1,42 @@
-.venv/
-.env
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.db
-*.sqlite3
-*.log
-*.bak
-*.swp
-*.tmp
-.DS_Store
-.idea/
-.vscode/
-*.iml
-*.sublime-project
-*.sublime-workspace
-*.egg-info/
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production Build Directories
 dist/
 build/
-*.egg
-*.whl
-coverage/
-htmlcov/
-.coverage
-.coverage.*
+out/
+.next/
+
+# Capacitor / Android Generated files
+# Note: Keep the 'android/' folder itself if you want to track native configurations, 
+# but ignore the massive automatic build artifacts inside it.
+android/app/build/
+android/.gradle/
+android/local.properties
+android/captmp/
+android/app/src/main/assets/public/
+
+# Python / Environment virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+.env.local
+.env.*.local
+
+# IDEs and System Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
