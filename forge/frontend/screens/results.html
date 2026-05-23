@@ -1,0 +1,422 @@
+<!--
+  RESULTS SCREEN
+  Final podium with top 3, full leaderboard, play-again / home buttons
+-->
+<style>
+  .results-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; padding: 0 24px 40px;
+    overflow-y: auto;
+  }
+
+  /* ── HEADER ─────────────────────────────────────────────── */
+  .results-header {
+    width: 100%; text-align: center;
+    padding: 36px 0 20px;
+  }
+  .results-trophy-anim {
+    font-size: 64px;
+    display: block; margin: 0 auto 12px;
+    animation: winner-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes winner-pop {
+    from { transform: scale(0) rotate(-20deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0deg);   opacity: 1; }
+  }
+  .results-title {
+    font-family: var(--font-pixel); font-size: 16px;
+    color: var(--white); letter-spacing: 1px; line-height: 1.5;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.3);
+  }
+  .results-subtitle {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.45); letter-spacing: 1px;
+    margin-top: 6px;
+  }
+  .results-topic-badge {
+    margin-top: 12px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 16px; border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.15);
+    border: 1px solid rgba(255,217,61,0.35);
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--yellow); letter-spacing: 0.3px;
+  }
+
+  /* ── PODIUM ─────────────────────────────────────────────── */
+  .podium-wrap {
+    width: 100%; display: flex;
+    align-items: flex-end; justify-content: center;
+    gap: 8px; margin: 24px 0 8px;
+  }
+  .podium-slot {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 6px;
+  }
+  /* Crown / medal emoji above name */
+  .podium-medal { font-size: 28px; line-height: 1; }
+  .podium-name {
+    font-family: var(--font-body); font-size: 13px;
+    font-weight: 900; color: var(--white);
+    text-align: center; max-width: 90px;
+    white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .podium-name.is-you { color: var(--yellow); }
+  .podium-pts {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.6);
+  }
+  /* The coloured block */
+  .podium-block {
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    width: 90px; display: flex; align-items: center;
+    justify-content: center;
+    font-family: var(--font-pixel); font-size: 18px;
+    animation: block-grow 0.6s cubic-bezier(0.22,1,0.36,1) both;
+    transform-origin: bottom;
+  }
+  .podium-block.p1 {
+    height: 100px; background: linear-gradient(180deg, #FFD93D, #E6B800);
+    box-shadow: 0 4px 20px rgba(255,217,61,0.4);
+    animation-delay: 0.1s;
+  }
+  .podium-block.p2 {
+    height: 70px; background: linear-gradient(180deg, #C0C0C0, #888);
+    box-shadow: 0 4px 14px rgba(192,192,192,0.3);
+    animation-delay: 0.2s;
+  }
+  .podium-block.p3 {
+    height: 50px; background: linear-gradient(180deg, #CD9F60, #8B6914);
+    box-shadow: 0 4px 10px rgba(205,127,50,0.3);
+    animation-delay: 0.3s;
+  }
+  @keyframes block-grow {
+    from { transform: scaleY(0); }
+    to   { transform: scaleY(1); }
+  }
+  /* Reorder: 2nd on left, 1st in centre, 3rd on right */
+  .podium-slot.p2 { order: 1; }
+  .podium-slot.p1 { order: 2; }
+  .podium-slot.p3 { order: 3; }
+
+  /* ── FULL LEADERBOARD ───────────────────────────────────── */
+  .results-lb-card {
+    width: 100%; padding: 20px;
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    margin-top: 20px;
+  }
+  .results-lb-title {
+    font-family: var(--font-pixel); font-size: 9px;
+    color: var(--yellow); letter-spacing: 0.5px;
+    margin-bottom: 14px; text-align: center;
+  }
+  .results-lb-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    animation: fade-up 0.3s ease both;
+  }
+  .results-lb-row:last-child { margin-bottom: 0; }
+  .results-lb-row.is-you {
+    background: rgba(255,217,61,0.12);
+    border: 1px solid rgba(255,217,61,0.3);
+  }
+  .results-lb-row:not(.is-you) {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .rlb-rank {
+    font-family: var(--font-pixel); font-size: 9px;
+    color: rgba(255,255,255,0.4); width: 20px;
+    text-align: center; flex-shrink: 0;
+  }
+  .rlb-name {
+    flex: 1; font-family: var(--font-body);
+    font-size: 15px; font-weight: 800; color: var(--white);
+  }
+  .rlb-name.is-you { color: var(--yellow); }
+  .rlb-score {
+    font-family: var(--font-pixel); font-size: 9px;
+    color: var(--white);
+  }
+  /* Score bar behind each row */
+  .rlb-bar-wrap {
+    position: relative;
+    width: 100%; background: rgba(255,255,255,0.05);
+    height: 3px; border-radius: 2px; margin-top: 6px;
+    overflow: hidden;
+  }
+  .rlb-bar-fill {
+    height: 100%; border-radius: 2px;
+    background: var(--yellow);
+    transition: width 1s ease;
+  }
+
+  /* ── MY RESULT CALLOUT ──────────────────────────────────── */
+  .my-result-card {
+    width: 100%; margin-top: 16px; padding: 18px 20px;
+    border-radius: var(--radius-lg); text-align: center;
+    background: rgba(255,217,61,0.1);
+    border: 2px solid rgba(255,217,61,0.4);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .my-result-label {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.5); letter-spacing: 0.5px;
+  }
+  .my-result-score {
+    font-family: var(--font-pixel); font-size: 28px;
+    color: var(--yellow);
+    text-shadow: 0 0 20px rgba(255,217,61,0.5);
+  }
+  .my-result-rank {
+    font-family: var(--font-body); font-size: 15px;
+    font-weight: 700; color: rgba(255,255,255,0.7);
+  }
+
+  /* ── ACTION BUTTONS ─────────────────────────────────────── */
+  .results-actions {
+    width: 100%; display: flex; flex-direction: column;
+    gap: 12px; margin-top: 24px;
+  }
+
+  /* ── CONFETTI BURST on first load ───────────────────────── */
+  .burst-piece {
+    position: fixed; z-index: 200;
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    pointer-events: none;
+    animation: burst-fall var(--dur) ease-out var(--delay) forwards;
+    opacity: 0;
+  }
+  @keyframes burst-fall {
+    0%   { transform: translate(0,0) rotate(0deg); opacity:1; }
+    100% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)); opacity:0; }
+  }
+</style>
+
+<div class="results-wrap" id="results-wrap">
+  <div class="confetti-bg" id="results-confetti"></div>
+
+  <!-- HEADER -->
+  <div class="results-header z1">
+    <span class="results-trophy-anim" id="results-trophy">🏆</span>
+    <h1 class="results-title">GAME OVER!</h1>
+    <p class="results-subtitle">FINAL STANDINGS</p>
+    <div class="results-topic-badge" id="results-topic">🎯 —</div>
+  </div>
+
+  <!-- PODIUM -->
+  <div class="podium-wrap z1" id="results-podium"></div>
+
+  <!-- MY RESULT -->
+  <div class="my-result-card z1" id="my-result-card">
+    <p class="my-result-label">YOUR FINAL SCORE</p>
+    <p class="my-result-score" id="my-result-score">—</p>
+    <p class="my-result-rank" id="my-result-rank">—</p>
+  </div>
+
+  <!-- FULL LEADERBOARD -->
+  <div class="results-lb-card z1">
+    <p class="results-lb-title">📋 ALL PLAYERS</p>
+    <div id="results-lb-list"></div>
+  </div>
+
+  <!-- ACTION BUTTONS -->
+  <div class="results-actions z1">
+    <button class="btn btn-primary" onclick="resultsPlayAgain()">
+      🔄 &nbsp;PLAY AGAIN
+    </button>
+    <button class="btn btn-secondary" onclick="resultsGoHome()">
+      🏠 &nbsp;BACK TO HOME
+    </button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   RESULTS SCREEN LOGIC
+   ═══════════════════════════════════════════════════════════ */
+
+function onResultsShow() {
+  // Spawn background confetti
+  const conf = document.getElementById('results-confetti');
+  if (conf) { conf.innerHTML = ''; spawnConfetti(conf); }
+
+  // Fire a confetti burst from centre
+  _confettiBurst();
+
+  // Populate topic badge
+  const topicEl = document.getElementById('results-topic');
+  if (topicEl) topicEl.textContent = `🎯 ${State.topic || 'Trivia'}`;
+
+  // Sort scores
+  const sorted = Object.entries(State.scores || {})
+    .sort((a, b) => b[1] - a[1]);
+
+  const maxScore = sorted[0]?.[1] || 1;
+
+  // Render podium (top 3)
+  _renderPodium(sorted);
+
+  // Render full leaderboard
+  _renderFullLB(sorted, maxScore);
+
+  // My result callout
+  _renderMyResult(sorted);
+
+  // Trophy emoji based on my position
+  const myRank = sorted.findIndex(([n]) => n === State.playerName) + 1;
+  const trophy = document.getElementById('results-trophy');
+  if (trophy) {
+    trophy.textContent = myRank === 1 ? '🏆' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🎮';
+  }
+
+  // Disconnect WS — game is over
+  if (State.ws) { State.ws.close(); State.ws = null; }
+}
+
+/* ── PODIUM ──────────────────────────────────────────────── */
+function _renderPodium(sorted) {
+  const wrap = document.getElementById('results-podium');
+  if (!wrap) return;
+
+  // Only show up to 3 players
+  const top3  = sorted.slice(0, 3);
+  const medals = ['🥇','🥈','🥉'];
+  const pClass = ['p1','p2','p3'];
+  const block  = ['p1','p2','p3'];
+
+  // We always show slots for 1st,2nd,3rd (even if empty — game might be solo)
+  wrap.innerHTML = top3.map(([ name, score ], i) => {
+    const isYou = name === State.playerName;
+    return `
+      <div class="podium-slot ${pClass[i]}">
+        <span class="podium-medal">${medals[i]}</span>
+        <p class="podium-name ${isYou ? 'is-you' : ''}">${_escHtml(name)}</p>
+        <p class="podium-pts">${score.toLocaleString()}</p>
+        <div class="podium-block ${block[i]}">${i + 1}</div>
+      </div>`;
+  }).join('');
+}
+
+/* ── FULL LEADERBOARD ────────────────────────────────────── */
+function _renderFullLB(sorted, maxScore) {
+  const list = document.getElementById('results-lb-list');
+  if (!list) return;
+  const medals = ['🥇','🥈','🥉'];
+
+  list.innerHTML = sorted.map(([name, score], i) => {
+    const rank    = i + 1;
+    const isYou   = name === State.playerName;
+    const rankStr = rank <= 3 ? medals[i] : `#${rank}`;
+    const barPct  = Math.round((score / maxScore) * 100);
+    return `
+      <div class="results-lb-row ${isYou ? 'is-you' : ''}"
+           style="animation-delay:${i * 0.05}s; flex-direction:column; padding:10px 12px;">
+        <div style="display:flex;align-items:center;gap:12px;width:100%">
+          <span class="rlb-rank">${rankStr}</span>
+          <span class="rlb-name ${isYou ? 'is-you' : ''}">${_escHtml(name)}${isYou ? ' ✦' : ''}</span>
+          <span class="rlb-score">${score.toLocaleString()}</span>
+        </div>
+        <div class="rlb-bar-wrap">
+          <div class="rlb-bar-fill" style="width:${barPct}%"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ── MY RESULT ───────────────────────────────────────────── */
+function _renderMyResult(sorted) {
+  const myIdx   = sorted.findIndex(([n]) => n === State.playerName);
+  const myScore = myIdx >= 0 ? sorted[myIdx][1] : 0;
+  const myRank  = myIdx + 1;
+  const total   = sorted.length;
+
+  const scoreEl = document.getElementById('my-result-score');
+  const rankEl  = document.getElementById('my-result-rank');
+
+  if (scoreEl) scoreEl.textContent = myScore.toLocaleString();
+
+  if (rankEl) {
+    const rankLabel = myRank === 1  ? '🏆 WINNER!'
+                    : myRank === 2  ? '🥈 2nd Place'
+                    : myRank === 3  ? '🥉 3rd Place'
+                    : `${myRank} of ${total} players`;
+    rankEl.textContent = rankLabel;
+  }
+}
+
+/* ── CONFETTI BURST ──────────────────────────────────────── */
+function _confettiBurst() {
+  const colours = ['#FFD93D','#06D6A0','#EF233C','#9B5DE5','#4FC3F7','#FF9F1C'];
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 3;
+
+  for (let i = 0; i < 40; i++) {
+    const el  = document.createElement('div');
+    el.className = 'burst-piece';
+    const angle  = Math.random() * Math.PI * 2;
+    const dist   = 80 + Math.random() * 200;
+    const tx     = Math.cos(angle) * dist;
+    const ty     = Math.sin(angle) * dist + 100;   /* drift down */
+    const rot    = `${Math.random() * 720 - 360}deg`;
+    const dur    = `${0.6 + Math.random() * 0.8}s`;
+    const delay  = `${Math.random() * 0.3}s`;
+    el.style.cssText = `
+      left:${cx}px; top:${cy}px;
+      background:${colours[i % colours.length]};
+      --tx:${tx}px; --ty:${ty}px; --rot:${rot};
+      --dur:${dur}; --delay:${delay};
+    `;
+    document.body.appendChild(el);
+    // Remove after animation
+    setTimeout(() => el.remove(), 1500);
+  }
+}
+
+/* ── ACTIONS ─────────────────────────────────────────────── */
+
+/**
+ * Host can play again — goes back to lobby with same room.
+ * Guests go home since the room state is cleared on server restart.
+ */
+async function resultsPlayAgain() {
+  if (State.isHost) {
+    // Re-create a fresh room
+    try {
+      const data = await API.createRoom(State.playerName);
+      State.roomCode = data.room_code;
+      State.players  = [State.playerName];
+      State.scores   = {};
+      WS.connect(State.roomCode, State.playerName);
+      await goTo('lobby');
+    } catch(e) {
+      Toast.error('Could not create new room.');
+      console.error(e);
+    }
+  } else {
+    // Guests go home to rejoin with a new code
+    resultsGoHome();
+  }
+}
+
+function resultsGoHome() {
+  State.roomCode = '';
+  State.isHost   = false;
+  State.players  = [];
+  State.scores   = {};
+  State.topic    = '';
+  if (State.ws) { State.ws.close(); State.ws = null; }
+  goTo('home');
+}
+
+function _escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
