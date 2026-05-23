@@ -3,560 +3,468 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#000000" />
-  <title>Forge — AI Trivia Showdown</title>
+  <meta name="theme-color" content="#1B2EAD" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>FORGE — AI Trivia Showdown</title>
 
-  <!-- Tailwind CDN (dev only — replace with CLI build for production) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Share Tech Mono — monospace hacker font -->
+  <!-- Press Start 2P = pixel font for UI chrome / titles / labels -->
+  <!-- Nunito = clean readable font for questions & body copy -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
 
   <style>
-    /* ── Design Tokens ── */
+    /* ══════════════════════════════════════════════════════
+       CSS VARIABLES — FORGE QUIZ THEME
+       ══════════════════════════════════════════════════════ */
     :root {
-      --neon-green:  #00FF41;
-      --neon-cyan:   #00D4FF;
-      --neon-red:    #FF003C;
-      --neon-yellow: #FFE600;
-      --bg:          #000000;
-      --surface:     #0a0a0a;
-      --surface-2:   #111111;
-      --text:        #E0E0E0;
-      --text-dim:    #666666;
-      --font-mono:   'Share Tech Mono', monospace;
-      --font-title:  'Orbitron', sans-serif;
+      --bg:           #0D1B8E;
+      --bg-mid:       #1B2EAD;
+      --bg-light:     #2540CC;
+      --white:        #FFFFFF;
+      --off-white:    #EEF2FF;
+      --text-dark:    #1A1A2E;
+
+      --yellow:       #FFD93D;
+      --yellow-dark:  #E6B800;
+      --green:        #06D6A0;
+      --red:          #EF233C;
+      --purple:       #9B5DE5;
+
+      --opt-a:        #E63946;
+      --opt-b:        #2196F3;
+      --opt-c:        #06D6A0;
+      --opt-d:        #9B5DE5;
+
+      --font-pixel:   'Press Start 2P', monospace;
+      --font-body:    'Nunito', sans-serif;
+
+      --max-w:        430px;
+      --radius-sm:    8px;
+      --radius-md:    14px;
+      --radius-lg:    20px;
+      --radius-pill:  999px;
     }
 
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
-      margin: 0; padding: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-mono);
       height: 100%;
-      overflow: hidden; /* We manage scrolling per-screen */
-    }
-
-    /* ── App Shell ── */
-    #app {
-      max-width: 430px;
-      margin: 0 auto;
-      height: 100dvh; /* dvh = dynamic viewport height, handles mobile browser chrome */
-      display: flex;
-      flex-direction: column;
-      position: relative;
       overflow: hidden;
+      background: var(--bg);
+      font-family: var(--font-body);
+      color: var(--white);
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Screen system — only one screen visible at a time ── */
-    .screen {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      padding: 24px 20px;
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(16px);
-      transition: opacity 0.25s ease, transform 0.25s ease;
-    }
-    .screen.active {
-      opacity: 1;
-      pointer-events: all;
-      transform: translateY(0);
-    }
-
-    /* ── Scanline overlay — subtle CRT effect ── */
-    #app::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,255,65,0.015) 2px,
-        rgba(0,255,65,0.015) 4px
-      );
-      pointer-events: none;
-      z-index: 999;
-    }
-
-    /* ── Neon text ── */
-    .neon-green { color: var(--neon-green); }
-    .neon-cyan  { color: var(--neon-cyan);  }
-    .neon-red   { color: var(--neon-red);   }
-
-    /* ── Neon glow text effect ── */
-    .glow-green {
-      color: var(--neon-green);
-      text-shadow: 0 0 10px var(--neon-green), 0 0 30px rgba(0,255,65,0.4);
-    }
-    .glow-cyan {
-      color: var(--neon-cyan);
-      text-shadow: 0 0 10px var(--neon-cyan), 0 0 30px rgba(0,212,255,0.4);
-    }
-
-    /* ── Buttons ── */
-    .btn {
-      display: block;
+    /* ── APP SHELL ──────────────────────────────────────── */
+    #app {
       width: 100%;
-      min-height: 52px;
-      padding: 14px 20px;
-      font-family: var(--font-mono);
-      font-size: 14px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      text-align: center;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      background-image: radial-gradient(ellipse at 50% 0%, #2540CC 0%, #0D1B8E 65%);
+    }
+
+    .screen {
+      width: 100%;
+      max-width: var(--max-w);
+      height: 100%;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+    }
+    .screen.active { display: flex; }
+
+    /* ── BUTTONS ─────────────────────────────────────────── */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 56px;
+      border: none;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      letter-spacing: 0.5px;
       cursor: pointer;
-      border-radius: 4px;
-      transition: all 0.15s ease;
-      background: transparent;
+      transition: transform 0.1s ease;
+      -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
     .btn:active { transform: scale(0.97); }
 
     .btn-primary {
-      border: 1.5px solid var(--neon-green);
-      color: var(--neon-green);
+      background: var(--yellow);
+      color: var(--text-dark);
+      box-shadow: 0 6px 0 var(--yellow-dark), 0 8px 20px rgba(255,217,61,0.35);
     }
-    .btn-primary:hover {
-      background: rgba(0,255,65,0.08);
-      box-shadow: 0 0 16px rgba(0,255,65,0.25), inset 0 0 16px rgba(0,255,65,0.05);
+    .btn-primary:active {
+      box-shadow: 0 2px 0 var(--yellow-dark);
+      transform: translateY(4px);
     }
 
     .btn-secondary {
-      border: 1.5px solid var(--neon-cyan);
-      color: var(--neon-cyan);
+      background: rgba(255,255,255,0.12);
+      color: var(--white);
+      border: 2px solid rgba(255,255,255,0.3);
+      box-shadow: 0 4px 0 rgba(0,0,0,0.2);
     }
-    .btn-secondary:hover {
-      background: rgba(0,212,255,0.08);
-      box-shadow: 0 0 16px rgba(0,212,255,0.25);
+    .btn-secondary:active {
+      box-shadow: none;
+      transform: translateY(4px);
     }
 
     .btn-danger {
-      border: 1.5px solid var(--neon-red);
-      color: var(--neon-red);
+      background: var(--red);
+      color: var(--white);
+      box-shadow: 0 6px 0 #9B0019;
+    }
+    .btn-danger:active {
+      box-shadow: 0 2px 0 #9B0019;
+      transform: translateY(4px);
     }
 
-    .btn:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-      transform: none !important;
-    }
-
-    /* ── Answer option buttons ── */
-    .answer-btn {
+    /* ── INPUTS ──────────────────────────────────────────── */
+    .input-label {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      color: var(--yellow);
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
       display: block;
-      width: 100%;
-      min-height: 60px;
-      padding: 16px;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      text-align: left;
-      cursor: pointer;
-      border-radius: 4px;
-      background: var(--surface-2);
-      border: 1px solid #1a1a1a;
-      color: var(--text);
-      transition: all 0.15s ease;
-      line-height: 1.4;
     }
-    .answer-btn:hover:not(:disabled) {
-      border-color: var(--neon-cyan);
-      background: rgba(0,212,255,0.05);
-    }
-    .answer-btn:active:not(:disabled) { transform: scale(0.98); }
-    .answer-btn.selected  { border-color: var(--neon-cyan);  background: rgba(0,212,255,0.1); }
-    .answer-btn.correct   { border-color: var(--neon-green); background: rgba(0,255,65,0.12); color: var(--neon-green); }
-    .answer-btn.incorrect { border-color: var(--neon-red);   background: rgba(255,0,60,0.12);  color: var(--neon-red); }
-    .answer-btn:disabled  { cursor: not-allowed; }
-
-    /* ── Inputs ── */
-    .forge-input {
+    .input-field {
       width: 100%;
-      background: var(--surface-2);
-      border: 1px solid #2a2a2a;
-      border-radius: 4px;
-      padding: 14px 16px;
-      font-family: var(--font-mono);
-      font-size: 14px;
-      color: var(--text);
+      height: 56px;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: var(--radius-md);
+      color: var(--white);
+      font-family: var(--font-body);
+      font-size: 18px;
+      font-weight: 700;
+      padding: 0 18px;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .forge-input:focus { border-color: var(--neon-green); }
-    .forge-input::placeholder { color: var(--text-dim); }
-
-    /* ── Room code display ── */
-    .room-code {
-      font-family: var(--font-title);
-      font-size: 52px;
-      font-weight: 900;
-      letter-spacing: 12px;
-      color: var(--neon-green);
-      text-shadow: 0 0 20px rgba(0,255,65,0.5);
-      text-align: center;
+    .input-field::placeholder { color: rgba(255,255,255,0.3); font-weight: 400; }
+    .input-field:focus {
+      border-color: var(--yellow);
+      box-shadow: 0 0 0 4px rgba(255,217,61,0.18);
     }
 
-    /* ── Progress bar ── */
-    .progress-bar-wrap {
-      width: 100%;
-      height: 3px;
-      background: #1a1a1a;
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .progress-bar-fill {
-      height: 100%;
-      background: var(--neon-cyan);
-      border-radius: 2px;
-      transition: width 0.1s linear;
-      box-shadow: 0 0 8px rgba(0,212,255,0.6);
+    /* ── CARD ────────────────────────────────────────────── */
+    .card {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: var(--radius-lg);
     }
 
-    /* ── Score chip ── */
-    .score-chip {
-      display: inline-block;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      letter-spacing: 1px;
-      padding: 3px 10px;
-      border-radius: 2px;
-      background: rgba(0,255,65,0.1);
-      border: 1px solid rgba(0,255,65,0.3);
-      color: var(--neon-green);
+    /* ── BADGE ───────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-pixel);
+      font-size: 8px;
+    }
+    .badge-yellow {
+      background: rgba(255,217,61,0.18);
+      color: var(--yellow);
+      border: 1px solid rgba(255,217,61,0.4);
+    }
+    .badge-green {
+      background: rgba(6,214,160,0.18);
+      color: var(--green);
+      border: 1px solid rgba(6,214,160,0.4);
+    }
+    .badge-white {
+      background: rgba(255,255,255,0.12);
+      color: var(--white);
+      border: 1px solid rgba(255,255,255,0.25);
     }
 
-    /* ── Label / section header ── */
-    .forge-label {
-      font-size: 10px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      margin-bottom: 8px;
-    }
-
-    /* ── Divider ── */
-    .forge-divider {
-      border: none;
-      border-top: 1px solid #1a1a1a;
-      margin: 20px 0;
-    }
-
-    /* ── Glitch animation (for title) ── */
-    @keyframes glitch {
-      0%   { clip-path: inset(20% 0 60% 0); transform: translate(-3px, 0); }
-      20%  { clip-path: inset(80% 0 5%  0); transform: translate(3px,  0); }
-      40%  { clip-path: inset(40% 0 40% 0); transform: translate(-2px, 0); }
-      60%  { clip-path: inset(5%  0 80% 0); transform: translate(2px,  0); }
-      80%  { clip-path: inset(60% 0 20% 0); transform: translate(-1px, 0); }
-      100% { clip-path: inset(20% 0 60% 0); transform: translate(1px,  0); }
-    }
-    .glitch-wrap { position: relative; display: inline-block; }
-    .glitch-wrap::before,
-    .glitch-wrap::after {
-      content: attr(data-text);
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      opacity: 0;
-    }
-    .glitch-wrap:hover::before {
-      opacity: 0.7;
-      color: var(--neon-cyan);
-      animation: glitch 0.3s steps(1) forwards;
-    }
-    .glitch-wrap:hover::after {
-      opacity: 0.5;
-      color: var(--neon-red);
-      animation: glitch 0.3s steps(1) 0.05s forwards;
-    }
-
-    /* ── Fade-in pulse for connecting screen ── */
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.3; }
-    }
-    .blink { animation: blink 1.2s ease-in-out infinite; }
-
-    /* ── Player list item ── */
-    .player-item {
+    /* ── DIVIDER ─────────────────────────────────────────── */
+    .divider-text {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      background: var(--surface-2);
-      border: 1px solid #1a1a1a;
-      border-radius: 4px;
-      font-size: 13px;
+      gap: 12px;
+      color: rgba(255,255,255,0.4);
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      width: 100%;
     }
-    .player-dot {
+    .divider-text::before,
+    .divider-text::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255,255,255,0.15);
+    }
+
+    /* ── TOAST ───────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      width: calc(min(var(--max-w), 100vw) - 32px);
+    }
+    .toast {
+      padding: 12px 18px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      line-height: 1.8;
+      animation: toast-in 0.25s ease forwards;
+      pointer-events: all;
+    }
+    .toast-error   { background: var(--red);    color: #fff; }
+    .toast-success { background: var(--green);  color: #003; }
+    .toast-info    { background: var(--yellow); color: #1A1A2E; }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+
+    /* ── DOT LOADER ──────────────────────────────────────── */
+    .dot-loader { display: flex; gap: 6px; align-items: center; }
+    .dot-loader span {
       width: 8px; height: 8px;
       border-radius: 50%;
-      background: var(--neon-green);
-      box-shadow: 0 0 6px var(--neon-green);
-      flex-shrink: 0;
+      background: var(--yellow);
+      animation: dot-bounce 1.2s infinite ease-in-out;
+    }
+    .dot-loader span:nth-child(2) { animation-delay: 0.2s; }
+    .dot-loader span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot-bounce {
+      0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
+      40%            { transform: scale(1.1); opacity: 1;   }
     }
 
-    /* ── Leaderboard row ── */
-    .lb-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      background: var(--surface-2);
-      border: 1px solid #1a1a1a;
-      border-radius: 4px;
+    /* ── DECORATIVE BG ELEMENTS ──────────────────────────── */
+    .confetti-bg, .stars-bg {
+      position: absolute; inset: 0;
+      pointer-events: none; overflow: hidden; z-index: 0;
     }
-    .lb-row.rank-1 { border-color: var(--neon-yellow); }
-    .lb-row.rank-2 { border-color: #aaaaaa; }
-    .lb-row.rank-3 { border-color: #cd7f32; }
+    .confetti-piece {
+      position: absolute; border-radius: 3px;
+      animation: confetti-fall var(--dur,8s) linear var(--delay,0s) infinite;
+      opacity: 0.15;
+    }
+    @keyframes confetti-fall {
+      0%   { transform: translateY(-20px) rotate(0deg);   opacity: 0;    }
+      10%  { opacity: 0.15; }
+      90%  { opacity: 0.15; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0;    }
+    }
+    .star {
+      position: absolute; border-radius: 50%;
+      background: rgba(255,255,255,0.6);
+      animation: twinkle var(--dur,3s) infinite ease-in-out var(--delay,0s);
+    }
+    @keyframes twinkle {
+      0%,100% { opacity: 0.2; transform: scale(1);   }
+      50%      { opacity: 0.9; transform: scale(1.4); }
+    }
 
-    /* ── Toast notifications ── */
-    #toast {
-      position: fixed;
-      bottom: 32px;
-      left: 50%;
-      transform: translateX(-50%) translateY(80px);
-      background: var(--surface-2);
-      border: 1px solid #333;
-      color: var(--text);
-      font-family: var(--font-mono);
-      font-size: 12px;
-      padding: 10px 20px;
-      border-radius: 4px;
-      transition: transform 0.3s ease;
-      z-index: 1000;
-      white-space: nowrap;
-      max-width: 90vw;
-      text-align: center;
+    /* ── UTILS ───────────────────────────────────────────── */
+    .z1 { position: relative; z-index: 1; }
+    .pixel { font-family: var(--font-pixel) !important; }
+    .text-center { text-align: center; }
+    .fade-up { animation: fade-up 0.35s ease forwards; }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0);    }
     }
-    #toast.show { transform: translateX(-50%) translateY(0); }
-    #toast.error { border-color: var(--neon-red); color: var(--neon-red); }
-    #toast.success { border-color: var(--neon-green); color: var(--neon-green); }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
   </style>
 </head>
 <body>
 <div id="app">
+  <div id="toast-container"></div>
 
-  <!-- ════════════════════════════════════════
-       SCREEN 1: HOME
-       ════════════════════════════════════════ -->
-  <div id="screen-home" class="screen active">
-    <div style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:32px;">
-
-      <!-- Title -->
-      <div style="text-align:center; padding: 40px 0 20px;">
-        <div class="glitch-wrap" data-text="FORGE">
-          <h1 style="font-family:var(--font-title); font-size:56px; font-weight:900; margin:0; letter-spacing:8px;" class="glow-green">FORGE</h1>
-        </div>
-        <p style="font-size:11px; letter-spacing:4px; color:var(--text-dim); margin-top:8px;">AI TRIVIA SHOWDOWN</p>
-      </div>
-
-      <!-- Name input -->
-      <div>
-        <p class="forge-label">Your Callsign</p>
-        <input
-          id="home-name"
-          class="forge-input"
-          type="text"
-          placeholder="Enter your name..."
-          maxlength="16"
-          autocomplete="off"
-          spellcheck="false"
-        />
-      </div>
-
-      <!-- Actions -->
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <button class="btn btn-primary" onclick="App.createRoom()">
-          [ Create Room ]
-        </button>
-        <div style="display:flex; gap:8px;">
-          <input
-            id="home-code"
-            class="forge-input"
-            type="text"
-            placeholder="Room code..."
-            maxlength="4"
-            style="text-transform:uppercase; letter-spacing:4px; font-size:16px; flex:1;"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button class="btn btn-secondary" onclick="App.joinRoom()" style="width:auto; padding:0 20px; white-space:nowrap;">
-            Join
-          </button>
-        </div>
-      </div>
-
-      <p style="text-align:center; font-size:10px; color:var(--text-dim); letter-spacing:1px; margin-top:8px;">
-        ANY topic. 10 questions. Real-time battle.
-      </p>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════
-       SCREEN 2: LOBBY (Waiting Room)
-       ════════════════════════════════════════ -->
-  <div id="screen-lobby" class="screen">
-    <div style="display:flex; flex-direction:column; gap:20px;">
-
-      <!-- Header -->
-      <div>
-        <p class="forge-label" style="margin-bottom:4px;">Room Code</p>
-        <div class="room-code" id="lobby-code">----</div>
-        <p style="text-align:center; font-size:11px; color:var(--text-dim); margin-top:8px;">
-          Share this code with your opponent
-        </p>
-      </div>
-
-      <hr class="forge-divider" />
-
-      <!-- Players list -->
-      <div>
-        <p class="forge-label">Players Online</p>
-        <div id="lobby-players" style="display:flex; flex-direction:column; gap:8px;"></div>
-      </div>
-
-      <hr class="forge-divider" />
-
-      <!-- Topic input (host only) -->
-      <div id="lobby-host-controls">
-        <p class="forge-label">Quiz Topic</p>
-        <input
-          id="lobby-topic"
-          class="forge-input"
-          type="text"
-          placeholder="e.g. Marvel Movies, Quantum Physics..."
-          maxlength="80"
-          spellcheck="false"
-        />
-        <p style="font-size:11px; color:var(--text-dim); margin-top:8px; line-height:1.5;">
-          Any topic works. AI will generate 10 custom questions.
-        </p>
-        <button
-          id="lobby-start-btn"
-          class="btn btn-primary"
-          style="margin-top:16px;"
-          onclick="App.startGame()"
-        >
-          [ Start Game ]
-        </button>
-      </div>
-
-      <!-- Guest waiting message -->
-      <div id="lobby-guest-msg" style="display:none; text-align:center; padding:20px 0;">
-        <p class="blink" style="color:var(--text-dim); font-size:13px; letter-spacing:2px;">
-          WAITING FOR HOST TO START...
-        </p>
-      </div>
-
-      <button class="btn btn-danger" style="margin-top:auto;" onclick="App.leaveRoom()">
-        [ Leave Room ]
-      </button>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════
-       SCREEN 3: LOADING (AI generating quiz)
-       ════════════════════════════════════════ -->
-  <div id="screen-loading" class="screen">
-    <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:24px; text-align:center;">
-      <div>
-        <p style="font-family:var(--font-title); font-size:20px; letter-spacing:4px; margin:0;" class="glow-cyan">FORGING QUIZ</p>
-        <p id="loading-topic" style="font-size:12px; color:var(--text-dim); margin-top:8px; letter-spacing:2px;"></p>
-      </div>
-      <div style="display:flex; gap:8px;">
-        <span class="blink" style="color:var(--neon-green); font-size:24px;" style="animation-delay:0s">▮</span>
-        <span class="blink" style="color:var(--neon-green); font-size:24px; animation-delay:0.2s">▮</span>
-        <span class="blink" style="color:var(--neon-green); font-size:24px; animation-delay:0.4s">▮</span>
-      </div>
-      <p style="font-size:11px; color:var(--text-dim); letter-spacing:1px;">AI is crafting your questions...</p>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════
-       SCREEN 4: GAME (Active Question)
-       ════════════════════════════════════════ -->
-  <div id="screen-game" class="screen">
-    <div style="display:flex; flex-direction:column; gap:16px; height:100%;">
-
-      <!-- Top bar: question counter + scores -->
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span id="game-q-counter" style="font-size:12px; color:var(--text-dim); letter-spacing:2px;">Q 1/10</span>
-        <div id="game-scores-bar" style="display:flex; gap:8px;"></div>
-      </div>
-
-      <!-- Timer bar -->
-      <div class="progress-bar-wrap">
-        <div id="game-timer-bar" class="progress-bar-fill" style="width:100%;"></div>
-      </div>
-
-      <!-- Timer countdown number -->
-      <div style="text-align:right;">
-        <span id="game-timer-num" style="font-size:12px; color:var(--neon-cyan);">15s</span>
-      </div>
-
-      <!-- Question text -->
-      <div style="flex:1; display:flex; align-items:center;">
-        <p id="game-question" style="font-size:16px; line-height:1.6; margin:0;"></p>
-      </div>
-
-      <!-- Answer options -->
-      <div id="game-options" style="display:flex; flex-direction:column; gap:10px; padding-bottom:16px;">
-        <!-- Populated by JS -->
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════
-       SCREEN 5: RESULTS (Final Leaderboard)
-       ════════════════════════════════════════ -->
-  <div id="screen-results" class="screen">
-    <div style="display:flex; flex-direction:column; gap:20px;">
-
-      <div style="text-align:center; padding:20px 0;">
-        <p style="font-family:var(--font-title); font-size:28px; font-weight:900; letter-spacing:4px; margin:0;" class="glow-yellow">GAME OVER</p>
-        <p style="font-size:11px; color:var(--text-dim); margin-top:8px; letter-spacing:2px;">FINAL STANDINGS</p>
-      </div>
-
-      <div id="results-list" style="display:flex; flex-direction:column; gap:8px;"></div>
-
-      <hr class="forge-divider" />
-
-      <button class="btn btn-primary" onclick="App.playAgain()">
-        [ Play Again ]
-      </button>
-      <button class="btn btn-secondary" onclick="App.goHome()">
-        [ Main Menu ]
-      </button>
-    </div>
-  </div>
-
-  <!-- Toast notification -->
-  <div id="toast"></div>
+  <section id="screen-home"    class="screen active"></section>
+  <section id="screen-lobby"   class="screen"></section>
+  <section id="screen-game"    class="screen"></section>
+  <section id="screen-results" class="screen"></section>
 </div>
 
-<!-- ── App Scripts ── -->
-<script src="components/timer.js"></script>
-<script src="components/leaderboard.js"></script>
-<script src="screens/home.js"></script>
-<script src="screens/lobby.js"></script>
-<script src="screens/game.js"></script>
-<script src="screens/results.js"></script>
-<script src="app.js"></script>
+<script>
+/* ── CONFIG ─────────────────────────────────────────────── */
+const API_BASE = 'https://forge-backend-878124462453.us-central1.run.app';
+const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 
-<style>
-  /* Extra style for yellow glow — used on GAME OVER title */
-  .glow-yellow {
-    color: var(--neon-yellow);
-    text-shadow: 0 0 10px var(--neon-yellow), 0 0 30px rgba(255,230,0,0.4);
+/* ── GLOBAL STATE ────────────────────────────────────────── */
+const State = {
+  playerName : '',
+  roomCode   : '',
+  isHost     : false,
+  topic      : '',
+  ws         : null,
+  players    : [],
+  currentQ   : null,
+  scores     : {},
+  totalQ     : 10,
+};
+
+/* ── ROUTER ─────────────────────────────────────────────── */
+const Screens = {
+  home    : { id: 'screen-home',    file: 'screens/home.html'    },
+  lobby   : { id: 'screen-lobby',   file: 'screens/lobby.html'   },
+  game    : { id: 'screen-game',    file: 'screens/game.html'    },
+  results : { id: 'screen-results', file: 'screens/results.html' },
+};
+
+async function goTo(name) {
+  const cfg = Screens[name];
+  if (!cfg) return;
+  const el = document.getElementById(cfg.id);
+
+  if (!el.dataset.loaded) {
+    try {
+      const html = await (await fetch(cfg.file)).text();
+      el.innerHTML = html;
+      el.dataset.loaded = 'true';
+      el.querySelectorAll('script').forEach(old => {
+        const s = document.createElement('script');
+        s.textContent = old.textContent;
+        document.body.appendChild(s);
+      });
+    } catch (e) {
+      Toast.error('Failed to load screen.');
+      return;
+    }
   }
-</style>
+
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+
+  const hook = `on${name.charAt(0).toUpperCase() + name.slice(1)}Show`;
+  if (typeof window[hook] === 'function') window[hook]();
+}
+
+/* ── TOAST ──────────────────────────────────────────────── */
+const Toast = {
+  _show(msg, cls, dur = 3000) {
+    const c = document.getElementById('toast-container');
+    const d = document.createElement('div');
+    d.className = `toast ${cls}`;
+    d.textContent = msg;
+    c.appendChild(d);
+    setTimeout(() => d.remove(), dur);
+  },
+  error  (m) { this._show(m, 'toast-error');   },
+  success(m) { this._show(m, 'toast-success'); },
+  info   (m) { this._show(m, 'toast-info');    },
+};
+
+/* ── API ────────────────────────────────────────────────── */
+const API = {
+  async createRoom(hostName) {
+    const r = await fetch(`${API_BASE}/rooms/create`, {
+      method  : 'POST',
+      headers : { 'Content-Type': 'application/json' },
+      body    : JSON.stringify({ host_name: hostName }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async getRoom(code) {
+    const r = await fetch(`${API_BASE}/rooms/${code}`);
+    if (!r.ok) throw new Error('Room not found');
+    return r.json();
+  },
+  async health() {
+    return (await fetch(`${API_BASE}/health`)).json();
+  },
+};
+
+/* ── WEBSOCKET ──────────────────────────────────────────── */
+const WS = {
+  connect(roomCode, playerName) {
+    if (State.ws) { State.ws.close(); State.ws = null; }
+    const url = `${WS_BASE}/ws/${roomCode}/${encodeURIComponent(playerName)}`;
+    State.ws = new WebSocket(url);
+    State.ws.onopen    = () => console.log('[WS] Connected');
+    State.ws.onmessage = (e) => {
+      let msg; try { msg = JSON.parse(e.data); } catch { return; }
+      console.log('[WS] ←', msg.type, msg.data);
+      this._dispatch(msg);
+    };
+    State.ws.onerror = () => Toast.error('Connection error.');
+    State.ws.onclose = () => console.log('[WS] Closed');
+  },
+  send(payload) {
+    if (State.ws?.readyState === WebSocket.OPEN)
+      State.ws.send(JSON.stringify(payload));
+  },
+  _handlers: {},
+  on(type, fn)  { this._handlers[type] = fn; },
+  off(type)     { delete this._handlers[type]; },
+  _dispatch(msg){ const h = this._handlers[msg.type]; if (h) h(msg.data); },
+};
+
+/* ── DECORATION HELPERS ─────────────────────────────────── */
+function spawnConfetti(container) {
+  const cols = ['#FFD93D','#06D6A0','#4FC3F7','#EF233C','#9B5DE5','#FF9F1C'];
+  for (let i = 0; i < 28; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    const size  = 6 + Math.random() * 10;
+    const col   = cols[Math.floor(Math.random() * cols.length)];
+    const dur   = 7 + Math.random() * 8;
+    const delay = Math.random() * -12;
+    el.style.cssText = `
+      width:${size}px;height:${size}px;
+      left:${Math.random()*100}%;
+      background:${col};
+      border-radius:${[2,4,6][Math.floor(Math.random()*3)]}px;
+      --dur:${dur}s;--delay:${delay}s;
+    `;
+    container.appendChild(el);
+  }
+}
+
+function spawnStars(container) {
+  for (let i = 0; i < 35; i++) {
+    const el = document.createElement('div');
+    el.className = 'star';
+    const size  = 1.5 + Math.random() * 2.5;
+    const dur   = 2 + Math.random() * 4;
+    const delay = Math.random() * -5;
+    el.style.cssText = `
+      width:${size}px;height:${size}px;
+      top:${Math.random()*100}%;left:${Math.random()*100}%;
+      --dur:${dur}s;--delay:${delay}s;
+    `;
+    container.appendChild(el);
+  }
+}
+
+/* ── BOOT ───────────────────────────────────────────────── */
+(async () => {
+  API.health().catch(() => {});  // warm up Cloud Run silently
+  await goTo('home');
+})();
+</script>
 </body>
 </html>
