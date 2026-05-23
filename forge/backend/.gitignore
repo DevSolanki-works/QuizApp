@@ -8,6 +8,8 @@ dist/
 build/
 out/
 .next/
+**/build/
+
 
 # Capacitor / Android Generated files
 # Note: Keep the 'android/' folder itself if you want to track native configurations, 
