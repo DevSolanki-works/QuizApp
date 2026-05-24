@@ -4,6 +4,7 @@ Handles the full real-time game loop:
   connect → start_game → questions → answers → leaderboard → game_over
 """
 
+import asyncio
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.core.state import rooms
@@ -61,7 +62,10 @@ async def check_round_complete(room_code: str):
     Called after every answer submission.
     If all players have answered, broadcast leaderboard + advance to next question.
     """
-    room = rooms[room_code]
+    room = rooms.get(room_code)
+    if not room:
+        return
+
     all_answered = all(p.answered for p in room.players.values())
 
     if not all_answered:
@@ -69,7 +73,7 @@ async def check_round_complete(room_code: str):
 
     correct_index = room.questions[room.current_q_index].correct_index
 
-    # Broadcast leaderboard with correct answer revealed
+    # 1. Broadcast leaderboard with correct answer revealed
     await broadcast(room_code, {
         "type": "LEADERBOARD",
         "data": {
@@ -78,8 +82,18 @@ async def check_round_complete(room_code: str):
         }
     })
 
+    # 2. Pause the game loop for 5 seconds so the UI can display the scores
+    await asyncio.sleep(5)
+
+    # 3. Re-fetch room in case it was deleted during the sleep (e.g., everyone quit)
+    room = rooms.get(room_code)
+    if not room:
+        return
+
+    # 4. Advance the index
     room.current_q_index += 1
 
+    # 5. Route to Next Question or Game Over
     if room.current_q_index >= room.total_questions:
         # All questions done — end the game
         room.status = GameStatus.FINISHED
@@ -92,7 +106,6 @@ async def check_round_complete(room_code: str):
     else:
         # Send the next question
         await send_question(room_code)
-
 
 # ── Scoring ───────────────────────────────────────────────────────────────────
 
