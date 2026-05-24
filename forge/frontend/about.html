@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>About — Forge: AI Trivia Showdown</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(ellipse at 50% 0%, #2540CC 0%, #0D1B8E 100%);
+      min-height: 100vh;
+      font-family: 'Nunito', sans-serif;
+      color: #fff;
+      padding: 0 16px 60px;
+    }
+    header {
+      text-align: center;
+      padding: 48px 16px 32px;
+    }
+    header a {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 22px;
+      color: #FFD93D;
+      text-decoration: none;
+      letter-spacing: 2px;
+    }
+    header p { margin-top: 10px; font-size: 14px; opacity: 0.6; }
+
+    .hero {
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto 48px;
+    }
+    .hero h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 15px;
+      color: #FFD93D;
+      line-height: 1.8;
+      margin-bottom: 16px;
+    }
+    .hero p { font-size: 17px; line-height: 1.8; opacity: 0.85; }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      max-width: 760px;
+      margin: 0 auto 48px;
+    }
+    .feature-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 28px 24px;
+      text-align: center;
+    }
+    .feature-card .icon { font-size: 36px; margin-bottom: 14px; }
+    .feature-card h3 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      color: #FFD93D;
+      margin-bottom: 10px;
+      line-height: 1.7;
+    }
+    .feature-card p { font-size: 14px; line-height: 1.75; opacity: 0.8; }
+
+    .stack-card {
+      max-width: 760px;
+      margin: 0 auto 48px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 36px;
+    }
+    .stack-card h2 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      color: #FFD93D;
+      margin-bottom: 24px;
+    }
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+    }
+    .stack-item {
+      background: rgba(255,211,61,0.08);
+      border: 1px solid rgba(255,211,61,0.2);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .stack-item span { display: block; font-size: 11px; opacity: 0.55; font-weight: 700; margin-top: 4px; }
+
+    .cta {
+      text-align: center;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .cta h2 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 13px;
+      color: #FFD93D;
+      margin-bottom: 20px;
+      line-height: 1.8;
+    }
+    .btn {
+      display: inline-block;
+      background: #FFD93D;
+      color: #0D1B8E;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      padding: 18px 36px;
+      border-radius: 12px;
+      text-decoration: none;
+      box-shadow: 0 6px 0 #b89a00;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #b89a00; }
+
+    .answer-colors {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 28px 0 0;
+    }
+    .dot { width: 14px; height: 14px; border-radius: 50%; }
+
+    footer {
+      text-align: center;
+      margin-top: 56px;
+      font-size: 12px;
+      opacity: 0.35;
+      font-family: 'Press Start 2P', monospace;
+    }
+    footer a { color: #FFD93D; text-decoration: none; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">FORGE</a>
+    <p>AI Trivia Showdown</p>
+  </header>
+
+  <div class="hero">
+    <h1>About Forge</h1>
+    <p>Forge is a free, real-time multiplayer trivia game powered by AI. Enter any topic you can imagine, and our AI instantly builds a fresh 10-question quiz. Share a 4-digit room code and compete live with friends — fastest and most accurate answer wins!</p>
+    <div class="answer-colors">
+      <div class="dot" style="background:#E63946"></div>
+      <div class="dot" style="background:#2196F3"></div>
+      <div class="dot" style="background:#06D6A0"></div>
+      <div class="dot" style="background:#9B5DE5"></div>
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="icon">🤖</div>
+      <h3>AI-Powered Quizzes</h3>
+      <p>Powered by Google Gemini AI — every quiz is freshly generated. No question banks, no repeats.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">⚡</div>
+      <h3>Real-Time Multiplayer</h3>
+      <p>Live WebSocket connections keep everyone in sync. See the leaderboard update after every question.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🎯</div>
+      <h3>Any Topic</h3>
+      <p>Marvel movies, Indian history, Python coding, cricket — if you can name it, Forge can quiz you on it.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🏆</div>
+      <h3>Speed Scoring</h3>
+      <p>Answer fast and correctly to maximise points. Slow but right still scores — wrong scores nothing.</p>
+    </div>
+  </div>
+
+  <div class="stack-card">
+    <h2>🛠 Built With</h2>
+    <div class="stack-grid">
+      <div class="stack-item">FastAPI <span>Python backend</span></div>
+      <div class="stack-item">WebSockets <span>Real-time sync</span></div>
+      <div class="stack-item">Google Gemini <span>AI quiz generation</span></div>
+      <div class="stack-item">Cloud Run <span>Serverless hosting</span></div>
+      <div class="stack-item">Vercel <span>Frontend hosting</span></div>
+      <div class="stack-item">Vanilla JS <span>Zero frameworks</span></div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <h2>Ready to Play?</h2>
+    <a href="/" class="btn">PLAY NOW</a>
+  </div>
+
+  <footer>
+    © 2026 FORGE &nbsp;·&nbsp; <a href="/privacy.html">Privacy Policy</a> &nbsp;·&nbsp; forgetrivia.online
+  </footer>
+</body>
+</html>
