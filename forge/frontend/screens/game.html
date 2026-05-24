@@ -330,7 +330,6 @@ let _timerInterval  = null;   // setInterval handle
 let _timerStart     = null;   // timestamp when question appeared
 let _answered       = false;  // has this player answered this round?
 let _qIndex         = 0;      // current question index (0-based)
-let _lbTimeout      = null;   // timeout handle for showing leaderboard
 
 /** Called by router when screen becomes active */
 function onGameShow() {
@@ -344,7 +343,6 @@ function onGameShow() {
   // Reset local state
   _answered = false;
   _qIndex   = 0;
-  if (_lbTimeout) { clearTimeout(_lbTimeout); _lbTimeout = null; }
 
   // Attach WebSocket handlers
   WS.on('QUESTION',    _onQuestion);
@@ -359,9 +357,6 @@ function _onQuestion(data) {
   // data: { index, text, options: [str,str,str,str], time_limit_ms }
   _answered = false;
   _qIndex   = data.index;
-
-  // Cancel any pending leaderboard show
-  if (_lbTimeout) { clearTimeout(_lbTimeout); _lbTimeout = null; }
 
   // Hide leaderboard overlay
   _hideLB();
@@ -534,11 +529,7 @@ function _onLeaderboard(data) {
   }
 
   // Show after a short delay (give time to see correct answer)
-  if (_lbTimeout) clearTimeout(_lbTimeout);
-  _lbTimeout = setTimeout(() => {
-    _showLB();
-    _lbTimeout = null;
-  }, 1200);
+  setTimeout(_showLB, 1200);
 }
 
 function _showLB() {
