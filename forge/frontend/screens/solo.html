@@ -1,0 +1,326 @@
+<!--
+  SOLO SCREEN
+  Player configures topic, difficulty, question count, then starts immediately.
+  No lobby — creates room + sends start_game in one shot once WS opens.
+-->
+<style>
+  .solo-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; padding: 0 24px 40px;
+  }
+
+  /* ── HEADER ─────────────────────────────────────────────── */
+  .solo-header {
+    width: 100%; display: flex; flex-direction: column;
+    align-items: center; padding: 44px 0 28px; gap: 10px;
+  }
+  .solo-icon {
+    font-size: 52px; line-height: 1;
+    animation: solo-bob 2.4s ease-in-out infinite;
+    filter: drop-shadow(0 4px 20px rgba(6,214,160,0.45));
+  }
+  @keyframes solo-bob {
+    0%,100% { transform: translateY(0) scale(1); }
+    50%      { transform: translateY(-8px) scale(1.06); }
+  }
+  .solo-title {
+    font-family: var(--font-pixel); font-size: 20px;
+    color: var(--white); letter-spacing: 2px; text-align: center;
+  }
+  .solo-subtitle {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.4); letter-spacing: 1px;
+    text-align: center; line-height: 2;
+  }
+
+  /* ── CONFIG CARD ─────────────────────────────────────────── */
+  .solo-card {
+    width: 100%; padding: 26px 22px;
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.16);
+    display: flex; flex-direction: column; gap: 22px;
+  }
+
+  /* ── PILL SELECTOR (difficulty + question count) ─────────── */
+  .pill-group {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .pill-opt {
+    flex: 1; min-width: 60px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px 6px; border-radius: var(--radius-pill);
+    font-family: var(--font-pixel); font-size: 8px;
+    cursor: pointer; transition: all 0.15s ease;
+    border: 2px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.55);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .pill-opt:active { transform: scale(0.95); }
+  /* Active states */
+  .pill-opt.active-easy   { background: rgba(6,214,160,0.2);   border-color: var(--green);  color: var(--green);  }
+  .pill-opt.active-medium { background: rgba(255,217,61,0.2);  border-color: var(--yellow); color: var(--yellow); }
+  .pill-opt.active-hard   { background: rgba(239,35,60,0.2);   border-color: var(--red);    color: var(--red);    }
+  .pill-opt.active-count  { background: rgba(255,217,61,0.18); border-color: var(--yellow); color: var(--yellow); }
+
+  /* ── START BUTTON ────────────────────────────────────────── */
+  .btn-start-solo {
+    background: var(--green);
+    color: #003322;
+    box-shadow: 0 6px 0 #04a07a, 0 8px 20px rgba(6,214,160,0.3);
+    font-size: 11px;
+  }
+  .btn-start-solo:active {
+    box-shadow: 0 2px 0 #04a07a;
+    transform: translateY(4px);
+  }
+
+  /* ── BACK BUTTON ─────────────────────────────────────────── */
+  .solo-back {
+    margin-top: 16px;
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.3); cursor: pointer;
+    letter-spacing: 0.5px;
+    background: none; border: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .solo-back:active { color: rgba(255,255,255,0.6); }
+
+  /* ── LOADING STATE ───────────────────────────────────────── */
+  .btn-loading { opacity: 0.65 !important; pointer-events: none !important; }
+
+  .input-field.error {
+    border-color: var(--red) !important;
+    box-shadow: 0 0 0 4px rgba(239,35,60,0.18) !important;
+    animation: shake 0.3s ease;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25%      { transform: translateX(-6px); }
+    75%      { transform: translateX(6px); }
+  }
+</style>
+
+<div class="solo-wrap">
+  <div class="stars-bg" id="solo-stars"></div>
+
+  <!-- HEADER -->
+  <div class="solo-header z1">
+    <div class="solo-icon">🧠</div>
+    <h1 class="solo-title">SOLO PLAY</h1>
+    <p class="solo-subtitle">YOU VS. THE CLOCK · AI PICKS THE QUESTIONS</p>
+  </div>
+
+  <!-- CONFIG CARD -->
+  <div class="solo-card z1">
+
+    <!-- Name (pre-filled, editable) -->
+    <div>
+      <label class="input-label" for="solo-name">YOUR NAME</label>
+      <input id="solo-name" class="input-field" type="text"
+        placeholder="e.g. QuizMaster99" maxlength="20"
+        autocomplete="off" autocorrect="off" spellcheck="false" />
+    </div>
+
+    <!-- Topic -->
+    <div>
+      <label class="input-label" for="solo-topic">QUIZ TOPIC</label>
+      <input id="solo-topic" class="input-field" type="text"
+        placeholder="e.g. Space, Harry Potter, WWE…" maxlength="80"
+        autocomplete="off" autocorrect="off" spellcheck="false" />
+    </div>
+
+    <!-- Difficulty -->
+    <div>
+      <label class="input-label">DIFFICULTY</label>
+      <div class="pill-group" id="solo-diff-group">
+        <div class="pill-opt active-easy" data-diff="easy"   onclick="soloSetDiff('easy')">🟢 EASY</div>
+        <div class="pill-opt"             data-diff="medium" onclick="soloSetDiff('medium')">🟡 MEDIUM</div>
+        <div class="pill-opt"             data-diff="hard"   onclick="soloSetDiff('hard')">🔴 HARD</div>
+      </div>
+    </div>
+
+    <!-- Question count -->
+    <div>
+      <label class="input-label">QUESTIONS</label>
+      <div class="pill-group" id="solo-q-group">
+        <div class="pill-opt"             data-q="5"  onclick="soloSetQ(5)">5</div>
+        <div class="pill-opt active-count" data-q="10" onclick="soloSetQ(10)">10</div>
+        <div class="pill-opt"             data-q="15" onclick="soloSetQ(15)">15</div>
+        <div class="pill-opt"             data-q="20" onclick="soloSetQ(20)">20</div>
+      </div>
+    </div>
+
+    <!-- Start button -->
+    <button class="btn btn-start-solo" id="btn-start-solo" onclick="startSoloGame()">
+      ▶ &nbsp;START GAME
+    </button>
+
+  </div>
+
+  <!-- Back link -->
+  <button class="solo-back z1" onclick="goTo('home')">← BACK TO HOME</button>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   SOLO CONFIG SCREEN
+   ═══════════════════════════════════════════════════════════ */
+
+// Module-level config state for this screen
+let _soloDiff = 'easy';
+let _soloQ    = 10;
+
+function onSoloShow() {
+  // Spawn background stars
+  const starsEl = document.getElementById('solo-stars');
+  if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
+
+  // Pre-fill name from global State (set when user typed it on home screen)
+  const nameEl = document.getElementById('solo-name');
+  if (nameEl && State.playerName) nameEl.value = State.playerName;
+
+  // Reset to defaults on every visit
+  _soloDiff = 'easy';
+  _soloQ    = 10;
+  _syncDiffUI();
+  _syncQUI();
+
+  // Allow Enter on topic to start
+  const topicEl = document.getElementById('solo-topic');
+  if (topicEl) {
+    topicEl.addEventListener('keydown', e => { if (e.key === 'Enter') startSoloGame(); });
+  }
+}
+
+/* ── DIFFICULTY PICKER ───────────────────────────────────── */
+function soloSetDiff(diff) {
+  _soloDiff = diff;
+  _syncDiffUI();
+}
+
+function _syncDiffUI() {
+  document.querySelectorAll('#solo-diff-group .pill-opt').forEach(el => {
+    const d = el.dataset.diff;
+    // Remove all active classes first
+    el.classList.remove('active-easy', 'active-medium', 'active-hard');
+    if (d === _soloDiff) el.classList.add(`active-${d}`);
+  });
+}
+
+/* ── QUESTION COUNT PICKER ───────────────────────────────── */
+function soloSetQ(n) {
+  _soloQ = n;
+  _syncQUI();
+}
+
+function _syncQUI() {
+  document.querySelectorAll('#solo-q-group .pill-opt').forEach(el => {
+    const q = parseInt(el.dataset.q, 10);
+    el.classList.toggle('active-count', q === _soloQ);
+  });
+}
+
+/* ── START GAME ──────────────────────────────────────────── */
+
+/**
+ * Full solo game start flow:
+ *  1. Validate inputs
+ *  2. Create a room on the server (host = this player)
+ *  3. Connect WebSocket and WAIT for it to open
+ *  4. Navigate to game screen (registers WS message handlers)
+ *  5. Send start_game — server streams GAME_STARTING + first QUESTION
+ *
+ * Why navigate first, then send?
+ *   goTo('game') calls onGameShow() which registers the QUESTION / LEADERBOARD /
+ *   GAME_OVER handlers via WS.on(). The start_game round-trip takes a few hundred
+ *   ms (Gemini call), so by the time the first QUESTION arrives, the game screen
+ *   is already live and listening.
+ */
+async function startSoloGame() {
+  // ── Validate name ──
+  const nameEl  = document.getElementById('solo-name');
+  const name    = nameEl?.value.trim();
+  if (!name) {
+    nameEl?.classList.add('error');
+    setTimeout(() => nameEl?.classList.remove('error'), 800);
+    Toast.error('Enter your name first!');
+    return;
+  }
+
+  // ── Validate topic ──
+  const topicEl = document.getElementById('solo-topic');
+  const topic   = topicEl?.value.trim();
+  if (!topic) {
+    topicEl?.classList.add('error');
+    setTimeout(() => topicEl?.classList.remove('error'), 800);
+    Toast.error('Enter a quiz topic!');
+    return;
+  }
+
+  _setSoloLoading(true);
+
+  try {
+    // ── 1. Create room ──
+    const data = await API.createRoom(name);
+
+    // ── 2. Update global State ──
+    State.playerName = name;
+    State.roomCode   = data.room_code;
+    State.isHost     = true;
+    State.isSolo     = true;
+    State.topic      = topic;
+    State.players    = [name];
+    State.scores     = {};
+    State.totalQ     = _soloQ;
+
+    // ── 3. Connect WS and wait for open ──
+    WS.connect(State.roomCode, State.playerName);
+
+    await new Promise((resolve, reject) => {
+      // Already open (unlikely but safe)
+      if (State.ws?.readyState === WebSocket.OPEN) return resolve();
+
+      const timeout = setTimeout(() => reject(new Error('WS connection timed out')), 6000);
+
+      State.ws.addEventListener('open', () => {
+        clearTimeout(timeout);
+        resolve();
+      }, { once: true });
+
+      State.ws.addEventListener('error', () => {
+        clearTimeout(timeout);
+        reject(new Error('WS connection error'));
+      }, { once: true });
+    });
+
+    // ── 4. Navigate to game screen (registers QUESTION/LEADERBOARD/GAME_OVER handlers) ──
+    await goTo('game');
+
+    // ── 5. Send start_game — Gemini generates questions server-side ──
+    WS.send({
+      action          : 'start_game',
+      topic           : topic,
+      difficulty      : _soloDiff,
+      total_questions : _soloQ,
+    });
+
+  } catch (e) {
+    console.error('[Solo] Start failed:', e);
+    Toast.error('Failed to start game. Try again.');
+    _setSoloLoading(false);
+  }
+  // Note: don't re-enable loading on success — we've navigated away
+}
+
+function _setSoloLoading(on) {
+  const btn = document.getElementById('btn-start-solo');
+  if (!btn) return;
+  btn.classList.toggle('btn-loading', on);
+  btn.disabled = on;
+  btn.textContent = on ? '⏳  GENERATING...' : '▶  START GAME';
+}
+</script>

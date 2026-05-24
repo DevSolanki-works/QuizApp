@@ -304,6 +304,7 @@
   <div id="toast-container"></div>
 
   <section id="screen-home"    class="screen active"></section>
+  <section id="screen-solo"    class="screen"></section>
   <section id="screen-lobby"   class="screen"></section>
   <section id="screen-game"    class="screen"></section>
   <section id="screen-results" class="screen"></section>
@@ -319,6 +320,7 @@ const State = {
   playerName : '',
   roomCode   : '',
   isHost     : false,
+  isSolo     : false,
   topic      : '',
   ws         : null,
   players    : [],
@@ -330,6 +332,7 @@ const State = {
 /* ── ROUTER ─────────────────────────────────────────────── */
 const Screens = {
   home    : { id: 'screen-home',    file: 'screens/home.html'    },
+  solo    : { id: 'screen-solo',    file: 'screens/solo.html'    },
   lobby   : { id: 'screen-lobby',   file: 'screens/lobby.html'   },
   game    : { id: 'screen-game',    file: 'screens/game.html'    },
   results : { id: 'screen-results', file: 'screens/results.html' },

@@ -1,6 +1,6 @@
 <!--
   HOME SCREEN
-  Two flows: Host (create room) | Guest (join with code)
+  Three flows: Host (create room) | Solo | Guest (join with code)
 -->
 <style>
   .home-wrap {
@@ -72,6 +72,16 @@
     letter-spacing: 4px !important; font-size: 18px !important;
     color: rgba(255,255,255,0.2) !important;
   }
+  /* Solo button — green accent to visually separate from multiplayer */
+  .btn-solo {
+    background: var(--green);
+    color: #003322;
+    box-shadow: 0 6px 0 #04a07a, 0 8px 20px rgba(6,214,160,0.3);
+  }
+  .btn-solo:active {
+    box-shadow: 0 2px 0 #04a07a;
+    transform: translateY(4px);
+  }
   .home-features {
     display: flex; flex-wrap: wrap; gap: 8px;
     justify-content: center; margin-top: 14px;
@@ -125,6 +135,7 @@
   <div class="home-card z1">
     <p class="card-heading">✦ LET'S PLAY ✦</p>
 
+    <!-- Shared name input — used by all three flows -->
     <div>
       <label class="input-label" for="input-name">YOUR NAME</label>
       <input id="input-name" class="input-field" type="text"
@@ -132,8 +143,14 @@
         autocomplete="off" autocorrect="off" spellcheck="false" />
     </div>
 
+    <!-- Multiplayer: host -->
     <button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()">
       🎮 &nbsp;CREATE ROOM
+    </button>
+
+    <!-- Solo play -->
+    <button class="btn btn-solo" id="btn-solo" onclick="homeSoloPlay()">
+      🧠 &nbsp;SOLO PLAY
     </button>
 
     <div class="divider-text">OR JOIN A ROOM</div>
@@ -156,6 +173,7 @@
     <div class="feature-pill"><span class="fi">⚡</span> REAL-TIME</div>
     <div class="feature-pill"><span class="fi">🌐</span> ANY TOPIC</div>
     <div class="feature-pill"><span class="fi">👥</span> MULTIPLAYER</div>
+    <div class="feature-pill"><span class="fi">🧠</span> SOLO MODE</div>
   </div>
 
   <div class="home-footer z1">
@@ -180,6 +198,8 @@ function onHomeShow() {
   }
   const nameInput = document.getElementById('input-name');
   if (nameInput) {
+    // Pre-fill name from State if returning from solo/results
+    if (State.playerName) nameInput.value = State.playerName;
     nameInput.addEventListener('keydown', e => { if (e.key==='Enter') homeCreateRoom(); });
   }
 }
@@ -211,6 +231,15 @@ function _setLoading(id, on) {
   if (b) { b.classList.toggle('btn-loading', on); b.disabled = on; }
 }
 
+/** Navigate to solo config screen with the entered name pre-filled. */
+function homeSoloPlay() {
+  const name = _validateName();
+  if (!name) return;
+  // Store name so solo screen can pick it up
+  State.playerName = name;
+  goTo('solo');
+}
+
 async function homeCreateRoom() {
   const name = _validateName();
   if (!name) return;
@@ -220,6 +249,7 @@ async function homeCreateRoom() {
     State.playerName = name;
     State.roomCode   = data.room_code;
     State.isHost     = true;
+    State.isSolo     = false;
     State.players    = [name];
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
@@ -245,6 +275,7 @@ async function homeJoinRoom() {
     State.playerName = name;
     State.roomCode   = code;
     State.isHost     = false;
+    State.isSolo     = false;
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
   } catch(e) {

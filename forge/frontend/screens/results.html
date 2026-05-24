@@ -386,13 +386,21 @@ function _confettiBurst() {
  * Guests go home since the room state is cleared on server restart.
  */
 async function resultsPlayAgain() {
+  State.scores = {};
+
+  if (State.isSolo) {
+    // Solo: just go back to the config screen — name stays in State
+    if (State.ws) { State.ws.close(); State.ws = null; }
+    State.roomCode = '';
+    await goTo('solo');
+    return;
+  }
+
   if (State.isHost) {
-    // Re-create a fresh room
     try {
       const data = await API.createRoom(State.playerName);
       State.roomCode = data.room_code;
       State.players  = [State.playerName];
-      State.scores   = {};
       WS.connect(State.roomCode, State.playerName);
       await goTo('lobby');
     } catch(e) {
@@ -400,7 +408,7 @@ async function resultsPlayAgain() {
       console.error(e);
     }
   } else {
-    // Guests go home to rejoin with a new code
+    // Guest — host needs to share a new code
     resultsGoHome();
   }
 }
@@ -408,6 +416,7 @@ async function resultsPlayAgain() {
 function resultsGoHome() {
   State.roomCode = '';
   State.isHost   = false;
+  State.isSolo   = false;
   State.players  = [];
   State.scores   = {};
   State.topic    = '';
