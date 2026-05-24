@@ -1,473 +1,363 @@
 <!--
-  LOBBY SCREEN
-  Host view: shows room code + topic input + Start Game button
-  Guest view: shows room code + waiting message (no start button)
-  Both views: live player list that updates via WS PLAYER_JOINED
+  lobby.html — Forge: AI Trivia Showdown
+  Screen shown after creating/joining a room.
+  Host can set topic, difficulty, question count and start the game.
+  All players see live player list via WebSocket.
 -->
-<style>
-  .lobby-wrap {
-    width: 100%; min-height: 100%;
-    display: flex; flex-direction: column;
-    align-items: center; padding: 0 24px 36px;
-  }
+<div id="screen-lobby" class="screen">
 
-  /* ── TOP BAR ─────────────────────────────────────────────── */
-  .lobby-topbar {
-    width: 100%; display: flex;
-    align-items: center; justify-content: space-between;
-    padding: 20px 0 0;
-  }
-  .lobby-back-btn {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.18);
-    border-radius: var(--radius-pill);
-    color: var(--white); font-family: var(--font-pixel);
-    font-size: 8px; padding: 8px 14px;
-    cursor: pointer; letter-spacing: 0.3px;
-    -webkit-tap-highlight-color: transparent;
-    transition: background 0.15s;
-  }
-  .lobby-back-btn:active { background: rgba(255,255,255,0.18); }
-  .lobby-screen-label {
-    font-family: var(--font-pixel); font-size: 8px;
-    color: rgba(255,255,255,0.4); letter-spacing: 1px;
-  }
-
-  /* ── ROOM CODE HERO ──────────────────────────────────────── */
-  .lobby-code-section {
-    width: 100%; text-align: center;
-    padding: 28px 0 24px; display: flex;
-    flex-direction: column; align-items: center; gap: 10px;
-  }
-  .lobby-code-label {
-    font-family: var(--font-pixel); font-size: 8px;
-    color: rgba(255,255,255,0.5); letter-spacing: 2px;
-  }
-  /* The big room code display */
-  .lobby-code-box {
-    display: flex; align-items: center; gap: 6px;
-  }
-  .lobby-code-digit {
-    width: 56px; height: 64px;
-    background: rgba(255,255,255,0.1);
-    border: 2px solid rgba(255,255,255,0.25);
-    border-radius: var(--radius-md);
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-pixel); font-size: 26px;
-    color: var(--yellow); letter-spacing: 0;
-    box-shadow: 0 4px 0 rgba(0,0,0,0.25);
-    /* pop-in animation */
-    animation: digit-pop 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
-  }
-  .lobby-code-digit:nth-child(2) { animation-delay: 0.05s; }
-  .lobby-code-digit:nth-child(3) { animation-delay: 0.10s; }
-  .lobby-code-digit:nth-child(4) { animation-delay: 0.15s; }
-  @keyframes digit-pop {
-    from { transform: scale(0.5) translateY(10px); opacity: 0; }
-    to   { transform: scale(1)   translateY(0);    opacity: 1; }
-  }
-  .lobby-copy-btn {
-    margin-top: 6px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.16);
-    border-radius: var(--radius-pill);
-    color: rgba(255,255,255,0.6); font-family: var(--font-pixel);
-    font-size: 7px; padding: 7px 16px;
-    cursor: pointer; letter-spacing: 0.3px;
-    -webkit-tap-highlight-color: transparent;
-    transition: color 0.15s, border-color 0.15s;
-  }
-  .lobby-copy-btn:active { color: var(--yellow); border-color: var(--yellow); }
-
-  /* ── PLAYER LIST CARD ────────────────────────────────────── */
-  .lobby-players-card {
-    width: 100%; padding: 20px;
-    border-radius: var(--radius-lg);
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.14);
-    display: flex; flex-direction: column; gap: 14px;
-  }
-  .players-card-header {
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .players-card-title {
-    font-family: var(--font-pixel); font-size: 9px;
-    color: var(--white); letter-spacing: 0.5px;
-  }
-  .players-count-badge {
-    font-family: var(--font-pixel); font-size: 8px;
-    padding: 4px 10px; border-radius: var(--radius-pill);
-    background: rgba(255,217,61,0.18);
-    border: 1px solid rgba(255,217,61,0.35);
-    color: var(--yellow);
-  }
-
-  /* Individual player row */
-  .player-list { display: flex; flex-direction: column; gap: 8px; }
-  .player-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 14px; border-radius: var(--radius-md);
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.08);
-    animation: player-slide-in 0.3s ease both;
-  }
-  @keyframes player-slide-in {
-    from { opacity: 0; transform: translateX(-12px); }
-    to   { opacity: 1; transform: translateX(0);     }
-  }
-  .player-avatar {
-    width: 36px; height: 36px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; flex-shrink: 0;
-    /* background assigned per-player from JS */
-  }
-  .player-name {
-    flex: 1; font-family: var(--font-body); font-size: 16px;
-    font-weight: 700; color: var(--white);
-  }
-  .player-you-tag {
-    font-family: var(--font-pixel); font-size: 7px;
-    color: var(--yellow); padding: 3px 8px;
-    border-radius: var(--radius-pill);
-    background: rgba(255,217,61,0.15);
-    border: 1px solid rgba(255,217,61,0.3);
-  }
-  .player-host-tag {
-    font-family: var(--font-pixel); font-size: 7px;
-    color: var(--cyan, #4FC3F7); padding: 3px 8px;
-    border-radius: var(--radius-pill);
-    background: rgba(79,195,247,0.12);
-    border: 1px solid rgba(79,195,247,0.3);
-  }
-
-  /* Empty state */
-  .player-empty {
-    text-align: center; padding: 16px 0;
-    font-family: var(--font-pixel); font-size: 8px;
-    color: rgba(255,255,255,0.3); line-height: 2;
-  }
-
-  /* ── WAITING ANIMATION (for guests) ─────────────────────── */
-  .lobby-waiting {
-    display: flex; flex-direction: column;
-    align-items: center; gap: 10px;
-    padding: 20px 0 4px;
-  }
-  .lobby-waiting-text {
-    font-family: var(--font-pixel); font-size: 8px;
-    color: rgba(255,255,255,0.5); letter-spacing: 0.5px;
-    text-align: center; line-height: 2;
-  }
-
-  /* ── HOST CONTROLS ───────────────────────────────────────── */
-  .lobby-host-controls {
-    width: 100%; display: flex; flex-direction: column; gap: 16px;
-  }
-  .topic-char-count {
-    font-family: var(--font-pixel); font-size: 7px;
-    color: rgba(255,255,255,0.35); text-align: right;
-    margin-top: -10px;
-  }
-  .start-hint {
-    font-family: var(--font-pixel); font-size: 7px;
-    color: rgba(255,255,255,0.35); text-align: center;
-    line-height: 2; letter-spacing: 0.3px;
-  }
-
-  /* "Start Game" button disabled state */
-  .btn-start:disabled, .btn-start[disabled] {
-    opacity: 0.45 !important; pointer-events: none !important;
-  }
-  .btn-loading { opacity: 0.65 !important; pointer-events: none !important; }
-
-  /* ── TOPIC SUGGESTIONS ───────────────────────────────────── */
-  .topic-suggestions {
-    display: flex; flex-wrap: wrap; gap: 8px;
-  }
-  .topic-chip {
-    padding: 6px 12px; border-radius: var(--radius-pill);
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.14);
-    font-family: var(--font-body); font-size: 13px;
-    font-weight: 700; color: rgba(255,255,255,0.7);
-    cursor: pointer; transition: background 0.15s, color 0.15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .topic-chip:active,
-  .topic-chip.selected {
-    background: rgba(255,217,61,0.2);
-    border-color: rgba(255,217,61,0.5);
-    color: var(--yellow);
-  }
-</style>
-
-<div class="lobby-wrap">
-  <div class="stars-bg" id="lobby-stars"></div>
-
-  <!-- TOP BAR -->
-  <div class="lobby-topbar z1">
-    <button class="lobby-back-btn" onclick="lobbyGoHome()">← BACK</button>
-    <span class="lobby-screen-label">LOBBY</span>
-    <div style="width:64px"></div><!-- spacer -->
-  </div>
-
-  <!-- ROOM CODE HERO -->
-  <div class="lobby-code-section z1">
-    <p class="lobby-code-label">ROOM CODE</p>
-    <div class="lobby-code-box" id="lobby-code-box">
-      <!-- digits rendered by JS -->
-    </div>
-    <button class="lobby-copy-btn" onclick="lobbyCopyCode()">
-      📋 &nbsp;COPY CODE
+  <!-- Room code display -->
+  <div class="room-code-section">
+    <p class="room-label">ROOM CODE</p>
+    <div class="code-tiles-row" id="lobby-code-tiles"></div>
+    <button class="copy-btn" id="lobby-copy-btn" onclick="copyRoomCode()">
+      📋 COPY CODE
     </button>
   </div>
 
-  <!-- PLAYER LIST -->
-  <div class="lobby-players-card z1">
-    <div class="players-card-header">
-      <span class="players-card-title">👥 PLAYERS</span>
-      <span class="players-count-badge" id="lobby-player-count">0 / ∞</span>
-    </div>
-    <div class="player-list" id="lobby-player-list">
-      <div class="player-empty">
-        Waiting for players to join...<br>Share the room code!
-      </div>
-    </div>
+  <!-- Player list -->
+  <div class="player-list-section">
+    <p class="section-label">PLAYERS</p>
+    <div id="lobby-player-list" class="player-list"></div>
   </div>
 
-  <!-- HOST CONTROLS (shown only to host) -->
-  <div class="lobby-host-controls z1" id="lobby-host-controls" style="display:none; margin-top:20px;">
+  <!-- Host controls (only visible to host) -->
+  <div id="host-controls" style="display:none">
 
     <!-- Topic input -->
-    <div>
-      <label class="input-label" for="input-topic">QUIZ TOPIC</label>
-      <input id="input-topic" class="input-field" type="text"
-        placeholder="e.g. Marvel Movies, Space, Cricket..."
-        maxlength="60" autocomplete="off" autocorrect="off"
-        oninput="lobbyOnTopicInput()" />
-      <p class="topic-char-count"><span id="topic-char-count">0</span>/60</p>
+    <div class="topic-section">
+      <p class="section-label">TOPIC</p>
+      <input
+        id="lobby-topic-input"
+        class="topic-input"
+        type="text"
+        maxlength="60"
+        placeholder="e.g. Marvel Movies"
+        autocomplete="off"
+      />
+      <!-- Quick suggestion chips -->
+      <div class="chip-row">
+        <button class="chip" onclick="setTopic('Indian History')">🏛 Indian History</button>
+        <button class="chip" onclick="setTopic('Cricket')">🏏 Cricket</button>
+        <button class="chip" onclick="setTopic('Marvel Movies')">🦸 Marvel</button>
+        <button class="chip" onclick="setTopic('Python Programming')">🐍 Python</button>
+        <button class="chip" onclick="setTopic('Space & Astronomy')">🚀 Space</button>
+        <button class="chip" onclick="setTopic('Bollywood')">🎬 Bollywood</button>
+      </div>
     </div>
 
-    <!-- Topic suggestion chips -->
-    <div>
-      <label class="input-label">QUICK PICKS</label>
-      <div class="topic-suggestions" id="topic-chips"></div>
+    <!-- Difficulty selector -->
+    <div class="config-section">
+      <p class="section-label">DIFFICULTY</p>
+      <div class="difficulty-row">
+        <button class="diff-btn active" data-diff="easy"   onclick="setDifficulty('easy')">😊 EASY</button>
+        <button class="diff-btn"        data-diff="medium" onclick="setDifficulty('medium')">🔥 MEDIUM</button>
+        <button class="diff-btn"        data-diff="hard"   onclick="setDifficulty('hard')">💀 HARD</button>
+      </div>
+    </div>
+
+    <!-- Question count selector -->
+    <div class="config-section">
+      <p class="section-label">QUESTIONS</p>
+      <div class="qcount-row">
+        <button class="qcount-btn" data-count="5"  onclick="setQuestionCount(5)">5</button>
+        <button class="qcount-btn active" data-count="10" onclick="setQuestionCount(10)">10</button>
+        <button class="qcount-btn" data-count="15" onclick="setQuestionCount(15)">15</button>
+        <button class="qcount-btn" data-count="20" onclick="setQuestionCount(20)">20</button>
+      </div>
     </div>
 
     <!-- Start button -->
-    <button class="btn btn-primary btn-start" id="btn-start-game"
-            onclick="lobbyStartGame()" disabled>
-      ⚡ &nbsp;START GAME
+    <button class="start-btn chunky-btn" id="lobby-start-btn" onclick="startGame()">
+      ▶ START GAME
     </button>
-
-    <p class="start-hint">
-      NEED AT LEAST 1 PLAYER · TOPIC REQUIRED<br>
-      AI WILL GENERATE 10 QUESTIONS
-    </p>
   </div>
 
-  <!-- GUEST VIEW (shown to non-hosts) -->
-  <div class="lobby-waiting z1" id="lobby-guest-waiting" style="display:none; margin-top:20px;">
-    <div class="dot-loader">
-      <span></span><span></span><span></span>
-    </div>
-    <p class="lobby-waiting-text">
-      WAITING FOR HOST<br>TO START THE GAME...
-    </p>
+  <!-- Non-host waiting message -->
+  <div id="guest-waiting" style="display:none">
+    <p class="waiting-text">⏳ Waiting for host to start the game...</p>
   </div>
 
 </div>
 
+<style>
+/* ── Layout ───────────────────────────────────────────────────── */
+#screen-lobby {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 16px 40px;
+  max-width: 430px;
+  margin: 0 auto;
+}
+
+/* ── Room code ────────────────────────────────────────────────── */
+.room-code-section { text-align: center; width: 100%; }
+.room-label, .section-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: #FFD93D;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+.code-tiles-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.code-tile {
+  width: 56px; height: 64px;
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,211,61,0.4);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 22px;
+  color: #FFD93D;
+}
+.copy-btn {
+  background: transparent;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.copy-btn:hover { border-color: #FFD93D; color: #FFD93D; }
+
+/* ── Player list ──────────────────────────────────────────────── */
+.player-list-section { width: 100%; }
+.player-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  min-height: 48px;
+}
+.player-chip {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 50px;
+  padding: 8px 18px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+}
+.player-chip.host { border-color: #FFD93D; color: #FFD93D; }
+
+/* ── Topic ────────────────────────────────────────────────────── */
+.topic-section { width: 100%; }
+.topic-input {
+  width: 100%;
+  background: rgba(255,255,255,0.07);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 14px;
+  color: #fff;
+  font-family: 'Nunito', sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  padding: 16px 18px;
+  outline: none;
+  transition: border-color 0.2s;
+  margin-bottom: 12px;
+}
+.topic-input:focus { border-color: #FFD93D; }
+.topic-input::placeholder { opacity: 0.4; }
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.chip {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 50px;
+  color: #fff;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chip:hover { background: rgba(255,211,61,0.12); border-color: #FFD93D; }
+
+/* ── Config sections (difficulty + question count) ────────────── */
+.config-section { width: 100%; }
+
+.difficulty-row, .qcount-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* Difficulty buttons */
+.diff-btn {
+  flex: 1;
+  padding: 13px 8px;
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.6;
+}
+.diff-btn:hover { border-color: #FFD93D; }
+.diff-btn.active {
+  background: rgba(255,211,61,0.15);
+  border-color: #FFD93D;
+  color: #FFD93D;
+}
+/* Colour-coded active states per difficulty */
+.diff-btn[data-diff="easy"].active   { border-color: #06D6A0; color: #06D6A0; background: rgba(6,214,160,0.12); }
+.diff-btn[data-diff="medium"].active { border-color: #FFD93D; color: #FFD93D; background: rgba(255,211,61,0.12); }
+.diff-btn[data-diff="hard"].active   { border-color: #E63946; color: #E63946; background: rgba(230,57,70,0.12); }
+
+/* Question count buttons */
+.qcount-btn {
+  width: 64px; height: 56px;
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.qcount-btn:hover  { border-color: #FFD93D; }
+.qcount-btn.active {
+  background: rgba(255,211,61,0.15);
+  border-color: #FFD93D;
+  color: #FFD93D;
+}
+
+/* ── Start button ─────────────────────────────────────────────── */
+.start-btn {
+  width: 100%;
+  padding: 20px;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* ── Waiting text ─────────────────────────────────────────────── */
+.waiting-text {
+  font-family: 'Nunito', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.6);
+  text-align: center;
+}
+</style>
+
 <script>
-/* ═══════════════════════════════════════════════════════════
-   LOBBY SCREEN LOGIC
-   ═══════════════════════════════════════════════════════════ */
+// ── State ─────────────────────────────────────────────────────────────────────
+let selectedDifficulty  = 'easy';   // Default difficulty
+let selectedQuestionCount = 10;     // Default question count
 
-const TOPIC_SUGGESTIONS = [
-  '🎬 Marvel Movies', '🚀 Space & Astronomy', '🏏 Cricket',
-  '🎮 Video Games', '🌍 World Geography', '🧪 Science',
-  '🎵 Music', '⚽ Football', '🍕 Food & Cuisine',
-  '🤖 AI & Tech', '📚 Harry Potter', '🦁 Animals',
-];
-
-// Avatar colours — rotate through these for each player slot
-const AVATAR_COLOURS = [
-  '#E63946','#2196F3','#06D6A0','#9B5DE5',
-  '#FF9F1C','#4FC3F7','#FFD93D','#FF6B9D',
-];
-const AVATARS = ['😀','🤩','🧠','🦊','🐼','🦁','🐯','🤖','👾','🎩','🦄','🐸'];
-
-/** Called by the router when this screen becomes active */
+// ── Lifecycle hook called by router when lobby screen is shown ────────────────
 function onLobbyShow() {
-  const starsEl = document.getElementById('lobby-stars');
-  if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
+  renderCodeTiles();
+  renderPlayers(State.players || []);
 
-  // Render room code as individual digit boxes
-  _renderCodeBoxes(State.roomCode);
-
-  // Show correct panel for host vs guest
-  const hostPanel  = document.getElementById('lobby-host-controls');
-  const guestPanel = document.getElementById('lobby-guest-waiting');
   if (State.isHost) {
-    hostPanel.style.display  = 'flex';
-    guestPanel.style.display = 'none';
-    _renderTopicChips();
+    document.getElementById('host-controls').style.display = 'block';
+    document.getElementById('guest-waiting').style.display  = 'none';
   } else {
-    hostPanel.style.display  = 'none';
-    guestPanel.style.display = 'flex';
+    document.getElementById('host-controls').style.display = 'none';
+    document.getElementById('guest-waiting').style.display  = 'block';
   }
 
-  // Initial player list render
-  _renderPlayerList(State.players);
-
-  // Subscribe to WebSocket events
-  WS.on('PLAYER_JOINED',  (data) => {
-    State.players = data.players;
-    _renderPlayerList(data.players);
+  // Listen for WebSocket messages
+  WS.on('PLAYER_JOINED', ({ players }) => {
+    State.players = players;
+    renderPlayers(players);
   });
-  WS.on('GAME_STARTING', (data) => {
-    State.topic  = data.topic;
-    State.totalQ = data.total_questions;
+
+  WS.on('GAME_STARTING', ({ topic, total_questions, difficulty, time_limit_ms }) => {
+    State.topic   = topic;
+    State.totalQ  = total_questions;
+    State.timeLimitMs = time_limit_ms;
     goTo('game');
   });
-  WS.on('ERROR', (data) => {
-    Toast.error(data.message || 'Something went wrong.');
+}
+
+// ── Render room code as individual tiles ──────────────────────────────────────
+function renderCodeTiles() {
+  const container = document.getElementById('lobby-code-tiles');
+  container.innerHTML = '';
+  (State.roomCode || '----').split('').forEach(ch => {
+    const tile = document.createElement('div');
+    tile.className   = 'code-tile';
+    tile.textContent = ch;
+    container.appendChild(tile);
   });
 }
 
-/** Render the 4 digit boxes for the room code */
-function _renderCodeBoxes(code) {
-  const box = document.getElementById('lobby-code-box');
-  if (!box || !code) return;
-  box.innerHTML = code.split('').map(ch =>
-    `<div class="lobby-code-digit">${ch}</div>`
-  ).join('');
+// ── Render player list ────────────────────────────────────────────────────────
+function renderPlayers(players) {
+  const list = document.getElementById('lobby-player-list');
+  list.innerHTML = '';
+  players.forEach(name => {
+    const chip = document.createElement('div');
+    chip.className   = 'player-chip' + (name === State.hostName ? ' host' : '');
+    chip.textContent = name + (name === State.hostName ? ' 👑' : '');
+    list.appendChild(chip);
+  });
 }
 
-/** Render topic suggestion chips */
-function _renderTopicChips() {
-  const container = document.getElementById('topic-chips');
-  if (!container) return;
-  container.innerHTML = TOPIC_SUGGESTIONS.map((t, i) =>
-    `<div class="topic-chip" onclick="lobbyPickTopic(this,'${t}')">${t}</div>`
-  ).join('');
+// ── Topic helpers ─────────────────────────────────────────────────────────────
+function setTopic(topic) {
+  document.getElementById('lobby-topic-input').value = topic;
 }
 
-/** Render the live player list */
-function _renderPlayerList(players) {
-  const listEl  = document.getElementById('lobby-player-list');
-  const countEl = document.getElementById('lobby-player-count');
-  if (!listEl) return;
+// ── Difficulty selector ───────────────────────────────────────────────────────
+function setDifficulty(diff) {
+  selectedDifficulty = diff;
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.diff === diff);
+  });
+}
 
-  if (!players || players.length === 0) {
-    listEl.innerHTML = `<div class="player-empty">Waiting for players to join...<br>Share the room code!</div>`;
-    if (countEl) countEl.textContent = '0 / ∞';
-    _updateStartBtn();
+// ── Question count selector ───────────────────────────────────────────────────
+function setQuestionCount(count) {
+  selectedQuestionCount = count;
+  document.querySelectorAll('.qcount-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.count) === count);
+  });
+}
+
+// ── Copy room code to clipboard ───────────────────────────────────────────────
+function copyRoomCode() {
+  navigator.clipboard.writeText(State.roomCode).then(() => {
+    Toast.success('Room code copied!');
+  });
+}
+
+// ── Start game (host only) ────────────────────────────────────────────────────
+function startGame() {
+  const topic = document.getElementById('lobby-topic-input').value.trim();
+  if (!topic) {
+    Toast.error('Please enter a topic first!');
     return;
   }
-
-  listEl.innerHTML = players.map((name, i) => {
-    const isYou  = name === State.playerName;
-    // First player is always the host (server guarantees ordering)
-    const isHost = i === 0;
-    const col    = AVATAR_COLOURS[i % AVATAR_COLOURS.length];
-    const emoji  = AVATARS[i % AVATARS.length];
-    const tag    = isYou  ? '<span class="player-you-tag">YOU</span>'
-                 : isHost ? '<span class="player-host-tag">HOST</span>'
-                 : '';
-    return `
-      <div class="player-row">
-        <div class="player-avatar" style="background:${col}22; border: 2px solid ${col}66;">
-          ${emoji}
-        </div>
-        <span class="player-name">${_escHtml(name)}</span>
-        ${tag}
-      </div>`;
-  }).join('');
-
-  if (countEl) countEl.textContent = `${players.length} JOINED`;
-  _updateStartBtn();
-}
-
-/** Enable/disable Start Game button based on validation */
-function _updateStartBtn() {
-  const btn = document.getElementById('btn-start-game');
-  if (!btn) return;
-  const topic    = document.getElementById('input-topic')?.value.trim();
-  const hasPlayers = State.players.length >= 1;
-  const hasTopic   = topic && topic.length > 0;
-  btn.disabled = !(hasPlayers && hasTopic);
-}
-
-/** HTML escape helper */
-function _escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-/* ── TOPIC CONTROLS ─────────────────────────────────────── */
-
-function lobbyOnTopicInput() {
-  const input  = document.getElementById('input-topic');
-  const count  = document.getElementById('topic-char-count');
-  const val    = input?.value || '';
-  if (count) count.textContent = val.length;
-
-  // Deselect all chips when typing manually
-  document.querySelectorAll('.topic-chip').forEach(c => c.classList.remove('selected'));
-  _updateStartBtn();
-}
-
-function lobbyPickTopic(el, topic) {
-  const input = document.getElementById('input-topic');
-  // Strip emoji prefix for the actual topic value sent to server
-  const clean = topic.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{27FF}]\s*/u, '');
-  if (input) {
-    input.value = clean;
-    const count = document.getElementById('topic-char-count');
-    if (count) count.textContent = clean.length;
-  }
-  // Toggle chip selection
-  document.querySelectorAll('.topic-chip').forEach(c => c.classList.remove('selected'));
-  el.classList.add('selected');
-  _updateStartBtn();
-}
-
-/* ── ACTIONS ────────────────────────────────────────────── */
-
-/** Copy room code to clipboard */
-function lobbyCopyCode() {
-  navigator.clipboard?.writeText(State.roomCode).then(() => {
-    Toast.success(`Code ${State.roomCode} copied!`);
-  }).catch(() => {
-    Toast.info(`Room code: ${State.roomCode}`);
+  WS.send({
+    action:           'start_game',
+    topic:            topic,
+    difficulty:       selectedDifficulty,
+    total_questions:  selectedQuestionCount,
   });
-}
-
-/** Go back to home screen, close WS */
-function lobbyGoHome() {
-  if (State.ws) { State.ws.close(); State.ws = null; }
-  State.roomCode = '';
-  State.isHost   = false;
-  State.players  = [];
-  WS.off('PLAYER_JOINED');
-  WS.off('GAME_STARTING');
-  WS.off('ERROR');
-  goTo('home');
-}
-
-/**
- * Host only: send start_game action to server.
- * Server → broadcasts GAME_STARTING to all clients → everyone navigates to game screen.
- */
-function lobbyStartGame() {
-  const topic = document.getElementById('input-topic')?.value.trim();
-  if (!topic) { Toast.error('Enter a topic first!'); return; }
-  if (State.players.length < 1) { Toast.error('At least 1 player required!'); return; }
-
-  const btn = document.getElementById('btn-start-game');
-  if (btn) { btn.textContent = '⏳  GENERATING...'; btn.disabled = true; }
-
-  WS.send({ action: 'start_game', topic });
-  Toast.info('Generating your quiz...');
+  document.getElementById('lobby-start-btn').disabled    = true;
+  document.getElementById('lobby-start-btn').textContent = '⏳ GENERATING...';
 }
 </script>
