@@ -1,117 +1,104 @@
 """
-WebSocket router for Forge: AI Trivia Showdown.
-Handles the full real-time game loop:
-  connect → start_game → questions → answers → leaderboard → game_over
+websocket.py — WebSocket endpoint and real-time game loop.
+
+WHY WEBSOCKETS:
+  HTTP is request/response — the server can't push to clients.
+  WebSockets keep a persistent connection open so the server can
+  broadcast questions, scores, and events to all players instantly.
+
+FLOW PER CONNECTION:
+  1. Player connects → added to room → PLAYER_JOINED broadcast
+  2. Host sends start_game → Gemini generates questions → game begins
+  3. Players send answers → server scores them
+  4. When ALL players answered → LEADERBOARD broadcast → next question
+  5. After Q10 → GAME_OVER broadcast
 """
 
+import asyncio
+import json
 import logging
+from typing import Any, Dict
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from app.core.state import rooms
-from app.models.quiz import GameStatus, Player, Difficulty
+from app.models.quiz import GameStatus, Player
 from app.services.ai import generate_questions
 
 logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
-
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
-async def broadcast(room_code: str, message: dict):
-    """Send a message to every connected player in a room."""
-    room = rooms.get(room_code)
-    if not room:
-        return
-    for player in room.players.values():
-        if player.websocket:
-            try:
-                await player.websocket.send_json(message)
-            except Exception as e:
-                logger.warning(f"Failed to send to {player.name}: {e}")
+# ── Scoring constants (mirrors CLAUDE.md spec) ────────────────────────────────
+BASE_POINTS = 1000
+TIME_LIMIT_MS = 15000
 
 
-async def send_question(room_code: str):
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+async def broadcast(room_code: str, message: Dict[str, Any]) -> None:
     """
-    Broadcast the current question to all players.
-    Resets per-round answer tracking before sending.
+    Send a JSON message to every connected player in a room.
+
+    WHY WE TRACK DEAD CONNECTIONS:
+      If a player's socket closed unexpectedly, send_text() raises an exception.
+      We collect those players and remove them after the loop so we don't mutate
+      the dict while iterating over it.
+    """
+    if room_code not in rooms:
+        return
+
+    dead = []
+    for name, player in list(rooms[room_code].players.items()):
+        try:
+            await player.websocket.send_text(json.dumps(message))
+        except Exception:
+            dead.append(name)
+
+    for name in dead:
+        rooms[room_code].players.pop(name, None)
+        logger.warning("Removed dead connection for player '%s' in room '%s'", name, room_code)
+
+
+async def send_to(websocket: WebSocket, message: Dict[str, Any]) -> None:
+    """Send a JSON message to a single WebSocket connection."""
+    await websocket.send_text(json.dumps(message))
+
+
+async def broadcast_question(room_code: str) -> None:
+    """
+    Broadcast the current question to all players and reset round state.
+
+    Called both at the start of the game and after each leaderboard reveal.
     """
     room = rooms[room_code]
-    question = room.questions[room.current_q_index]
+    q = room.questions[room.current_q_index]
 
-    # Reset answer tracking for this round
+    # Reset per-round tracking before sending so no race conditions
     room.answers_this_round = {}
-    for player in room.players.values():
-        player.answered = False
-        player.last_answer = None
+    for p in room.players.values():
+        p.answered = False
 
     await broadcast(room_code, {
         "type": "QUESTION",
         "data": {
-            "index":        room.current_q_index,
-            "text":         question.question,
-            "options":      question.options,
-            "time_limit_ms": room.time_limit_ms,   # Uses room's configured timer
-            "total":        room.total_questions,
-            "difficulty":   room.difficulty.value,
+            "index": room.current_q_index,
+            "text": q.question,
+            "options": q.options,
+            "time_limit_ms": TIME_LIMIT_MS,
         }
     })
 
 
-async def check_round_complete(room_code: str):
+def calculate_score(time_ms: int) -> int:
     """
-    Called after every answer submission.
-    If all players have answered, broadcast leaderboard + advance to next question.
+    Speed bonus formula from CLAUDE.md spec.
+    Correct answer in 0ms  → 1000 pts
+    Correct answer in 15s  → 500 pts
+    Wrong answer           → 0 pts (handled by caller)
     """
-    room = rooms[room_code]
-    all_answered = all(p.answered for p in room.players.values())
-
-    if not all_answered:
-        return  # Still waiting for remaining players
-
-    correct_index = room.questions[room.current_q_index].correct_index
-
-    # Broadcast leaderboard with correct answer revealed
-    await broadcast(room_code, {
-        "type": "LEADERBOARD",
-        "data": {
-            "scores":        {n: p.score for n, p in room.players.items()},
-            "correct_index": correct_index,
-        }
-    })
-
-    room.current_q_index += 1
-
-    if room.current_q_index >= room.total_questions:
-        # All questions done — end the game
-        room.status = GameStatus.FINISHED
-        await broadcast(room_code, {
-            "type": "GAME_OVER",
-            "data": {
-                "final_scores": {n: p.score for n, p in room.players.items()}
-            }
-        })
-    else:
-        # Send the next question
-        await send_question(room_code)
-
-
-# ── Scoring ───────────────────────────────────────────────────────────────────
-
-def calculate_score(time_ms: int, time_limit_ms: int) -> int:
-    """
-    Speed-based scoring formula.
-    Correct answer: 500–1000 pts depending on how fast the player answered.
-    Wrong answer:   0 pts (caller's responsibility not to call this).
-
-    Args:
-        time_ms:       How many milliseconds the player took to answer.
-        time_limit_ms: The configured time limit for the room.
-
-    Returns:
-        Integer score between 500 and 1000.
-    """
-    BASE_POINTS = 1000
-    score = int(BASE_POINTS * (1 - (time_ms / time_limit_ms) * 0.5))
-    return max(500, min(1000, score))  # Clamp between 500–1000
+    clamped = max(0, min(time_ms, TIME_LIMIT_MS))
+    return int(BASE_POINTS * (1 - (clamped / TIME_LIMIT_MS) * 0.5))
 
 
 # ── Main WebSocket endpoint ───────────────────────────────────────────────────
@@ -119,112 +106,182 @@ def calculate_score(time_ms: int, time_limit_ms: int) -> int:
 @router.websocket("/ws/{room_code}/{player_name}")
 async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: str):
     """
-    Main WebSocket handler. One connection per player per room.
+    Single entry point for all player connections.
 
-    Flow:
-      1. Player connects → added to room → PLAYER_JOINED broadcast
-      2. Host sends start_game → AI generates questions → GAME_STARTING + Q1
-      3. Players send answers → scores updated → LEADERBOARD after all answer
-      4. After final question → GAME_OVER broadcast
+    Each player (including the host) connects here. The host is identified by
+    matching player_name against room.host — no separate endpoint needed.
     """
+
+    # ── Pre-connection validation ─────────────────────────────────────────────
+    # Must accept() before sending anything, even error messages.
     await websocket.accept()
 
-    # Validate room exists
     if room_code not in rooms:
-        await websocket.send_json({
-            "type": "ERROR",
-            "data": {"message": "Room not found"}
-        })
+        await send_to(websocket, {"type": "ERROR", "data": {"message": "Room not found"}})
         await websocket.close()
         return
 
     room = rooms[room_code]
 
-    # Register player in the room
-    room.players[player_name] = Player(name=player_name, websocket=websocket)
-    logger.info(f"Player '{player_name}' joined room {room_code}")
+    if room.status != GameStatus.WAITING:
+        await send_to(websocket, {"type": "ERROR", "data": {"message": "Game already in progress"}})
+        await websocket.close()
+        return
 
-    # Notify everyone about the new player
+    if player_name in room.players:
+        await send_to(websocket, {"type": "ERROR", "data": {"message": "Name already taken in this room"}})
+        await websocket.close()
+        return
+
+    # ── Register player ───────────────────────────────────────────────────────
+    room.players[player_name] = Player(name=player_name, websocket=websocket)
+    logger.info("Player '%s' joined room '%s' (%d players)", player_name, room_code, len(room.players))
+
     await broadcast(room_code, {
         "type": "PLAYER_JOINED",
         "data": {"players": list(room.players.keys())}
     })
 
+    # ── Message loop ──────────────────────────────────────────────────────────
     try:
         while True:
-            data = await websocket.receive_json()
-            action = data.get("action")
+            raw = await websocket.receive_text()
 
-            # ── start_game ────────────────────────────────────────────────────
+            try:
+                msg = json.loads(raw)
+            except json.JSONDecodeError:
+                await send_to(websocket, {"type": "ERROR", "data": {"message": "Invalid JSON"}})
+                continue
+
+            action = msg.get("action")
+
+            # ── ACTION: start_game ────────────────────────────────────────────
             if action == "start_game":
-                topic = data.get("topic", "General Knowledge").strip()
+                # Only the host can trigger this
+                if player_name != room.host:
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Only the host can start the game"}
+                    })
+                    continue
 
-                # Read optional config from host message, fall back to room defaults
-                difficulty_raw = data.get("difficulty", room.difficulty.value)
-                try:
-                    room.difficulty = Difficulty(difficulty_raw)
-                except ValueError:
-                    room.difficulty = Difficulty.MEDIUM
+                if room.status != GameStatus.WAITING:
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Game already started"}
+                    })
+                    continue
 
-                total_q = data.get("total_questions", room.total_questions)
-                # Clamp to valid range 5–20
-                room.total_questions = max(5, min(20, int(total_q)))
+                if len(room.players) < 1:
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Need at least 1 player to start"}
+                    })
+                    continue
 
+                topic = msg.get("topic", "General Knowledge").strip() or "General Knowledge"
                 room.status = GameStatus.STARTING
 
+                # Tell everyone we're generating questions
                 await broadcast(room_code, {
                     "type": "GAME_STARTING",
-                    "data": {
-                        "topic":            topic,
-                        "total_questions":  room.total_questions,
-                        "difficulty":       room.difficulty.value,
-                        "time_limit_ms":    room.time_limit_ms,
-                    }
+                    "data": {"topic": topic, "total_questions": 10}
                 })
 
-                # Generate questions via Gemini
-                room.questions = await generate_questions(
-                    topic=topic,
-                    total_questions=room.total_questions,
-                    difficulty=room.difficulty,
-                )
+                # Call Gemini — takes 1-3 seconds
+                # We stay in STARTING status during this time so no one can
+                # send answers while questions are being fetched.
+                try:
+                    room.questions = await generate_questions(topic)
+                except Exception as e:
+                    logger.error("Question generation failed for room '%s': %s", room_code, e)
+                    room.status = GameStatus.WAITING
+                    await broadcast(room_code, {
+                        "type": "ERROR",
+                        "data": {"message": "Failed to generate questions. Try again."}
+                    })
+                    continue
 
+                # Game is live — send first question
                 room.status = GameStatus.ACTIVE
                 room.current_q_index = 0
-                await send_question(room_code)
+                await broadcast_question(room_code)
 
-            # ── answer ────────────────────────────────────────────────────────
+            # ── ACTION: answer ────────────────────────────────────────────────
             elif action == "answer":
                 if room.status != GameStatus.ACTIVE:
-                    continue  # Ignore stale answers
+                    continue
 
-                player = room.players.get(player_name)
-                if not player or player.answered:
-                    continue  # Already answered this round
+                # Ignore duplicate answers from same player this round
+                if player_name in room.answers_this_round:
+                    continue
 
-                choice  = int(data.get("choice", -1))
-                time_ms = int(data.get("time_ms", room.time_limit_ms))
+                choice = msg.get("choice")
+                time_ms = int(msg.get("time_ms", TIME_LIMIT_MS))
 
-                player.answered    = True
-                player.last_answer = choice
+                current_q = room.questions[room.current_q_index]
+                is_correct = (choice == current_q.correct_index)
 
-                correct = room.questions[room.current_q_index].correct_index
-                if choice == correct:
-                    player.score += calculate_score(time_ms, room.time_limit_ms)
+                # Score and record the answer
+                pts = calculate_score(time_ms) if is_correct else 0
+                room.players[player_name].score += pts
+                room.players[player_name].answered = True
+                room.answers_this_round[player_name] = choice
 
-                await check_round_complete(room_code)
+                logger.debug(
+                    "Room %s | %s answered %s (%s) +%d pts",
+                    room_code, player_name, choice,
+                    "correct" if is_correct else "wrong", pts
+                )
 
+                # Check if every connected player has answered
+                if len(room.answers_this_round) >= len(room.players):
+                    scores = {name: p.score for name, p in room.players.items()}
+
+                    # Reveal correct answer + current scores
+                    await broadcast(room_code, {
+                        "type": "LEADERBOARD",
+                        "data": {
+                            "scores": scores,
+                            "correct_index": current_q.correct_index,
+                        }
+                    })
+
+                    # Give players 3 seconds to read the leaderboard
+                    await asyncio.sleep(3)
+
+                    room.current_q_index += 1
+
+                    if room.current_q_index >= len(room.questions):
+                        # All 10 questions done
+                        room.status = GameStatus.FINISHED
+                        await broadcast(room_code, {
+                            "type": "GAME_OVER",
+                            "data": {"final_scores": scores}
+                        })
+                        logger.info("Game finished in room '%s'. Scores: %s", room_code, scores)
+                    else:
+                        # Send next question
+                        await broadcast_question(room_code)
+
+            else:
+                await send_to(websocket, {
+                    "type": "ERROR",
+                    "data": {"message": f"Unknown action: '{action}'"}
+                })
+
+    # ── Disconnect handling ───────────────────────────────────────────────────
     except WebSocketDisconnect:
-        logger.info(f"Player '{player_name}' disconnected from room {room_code}")
         room.players.pop(player_name, None)
+        logger.info("Player '%s' disconnected from room '%s'", player_name, room_code)
 
-        # Notify remaining players
         if room.players:
+            # Notify remaining players
             await broadcast(room_code, {
                 "type": "PLAYER_JOINED",
                 "data": {"players": list(room.players.keys())}
             })
         else:
-            # Empty room — clean up
+            # Last player left — clean up the room
             rooms.pop(room_code, None)
-            logger.info(f"Room {room_code} removed (empty)")
+            logger.info("Room '%s' deleted (all players disconnected)", room_code)

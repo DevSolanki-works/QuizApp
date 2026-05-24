@@ -1,135 +1,159 @@
 """
-AI service for Forge: AI Trivia Showdown.
-Handles all communication with the Google Gemini API.
-Generates structured trivia questions using Pydantic validation.
+ai.py — Gemini AI service for quiz question generation.
+
+FLOW:
+  1. Build a strict prompt asking for a raw JSON array of 10 questions.
+  2. Call Gemini 1.5 Flash (free tier: 15 rpm, 1M tokens/day).
+  3. Strip any accidental markdown fences Gemini sometimes adds.
+  4. Parse the JSON → validate each item with the Question Pydantic model.
+  5. Return a List[Question] to the caller.
+
+WHY NO STRUCTURED OUTPUT API:
+  Gemini's native structured-output feature requires a JSON Schema passed as
+  `response_schema`. It works, but the google-genai SDK version pinned here
+  exposes it differently across minor versions. Prompting for raw JSON + manual
+  validation is simpler, equally reliable, and easier to debug.
 """
 
 import json
 import logging
-from app.core.config import settings
-from app.models.quiz import Question, Difficulty
+import re
+from typing import List
+
 import google.generativeai as genai
+
+from app.core.config import settings
+from app.models.quiz import Question
 
 logger = logging.getLogger(__name__)
 
-# Configure Gemini with our API key on module load
+# ── Gemini client setup ───────────────────────────────────────────────────────
+# Configure once at module load time using the API key from settings.
+# All calls in this module reuse this configuration.
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-
-# Difficulty-specific prompt instructions
-DIFFICULTY_PROMPTS = {
-    Difficulty.EASY: (
-        "Make the questions easy — suitable for general audiences with common "
-        "everyday knowledge. Avoid obscure facts. Questions should be fun and "
-        "accessible to everyone."
-    ),
-    Difficulty.MEDIUM: (
-        "Make the questions moderately challenging — a mix of straightforward "
-        "and slightly tricky questions. Suitable for someone with a general "
-        "interest in the topic."
-    ),
-    Difficulty.HARD: (
-        "Make the questions difficult — specific, expert-level, and tricky. "
-        "Include nuanced details, less commonly known facts, and questions that "
-        "would challenge even enthusiasts of the topic. Avoid obvious answers."
-    ),
-}
-
-
-def build_prompt(topic: str, total_questions: int, difficulty: Difficulty) -> str:
-    """
-    Build the Gemini prompt with topic, question count, and difficulty baked in.
-
-    Args:
-        topic:            The trivia topic chosen by the host.
-        total_questions:  How many questions to generate (5–20).
-        difficulty:       Easy, Medium, or Hard difficulty level.
-
-    Returns:
-        A fully formatted prompt string ready to send to Gemini.
-    """
-    difficulty_instruction = DIFFICULTY_PROMPTS[difficulty]
-
-    return f"""Generate exactly {total_questions} trivia questions about: {topic}
-
-Difficulty level: {difficulty.value.upper()}
-{difficulty_instruction}
-
-Return ONLY a valid JSON array with exactly {total_questions} objects.
-Each object must follow this exact structure:
-{{
-  "question": "Question text here?",
-  "options": ["Option A", "Option B", "Option C", "Option D"],
-  "correct_index": 0
-}}
+# ── Prompt template ───────────────────────────────────────────────────────────
+# Kept as a module-level constant so it's easy to tweak without touching logic.
+# {topic} is the only variable — filled in at call time.
+QUIZ_PROMPT = """You are a quiz generator. Return ONLY a JSON array of exactly 10 objects.
+Each object must have exactly these fields:
+  "question": a string with the question text
+  "options":  an array of exactly 4 strings (the answer choices)
+  "correct_index": an integer 0-3 indicating which option is correct
 
 Rules:
-- correct_index is 0-based (0=A, 1=B, 2=C, 3=D)
-- Every question must have exactly 4 options
-- No duplicate questions
-- No markdown, no explanation — JSON array only
-- Array must contain exactly {total_questions} items"""
+- No markdown, no code fences, no explanation — just the raw JSON array.
+- Make questions interesting and specific, not generic trivia.
+- Difficulty: medium.
+- Topic: {topic}
+
+Example of the required format (2 questions shown):
+[
+  {{"question": "...", "options": ["A", "B", "C", "D"], "correct_index": 2}},
+  {{"question": "...", "options": ["A", "B", "C", "D"], "correct_index": 0}}
+]"""
 
 
-async def generate_questions(
-    topic: str,
-    total_questions: int = 10,
-    difficulty: Difficulty = Difficulty.MEDIUM
-) -> list[Question]:
+def _strip_markdown_fences(text: str) -> str:
     """
-    Call Gemini to generate trivia questions for the given topic.
+    Remove ```json ... ``` or ``` ... ``` wrappers that Gemini sometimes adds
+    despite being told not to.
 
-    Args:
-        topic:            The trivia topic (e.g. "Marvel Movies").
-        total_questions:  Number of questions to generate (default 10).
-        difficulty:       Difficulty level (default Medium).
+    WHY THIS EXISTS:
+      Even with explicit instructions, LLMs occasionally wrap JSON in markdown.
+      A small sanitiser here prevents the entire quiz from failing due to a
+      single backtick character.
+    """
+    # Remove ```json or ``` at the start, and ``` at the end
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+    text = re.sub(r"\s*```$", "", text.strip())
+    return text.strip()
 
-    Returns:
-        A list of validated Question objects.
+
+def _parse_and_validate(raw_text: str) -> List[Question]:
+    """
+    Parse Gemini's raw text response into validated Question objects.
 
     Raises:
-        ValueError: If Gemini returns malformed JSON or wrong question count.
-        Exception:  On any Gemini API error.
+        ValueError: if the JSON is malformed or doesn't match the Question schema.
+
+    WHY EXPLICIT VALIDATION:
+      We never trust raw LLM output directly. Pydantic validation ensures every
+      question has exactly 4 options and a valid correct_index before the game
+      starts. A bad question mid-game would be far worse than a failed room creation.
     """
+    cleaned = _strip_markdown_fences(raw_text)
+
     try:
-        model = genai.GenerativeModel(
-            model_name=settings.GEMINI_MODEL,
-            generation_config={
-                "temperature":        0.8,
-                "max_output_tokens":  8192,   # Must be high to avoid truncation
-            }
-        )
-
-        prompt = build_prompt(topic, total_questions, difficulty)
-        logger.info(
-            f"Generating {total_questions} {difficulty.value} questions for topic: '{topic}'"
-        )
-
-        response = await model.generate_content_async(prompt)
-        raw = response.text.strip()
-
-        # Strip markdown code fences if Gemini adds them despite instructions
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-
-        # Parse and validate with Pydantic
-        data = json.loads(raw)
-        questions = [Question(**q) for q in data]
-
-        if len(questions) != total_questions:
-            raise ValueError(
-                f"Expected {total_questions} questions, got {len(questions)}"
-            )
-
-        logger.info(f"Successfully generated {len(questions)} questions.")
-        return questions
-
+        raw_list = json.loads(cleaned)
     except json.JSONDecodeError as e:
-        logger.error(f"Gemini returned invalid JSON: {e}")
-        raise ValueError(f"AI returned malformed response: {e}")
+        logger.error("Gemini returned invalid JSON: %s\nRaw text: %s", e, cleaned[:500])
+        raise ValueError(f"Gemini response was not valid JSON: {e}") from e
+
+    if not isinstance(raw_list, list):
+        raise ValueError(f"Expected a JSON array, got {type(raw_list).__name__}")
+
+    questions: List[Question] = []
+    for i, item in enumerate(raw_list):
+        try:
+            questions.append(Question(**item))
+        except Exception as e:
+            # Log which question failed so debugging is easy
+            logger.error("Question %d failed Pydantic validation: %s\nItem: %s", i, e, item)
+            raise ValueError(f"Question {i} is malformed: {e}") from e
+
+    if len(questions) != 10:
+        raise ValueError(f"Expected 10 questions, got {len(questions)}")
+
+    return questions
+
+
+async def generate_questions(topic: str) -> List[Question]:
+    """
+    Call Gemini 1.5 Flash to generate 10 quiz questions on the given topic.
+
+    Args:
+        topic: Any subject string, e.g. "Marvel Movies" or "Quantum Physics".
+
+    Returns:
+        A list of exactly 10 validated Question objects.
+
+    Raises:
+        ValueError:   if Gemini's response can't be parsed or validated.
+        Exception:    if the Gemini API call itself fails (network, quota, etc.).
+
+    WHY ASYNC:
+      FastAPI runs on an async event loop. Blocking calls inside an async route
+      freeze the entire server. google-generativeai's generate_content() is
+      synchronous, so we run it in a thread pool via asyncio.to_thread() to
+      avoid blocking.
+    """
+    import asyncio
+
+    prompt = QUIZ_PROMPT.format(topic=topic)
+    model = genai.GenerativeModel(settings.GEMINI_MODEL)
+
+    logger.info("Generating quiz questions for topic: '%s'", topic)
+
+    # Run the synchronous Gemini call in a thread pool so we don't block the
+    # event loop while waiting for the API response (~1-3 seconds).
+    try:
+        response = await asyncio.to_thread(
+            model.generate_content,
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.8,      # Some creativity, but not wild
+                max_output_tokens=2048,
+            ),
+        )
     except Exception as e:
-        logger.error(f"Gemini API error: {e}")
+        logger.error("Gemini API call failed for topic '%s': %s", topic, e)
         raise
+
+    raw_text = response.text
+    logger.debug("Raw Gemini response for '%s': %s", topic, raw_text[:200])
+
+    questions = _parse_and_validate(raw_text)
+    logger.info("Successfully generated %d questions for topic '%s'", len(questions), topic)
+
+    return questions
