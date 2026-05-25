@@ -9,6 +9,32 @@
     align-items: center; padding: 0 24px 40px;
     overflow-y: auto;
   }
+  @media (min-width: 1024px) {
+    .results-main-content {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 40px;
+      width: 100%;
+      margin-top: 30px;
+    }
+    .results-left {
+      width: 45%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .results-right {
+      width: 45%;
+    }
+    .results-header {
+      padding: 20px 0;
+    }
+    .my-result-card {
+      margin-top: 30px;
+    }
+  }
 
   /* ── HEADER ─────────────────────────────────────────────── */
   .results-header {
@@ -210,20 +236,28 @@
     <div class="results-topic-badge" id="results-topic">🎯 —</div>
   </div>
 
-  <!-- PODIUM -->
-  <div class="podium-wrap z1" id="results-podium"></div>
+  <!-- PODIUM & LEADERBOARD WRAPPER -->
+  <div class="results-main-content z1">
+    
+    <!-- LEFT SIDE: PODIUM + MY RESULT -->
+    <div class="results-left">
+      <div class="podium-wrap" id="results-podium"></div>
 
-  <!-- MY RESULT -->
-  <div class="my-result-card z1" id="my-result-card">
-    <p class="my-result-label">YOUR FINAL SCORE</p>
-    <p class="my-result-score" id="my-result-score">—</p>
-    <p class="my-result-rank" id="my-result-rank">—</p>
-  </div>
+      <div class="my-result-card" id="my-result-card">
+        <p class="my-result-label">YOUR FINAL SCORE</p>
+        <p class="my-result-score" id="my-result-score">—</p>
+        <p class="my-result-rank" id="my-result-rank">—</p>
+      </div>
+    </div>
 
-  <!-- FULL LEADERBOARD -->
-  <div class="results-lb-card z1">
-    <p class="results-lb-title">📋 ALL PLAYERS</p>
-    <div id="results-lb-list"></div>
+    <!-- RIGHT SIDE: ALL PLAYERS -->
+    <div class="results-right">
+      <div class="results-lb-card">
+        <p class="results-lb-title">📋 ALL PLAYERS</p>
+        <div id="results-lb-list"></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ACTION BUTTONS -->
