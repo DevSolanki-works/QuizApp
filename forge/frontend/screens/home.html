@@ -12,8 +12,9 @@
     .home-wrap {
       flex-direction: row;
       justify-content: center;
-      gap: 60px;
-      padding: 0 60px;
+      align-items: center;
+      gap: 80px;
+      padding: 40px 60px;
     }
   }
   .home-hero {
@@ -22,18 +23,26 @@
   }
   @media (min-width: 1024px) {
     .home-hero {
-      width: 45%;
-      align-items: flex-start;
+      width: auto;
+      max-width: 480px;
+      align-items: center;
       padding: 0;
+      flex-shrink: 0;
     }
     .home-title, .home-tagline {
-      text-align: left;
+      text-align: center;
     }
   }
   .home-trophy {
     font-size: 56px; line-height: 1;
     animation: trophy-bounce 2.4s ease-in-out infinite;
     filter: drop-shadow(0 4px 24px rgba(255,217,61,0.5));
+  }
+  @media (min-width: 1024px) {
+    .home-trophy {
+      font-size: 84px;
+      margin-bottom: 10px;
+    }
   }
   @keyframes trophy-bounce {
     0%,100% { transform: translateY(0) rotate(-3deg) scale(1); }
@@ -45,11 +54,22 @@
     text-align: center; line-height: 1.5;
     text-shadow: 0 2px 0 rgba(0,0,0,0.4);
   }
+  @media (min-width: 1024px) {
+    .home-title {
+      font-size: 36px;
+    }
+  }
   .home-title-accent { color: var(--yellow); font-size: 12px; }
+  @media (min-width: 1024px) {
+    .home-title-accent { font-size: 16px; }
+  }
   .home-tagline {
     font-family: var(--font-pixel); font-size: 8px;
     color: rgba(255,255,255,0.5); text-align: center;
     letter-spacing: 1px; line-height: 2;
+  }
+  @media (min-width: 1024px) {
+    .home-tagline { font-size: 10px; }
   }
   .home-live-badge {
     display: flex; align-items: center; gap: 8px;
@@ -74,6 +94,10 @@
   .live-text {
     font-family: var(--font-pixel); font-size: 7px;
     color: var(--green); letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  @media (min-width: 1024px) {
+    .live-text { font-size: 9px; }
   }
   .home-card {
     width: 100%; padding: 28px 22px;
@@ -81,6 +105,12 @@
     background: rgba(255,255,255,0.09);
     border: 1px solid rgba(255,255,255,0.16);
     display: flex; flex-direction: column; gap: 18px;
+  }
+  @media (min-width: 1024px) {
+    .home-card {
+      max-width: 400px;
+      padding: 40px 32px;
+    }
   }
   .card-heading {
     font-family: var(--font-pixel); font-size: 9px;
@@ -103,7 +133,6 @@
   }
   @media (min-width: 1024px) {
     .home-features {
-      justify-content: flex-start;
       margin-top: 32px;
     }
   }
@@ -116,10 +145,9 @@
     color: rgba(255,255,255,0.5); letter-spacing: 0.3px;
   }
   .feature-pill .fi { font-size: 13px; }
-  .home-footer {
-    margin-top: auto; padding-top: 28px;
-    font-family: var(--font-pixel); font-size: 7px;
-    color: rgba(255,255,255,0.2); text-align: center; line-height: 2.2;
+  .btn .icon { font-size: 1.4em; vertical-align: middle; }
+  @media (min-width: 1024px) {
+    .btn .icon { font-size: 1.8em; }
   }
   .input-field.error {
     border-color: var(--red) !important;
@@ -162,26 +190,25 @@
         placeholder="e.g. QuizMaster99" maxlength="20"
         autocomplete="off" autocorrect="off" spellcheck="false" />
     </div>
+<button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()">
+  <span class="icon">🎮</span> &nbsp;CREATE ROOM
+</button>
 
-    <button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()">
-      🎮 &nbsp;CREATE ROOM
-    </button>
+<div class="divider-text">OR JOIN A ROOM</div>
 
-    <div class="divider-text">OR JOIN A ROOM</div>
+<div>
+  <label class="input-label" for="input-code">ROOM CODE</label>
+  <input id="input-code" class="input-field code-input" type="text"
+    placeholder="XXXX" maxlength="4"
+    autocomplete="off" autocorrect="off" spellcheck="false" />
+</div>
 
-    <div>
-      <label class="input-label" for="input-code">ROOM CODE</label>
-      <input id="input-code" class="input-field code-input" type="text"
-        placeholder="XXXX" maxlength="4"
-        autocomplete="off" autocorrect="off" spellcheck="false" />
-    </div>
+<button class="btn btn-secondary" id="btn-join" onclick="homeJoinRoom()">
+  <span class="icon">🚀</span> &nbsp;JOIN ROOM
+</button>
+</div>
 
-    <button class="btn btn-secondary" id="btn-join" onclick="homeJoinRoom()">
-      🚀 &nbsp;JOIN ROOM
-    </button>
-  </div>
-
-  <!-- FEATURE PILLS -->
+<!-- FEATURE PILLS -->
   <div class="home-features z1">
     <div class="feature-pill"><span class="fi">🤖</span> AI-GENERATED</div>
     <div class="feature-pill"><span class="fi">⚡</span> REAL-TIME</div>
