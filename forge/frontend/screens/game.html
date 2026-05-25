@@ -294,12 +294,12 @@
   </div>
 
   <!-- TIMER RING -->
-  <div class="timer-wrap z1">
+  <div class="timer-wrap z1" id="timer-wrap" style="visibility:hidden">
     <svg class="timer-svg" viewBox="0 0 80 80">
       <circle class="timer-bg-circle" cx="40" cy="40" r="35"/>
       <circle class="timer-fg-circle" id="timer-circle" cx="40" cy="40" r="35"/>
     </svg>
-    <span class="timer-number" id="timer-number">15</span>
+    <span class="timer-number" id="timer-number">—</span>
   </div>
 
   <!-- QUESTION CARD -->
@@ -386,6 +386,10 @@ function _onQuestion(data) {
 
   // Hide leaderboard overlay
   _hideLB();
+
+  // Show timer ring (hidden initially during loading)
+  const timerWrap = document.getElementById('timer-wrap');
+  if (timerWrap) timerWrap.style.visibility = 'visible';
 
   // Update progress & counter
   const total = State.totalQ;
