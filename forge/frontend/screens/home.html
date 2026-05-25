@@ -55,7 +55,12 @@
     display: flex; align-items: center; gap: 8px;
     padding: 6px 14px; border-radius: var(--radius-pill);
     background: rgba(6,214,160,0.12);
-    border: 1px solid rgba(6,214,160,0.3); margin-top: 4px;
+    border: 1px solid rgba(6,214,160,0.3);
+  }
+  @media (max-width: 1023px) {
+    .home-live-badge {
+      margin-top: 4px;
+    }
   }
   .live-dot {
     width: 8px; height: 8px; border-radius: 50%;
@@ -92,7 +97,15 @@
   }
   .home-features {
     display: flex; flex-wrap: wrap; gap: 8px;
-    justify-content: center; margin-top: 14px;
+    justify-content: center; margin-top: 24px;
+    margin-bottom: 24px;
+    width: 100%;
+  }
+  @media (min-width: 1024px) {
+    .home-features {
+      justify-content: flex-start;
+      margin-top: 32px;
+    }
   }
   .feature-pill {
     display: flex; align-items: center; gap: 6px;
@@ -174,10 +187,6 @@
     <div class="feature-pill"><span class="fi">⚡</span> REAL-TIME</div>
     <div class="feature-pill"><span class="fi">🌐</span> ANY TOPIC</div>
     <div class="feature-pill"><span class="fi">👥</span> MULTIPLAYER</div>
-  </div>
-
-  <div class="home-footer z1">
-    POWERED BY GEMINI AI &nbsp;·&nbsp; &copy; 2025 FORGE
   </div>
 </div>
 
