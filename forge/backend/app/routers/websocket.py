@@ -282,6 +282,5 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                 "data": {"players": list(room.players.keys())}
             })
         else:
-            # Last player left — clean up the room
             rooms.pop(room_code, None)
             logger.info("Room '%s' deleted (all players disconnected)", room_code)
