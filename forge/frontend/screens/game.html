@@ -343,7 +343,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 const OPTION_LETTERS = ['A','B','C','D'];
-const TIME_LIMIT_MS  = 15000;
+const TIME_LIMIT_MS  = 20000;
 const CIRCUMFERENCE  = 220;  /* 2π × 35 ≈ 220 */
 
 let _timerInterval  = null;   // setInterval handle
@@ -360,7 +360,10 @@ function onGameShow() {
 
   // Set topic label
   const topicEl = document.getElementById('game-topic-label');
-  if (topicEl) topicEl.textContent = State.topic || '—';
+  if (topicEl) {
+    const modeLabel = (State.mode || 'medium').toUpperCase();
+    topicEl.textContent = State.topic ? `${State.topic} · ${modeLabel}` : modeLabel;
+  }
 
   // Reset local state
   _answered = false;

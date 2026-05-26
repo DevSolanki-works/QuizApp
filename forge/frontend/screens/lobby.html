@@ -179,6 +179,30 @@
     color: rgba(255,255,255,0.35); text-align: right;
     margin-top: -10px;
   }
+  .mode-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .mode-pill {
+    min-height: 52px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.75);
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mode-pill:active { transform: scale(0.98); }
+  .mode-pill.selected {
+    background: rgba(255,217,61,0.18);
+    border-color: rgba(255,217,61,0.45);
+    color: var(--yellow);
+  }
   .start-hint {
     font-family: var(--font-pixel); font-size: 7px;
     color: rgba(255,255,255,0.35); text-align: center;
@@ -259,6 +283,16 @@
       <p class="topic-char-count"><span id="topic-char-count">0</span>/60</p>
     </div>
 
+      <!-- Mode selector -->
+      <div>
+        <label class="input-label">MODE</label>
+        <div class="mode-selector" id="mode-selector">
+          <button class="mode-pill" data-mode="easy" type="button" onclick="lobbyPickMode('easy', this)">EASY<br>30 SEC</button>
+          <button class="mode-pill selected" data-mode="medium" type="button" onclick="lobbyPickMode('medium', this)">MEDIUM<br>20 SEC</button>
+          <button class="mode-pill" data-mode="hard" type="button" onclick="lobbyPickMode('hard', this)">HARD<br>10 SEC</button>
+        </div>
+      </div>
+
     <!-- Topic suggestion chips -->
     <div>
       <label class="input-label">QUICK PICKS</label>
@@ -323,6 +357,7 @@ function onLobbyShow() {
     hostPanel.style.display  = 'flex';
     guestPanel.style.display = 'none';
     _renderTopicChips();
+    _syncModeButtons();
   } else {
     hostPanel.style.display  = 'none';
     guestPanel.style.display = 'flex';
@@ -338,6 +373,7 @@ function onLobbyShow() {
   });
   WS.on('GAME_STARTING', (data) => {
     State.topic  = data.topic;
+    State.mode   = data.mode || State.mode || 'medium';
     State.totalQ = data.total_questions;
     goTo('game');
   });
@@ -428,6 +464,20 @@ function lobbyOnTopicInput() {
   _updateStartBtn();
 }
 
+function _syncModeButtons() {
+  const mode = State.mode || 'medium';
+  document.querySelectorAll('.mode-pill').forEach(btn => {
+    const matches = btn.dataset.mode === mode;
+    btn.classList.toggle('selected', matches);
+  });
+}
+
+function lobbyPickMode(mode, el) {
+  State.mode = mode;
+  document.querySelectorAll('.mode-pill').forEach(btn => btn.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+}
+
 function lobbyPickTopic(el, topic) {
   const input = document.getElementById('input-topic');
   // Strip emoji prefix for the actual topic value sent to server
@@ -478,7 +528,7 @@ function lobbyStartGame() {
   const btn = document.getElementById('btn-start-game');
   if (btn) { btn.textContent = '⏳  GENERATING...'; btn.disabled = true; }
 
-  WS.send({ action: 'start_game', topic });
+  WS.send({ action: 'start_game', topic, mode: State.mode || 'medium' });
   Toast.info('Generating your quiz...');
 }
 </script>

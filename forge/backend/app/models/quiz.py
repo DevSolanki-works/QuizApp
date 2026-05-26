@@ -21,6 +21,30 @@ class GameStatus(str, Enum):
     FINISHED  = "finished"   # All questions done
 
 
+class GameMode(str, Enum):
+    """Timer presets available when the host starts a game."""
+    EASY   = "easy"
+    MEDIUM = "medium"
+    HARD   = "hard"
+
+
+TIME_LIMIT_MS_BY_MODE = {
+    GameMode.EASY: 30000,
+    GameMode.MEDIUM: 20000,
+    GameMode.HARD: 10000,
+}
+
+DEFAULT_GAME_MODE = GameMode.MEDIUM
+
+
+def time_limit_for_mode(mode: str | GameMode) -> int:
+    """Return the round timer for a selected game mode."""
+    try:
+        return TIME_LIMIT_MS_BY_MODE[GameMode(str(mode).lower())]
+    except Exception:
+        return TIME_LIMIT_MS_BY_MODE[DEFAULT_GAME_MODE]
+
+
 class Question(BaseModel):
     """A single quiz question as returned (and validated) from Gemini."""
     question:      str           = Field(..., description="The question text")
@@ -52,6 +76,8 @@ class Room(BaseModel):
     code:             str
     host:             str                        # Player name of whoever created the room
     status:           GameStatus = GameStatus.WAITING
+    mode:             GameMode = DEFAULT_GAME_MODE
+    time_limit_ms:    int = TIME_LIMIT_MS_BY_MODE[DEFAULT_GAME_MODE]
     players:          dict[str, Player] = {}     # keyed by player name
     questions:        list[Question] = []
     current_q_index:  int = 0                    # Which question is active right now

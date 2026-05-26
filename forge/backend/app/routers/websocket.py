@@ -22,7 +22,13 @@ from typing import Any, Dict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.core.state import rooms
-from app.models.quiz import GameStatus, Player
+from app.models.quiz import (
+    DEFAULT_GAME_MODE,
+    GameMode,
+    GameStatus,
+    Player,
+    time_limit_for_mode,
+)
 from app.services.ai import generate_questions
 
 logger = logging.getLogger(__name__)
@@ -31,7 +37,6 @@ router = APIRouter()
 
 # ── Scoring constants (mirrors CLAUDE.md spec) ────────────────────────────────
 BASE_POINTS = 1000
-TIME_LIMIT_MS = 15000
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -85,20 +90,20 @@ async def broadcast_question(room_code: str) -> None:
             "index": room.current_q_index,
             "text": q.question,
             "options": q.options,
-            "time_limit_ms": TIME_LIMIT_MS,
+            "time_limit_ms": room.time_limit_ms,
         }
     })
 
 
-def calculate_score(time_ms: int) -> int:
+def calculate_score(time_ms: int, time_limit_ms: int) -> int:
     """
     Speed bonus formula from CLAUDE.md spec.
     Correct answer in 0ms  → 1000 pts
-    Correct answer in 15s  → 500 pts
+    Correct answer at limit → 500 pts
     Wrong answer           → 0 pts (handled by caller)
     """
-    clamped = max(0, min(time_ms, TIME_LIMIT_MS))
-    return int(BASE_POINTS * (1 - (clamped / TIME_LIMIT_MS) * 0.5))
+    clamped = max(0, min(time_ms, time_limit_ms))
+    return int(BASE_POINTS * (1 - (clamped / time_limit_ms) * 0.5))
 
 
 # ── Main WebSocket endpoint ───────────────────────────────────────────────────
@@ -180,12 +185,25 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                     continue
 
                 topic = msg.get("topic", "General Knowledge").strip() or "General Knowledge"
+                mode_value = str(msg.get("mode", DEFAULT_GAME_MODE.value)).strip().lower()
+                try:
+                    mode = GameMode(mode_value)
+                except ValueError:
+                    mode = DEFAULT_GAME_MODE
+
                 room.status = GameStatus.STARTING
+                room.mode = mode
+                room.time_limit_ms = time_limit_for_mode(mode)
 
                 # Tell everyone we're generating questions
                 await broadcast(room_code, {
                     "type": "GAME_STARTING",
-                    "data": {"topic": topic, "total_questions": 10}
+                    "data": {
+                        "topic": topic,
+                        "mode": room.mode.value,
+                        "time_limit_ms": room.time_limit_ms,
+                        "total_questions": 10,
+                    }
                 })
 
                 # Call Gemini — takes 1-3 seconds
@@ -217,13 +235,13 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                     continue
 
                 choice = msg.get("choice")
-                time_ms = int(msg.get("time_ms", TIME_LIMIT_MS))
+                time_ms = int(msg.get("time_ms", room.time_limit_ms))
 
                 current_q = room.questions[room.current_q_index]
                 is_correct = (choice == current_q.correct_index)
 
                 # Score and record the answer
-                pts = calculate_score(time_ms) if is_correct else 0
+                pts = calculate_score(time_ms, room.time_limit_ms) if is_correct else 0
                 room.players[player_name].score += pts
                 room.players[player_name].answered = True
                 room.answers_this_round[player_name] = choice
