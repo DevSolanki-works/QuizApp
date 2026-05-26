@@ -352,6 +352,7 @@ let _answered       = false;  // has this player answered this round?
 let _qIndex         = 0;      // current question index (0-based)
 let _lbShowTimer    = null;   // delayed leaderboard reveal
 let _lbHideTimer    = null;   // fallback leaderboard hide
+let _latestScores   = null;
 
 /** Called by router when screen becomes active */
 function onGameShow() {
@@ -374,6 +375,7 @@ function onGameShow() {
 
   // Attach WebSocket handlers
   WS.on('QUESTION',    _onQuestion);
+  WS.on('ANSWER_REVEAL', _onAnswerReveal);
   WS.on('LEADERBOARD', _onLeaderboard);
   WS.on('GAME_OVER',   _onGameOver);
   WS.on('ERROR', (d)  => Toast.error(d.message || 'Error'));
@@ -511,6 +513,39 @@ function _disableOptions(chosenIdx = null) {
   });
 }
 
+/* ── ANSWER REVEAL ──────────────────────────────────────── */
+
+function _onAnswerReveal(data) {
+  _stopTimer();
+  _clearLeaderboardTimers();
+  _hideLB();
+
+  const correctIdx = data.correct_index;
+  _latestScores = data.scores || _latestScores;
+
+  document.querySelectorAll('.option-btn').forEach((btn, i) => {
+    btn.setAttribute('disabled', 'true');
+    btn.classList.remove('wrong', 'reveal-correct', 'correct');
+
+    if (i === correctIdx) {
+      btn.classList.add('reveal-correct');
+      const oldIcon = btn.querySelector('.option-result-icon');
+      if (oldIcon) oldIcon.remove();
+      const icon = document.createElement('span');
+      icon.className = 'option-result-icon';
+      icon.textContent = '✓';
+      btn.appendChild(icon);
+    } else {
+      btn.classList.add('wrong');
+    }
+  });
+
+  const myScore = (_latestScores && _latestScores[State.playerName]) || 0;
+  State.scores = _latestScores || State.scores;
+  const scoreEl = document.getElementById('game-my-score');
+  if (scoreEl) scoreEl.textContent = myScore.toLocaleString();
+}
+
 /* ── LEADERBOARD ─────────────────────────────────────────── */
 
 /**
@@ -520,31 +555,16 @@ function _disableOptions(chosenIdx = null) {
 function _onLeaderboard(data) {
   _stopTimer();
   _clearLeaderboardTimers();
-
-  // Show correct / wrong feedback on options
-  const correctIdx = data.correct_index;
-  document.querySelectorAll('.option-btn').forEach((btn, i) => {
-    btn.setAttribute('disabled', 'true');
-    if (i === correctIdx) {
-      btn.classList.add('reveal-correct');
-      // Show tick
-      const icon = document.createElement('span');
-      icon.className = 'option-result-icon';
-      icon.textContent = '✓';
-      btn.appendChild(icon);
-    } else if (_answered) {
-      btn.classList.add('wrong');
-    }
-  });
+  _latestScores = data.scores || _latestScores;
 
   // Update my score in topbar
-  const myScore = data.scores[State.playerName] || 0;
-  State.scores  = data.scores;
+  const myScore = (_latestScores && _latestScores[State.playerName]) || 0;
+  State.scores  = _latestScores || State.scores;
   const scoreEl = document.getElementById('game-my-score');
   if (scoreEl) scoreEl.textContent = myScore.toLocaleString();
 
   // Build sorted leaderboard
-  const sorted = Object.entries(data.scores)
+  const sorted = Object.entries(_latestScores || {})
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8);
 
@@ -565,10 +585,9 @@ function _onLeaderboard(data) {
     }).join('');
   }
 
-  // Show after a short delay (give time to see correct answer)
-  _lbShowTimer = setTimeout(_showLB, 900);
+  _lbShowTimer = setTimeout(_showLB, 80);
   // Fallback: hide the overlay even if the next QUESTION message is delayed.
-  _lbHideTimer = setTimeout(_hideLB, 3900);
+  _lbHideTimer = setTimeout(_hideLB, 3200);
 }
 
 function _showLB() {

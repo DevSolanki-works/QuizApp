@@ -345,7 +345,13 @@
 
 <script>
 /* ── CONFIG ─────────────────────────────────────────────── */
-const API_BASE = 'https://forge-backend-878124462453.us-central1.run.app';
+const IS_LOCAL_DEV =
+  window.location.protocol === 'file:' ||
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1';
+const API_BASE = IS_LOCAL_DEV
+  ? 'http://127.0.0.1:8000'
+  : 'https://forge-backend-878124462453.us-central1.run.app';
 const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 
 /* ── GLOBAL STATE ────────────────────────────────────────── */

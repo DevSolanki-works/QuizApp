@@ -37,6 +37,8 @@ router = APIRouter()
 
 # ── Scoring constants (mirrors CLAUDE.md spec) ────────────────────────────────
 BASE_POINTS = 1000
+ANSWER_REVEAL_SECONDS = 1.5
+LEADERBOARD_SECONDS = 2.5
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -257,7 +259,17 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                 if len(room.answers_this_round) >= len(room.players):
                     scores = {name: p.score for name, p in room.players.items()}
 
-                    # Reveal correct answer + current scores
+                    # 1) Show correct answer highlight first
+                    await broadcast(room_code, {
+                        "type": "ANSWER_REVEAL",
+                        "data": {
+                            "scores": scores,
+                            "correct_index": current_q.correct_index,
+                        }
+                    })
+                    await asyncio.sleep(ANSWER_REVEAL_SECONDS)
+
+                    # 2) Then show leaderboard overlay
                     await broadcast(room_code, {
                         "type": "LEADERBOARD",
                         "data": {
@@ -265,10 +277,9 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                             "correct_index": current_q.correct_index,
                         }
                     })
+                    await asyncio.sleep(LEADERBOARD_SECONDS)
 
-                    # Give players time to read the highlighted answer and leaderboard
-                    await asyncio.sleep(4)
-
+                    # 3) Then advance to next question (or game over)
                     room.current_q_index += 1
 
                     if room.current_q_index >= len(room.questions):
