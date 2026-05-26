@@ -104,16 +104,16 @@ forge/
 # From backend/ directory
 docker buildx build \
   --platform linux/amd64 \
-  --tag us-central1-docker.pkg.dev/YOUR_PROJECT_ID/forge/backend:latest \
+  --tag us-central1-docker.pkg.dev/quiz-app-forge/forge/backend:latest \
   --push \
   .
 
 gcloud run deploy forge-backend \
-  --image us-central1-docker.pkg.dev/YOUR_PROJECT_ID/forge/backend:latest \
+  --image us-central1-docker.pkg.dev/quiz-app-forge/forge/backend:latest \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=your_key_here,GEMINI_MODEL=gemini-2.0-flash \
+  --set-env-vars GEMINI_API_KEY=your_key_here,GEMINI_MODEL=gemini-2.5-flash \
   --min-instances 0 \
   --max-instances 3 \
   --memory 512Mi \
@@ -257,7 +257,7 @@ home.html → lobby.html → game.html → results.html
 ---
 
 ## 🤖 Gemini Config
-- Model: `gemini-2.0-flash` (GEMINI_MODEL env var)
+- Model: `gemini-2.5-flash` (GEMINI_MODEL env var)
 - max_output_tokens: 8192
 - temperature: 0.8
 - Difficulty injected into prompt via DIFFICULTY_PROMPTS dict in ai.py
