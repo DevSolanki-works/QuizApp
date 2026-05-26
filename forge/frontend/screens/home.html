@@ -124,6 +124,11 @@
   }
   .feature-pill .fi { font-size: 13px; }
   .btn .icon { font-size: 1.4em; vertical-align: middle; }
+  .mode-description {
+    margin-top: -10px; text-align: center;
+    font-family: var(--font-body); font-size: 13px; font-weight: 700;
+    color: rgba(255,255,255,0.58);
+  }
   .input-field.error {
     border-color: var(--red) !important;
     box-shadow: 0 0 0 4px rgba(239,35,60,0.18) !important;
@@ -165,6 +170,15 @@
         placeholder="e.g. QuizMaster99" maxlength="20"
         autocomplete="off" autocorrect="off" spellcheck="false" />
     </div>
+
+    <div class="divider-text">SOLO MODE</div>
+
+    <button class="btn btn-primary" id="btn-solo" onclick="homeStartSolo()">
+      SOLO PLAY
+    </button>
+    <p class="mode-description">Play alone and chase your high score.</p>
+
+    <div class="divider-text">CLASSIC MODE</div>
 
     <button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()">
       <span class="icon">🎮</span> &nbsp;CREATE ROOM
@@ -246,10 +260,12 @@ async function homeCreateRoom() {
   if (!name) return;
   _setLoading('btn-create', true);
   try {
-    const data = await API.createRoom(name);
+    const data = await API.createRoom(name, 'classic');
     State.playerName = name;
     State.roomCode   = data.room_code;
     State.isHost     = true;
+    State.playMode   = 'classic';
+    State.resultStats = null;
     State.players    = [name];
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
@@ -258,6 +274,29 @@ async function homeCreateRoom() {
     Toast.error('Could not create room. Try again.');
   } finally {
     _setLoading('btn-create', false);
+  }
+}
+
+/** Create a private room and open solo setup before the first question. */
+async function homeStartSolo() {
+  const name = _validateName();
+  if (!name) return;
+  _setLoading('btn-solo', true);
+  try {
+    const data = await API.createRoom(name, 'solo');
+    State.playerName = name;
+    State.roomCode = data.room_code;
+    State.isHost = true;
+    State.playMode = 'solo';
+    State.resultStats = null;
+    State.players = [name];
+    WS.connect(State.roomCode, State.playerName);
+    await goTo('lobby');
+  } catch(e) {
+    console.error(e);
+    Toast.error('Could not start a solo game. Try again.');
+  } finally {
+    _setLoading('btn-solo', false);
   }
 }
 
@@ -271,10 +310,16 @@ async function homeJoinRoom() {
   }
   _setLoading('btn-join', true);
   try {
-    await API.getRoom(code);
+    const room = await API.getRoom(code);
+    if (room.play_mode === 'solo') {
+      Toast.error('Solo rooms are private.');
+      return;
+    }
     State.playerName = name;
     State.roomCode   = code;
     State.isHost     = false;
+    State.playMode   = 'classic';
+    State.resultStats = null;
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
   } catch(e) {

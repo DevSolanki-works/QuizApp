@@ -46,10 +46,15 @@
     background: linear-gradient(90deg, var(--yellow), var(--green));
     transition: width 0.5s ease;
   }
+  .game-phase-label {
+    margin-top: 12px;
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--yellow); letter-spacing: 0.8px;
+  }
 
   /* ── TIMER RING ─────────────────────────────────────────── */
   .timer-wrap {
-    margin: 24px 0 8px;
+    margin: 24px 0 28px;
     position: relative; width: 80px; height: 80px;
     display: flex; align-items: center; justify-content: center;
   }
@@ -81,6 +86,12 @@
     text-align: center;
   }
   .timer-number.urgent { color: var(--red); }
+  .timer-limit-label {
+    position: absolute; top: 84px; width: 110px;
+    text-align: center; font-family: var(--font-pixel);
+    font-size: 6px; color: rgba(255,255,255,0.48);
+    letter-spacing: 0.4px;
+  }
 
   /* ── QUESTION CARD ──────────────────────────────────────── */
   .game-question-card {
@@ -175,6 +186,16 @@
     box-shadow: none !important;
     transform: scale(0.96);
   }
+  .option-btn.dimmed {
+    opacity: 0.4; filter: grayscale(60%);
+    box-shadow: none !important;
+    transform: scale(0.96);
+  }
+  .option-btn.chosen-wrong {
+    background: var(--red) !important;
+    opacity: 1; filter: none;
+    box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(230,57,70,0.62) !important;
+  }
   .option-btn.reveal-correct {
     box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(6,214,160,0.5) !important;
     filter: brightness(1.1);
@@ -209,9 +230,11 @@
     z-index: 100; padding: 32px 24px;
     transform: translateY(100%);
     transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
+    visibility: hidden; pointer-events: none; overflow-y: auto;
   }
   .leaderboard-overlay.visible {
     transform: translateY(0);
+    visibility: visible; pointer-events: auto;
   }
   .lb-title {
     font-family: var(--font-pixel); font-size: 12px;
@@ -257,6 +280,11 @@
   .lb-score {
     font-family: var(--font-pixel); font-size: 10px;
     color: var(--white);
+    display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+  }
+  .lb-gain {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: var(--green);
   }
   .lb-next-btn {
     margin-top: 28px; width: 100%; max-width: var(--max-w);
@@ -292,6 +320,7 @@
   <div class="game-progress-track z1" style="width:100%">
     <div class="game-progress-fill" id="game-progress" style="width:0%"></div>
   </div>
+  <p class="game-phase-label z1" id="game-phase-label">QUESTION LIVE</p>
 
   <!-- TIMER RING -->
   <div class="timer-wrap z1" id="timer-wrap" style="visibility:hidden">
@@ -299,6 +328,7 @@
       <circle class="timer-bg-circle" cx="40" cy="40" r="35"/>
       <circle class="timer-fg-circle" id="timer-circle" cx="40" cy="40" r="35"/>
     </svg>
+    <span class="timer-limit-label" id="timer-limit-label">20 SEC ROUND</span>
     <span class="timer-number" id="timer-number">—</span>
   </div>
 
@@ -323,14 +353,14 @@
 </div>
 
 <!-- LEADERBOARD OVERLAY (between rounds) -->
-<div class="leaderboard-overlay" id="lb-overlay">
+<div class="leaderboard-overlay" id="lb-overlay" aria-hidden="true">
   <p class="lb-title" id="lb-title">🏅 LEADERBOARD</p>
   <div class="lb-list" id="lb-list"></div>
   <div class="lb-next-btn">
     <div class="dot-loader" style="justify-content:center;margin-top:8px">
       <span></span><span></span><span></span>
     </div>
-    <p style="font-family:var(--font-pixel);font-size:8px;color:rgba(255,255,255,0.4);
+    <p id="lb-next-label" style="font-family:var(--font-pixel);font-size:8px;color:rgba(255,255,255,0.4);
               text-align:center;margin-top:10px;letter-spacing:0.5px;">
       NEXT QUESTION LOADING...
     </p>
@@ -349,6 +379,7 @@ const CIRCUMFERENCE  = 220;  /* 2π × 35 ≈ 220 */
 let _timerInterval  = null;   // setInterval handle
 let _timerStart     = null;   // timestamp when question appeared
 let _answered       = false;  // has this player answered this round?
+let _chosenIndex    = null;   // local choice retained through answer reveal
 let _qIndex         = 0;      // current question index (0-based)
 let _lbShowTimer    = null;   // delayed leaderboard reveal
 let _lbHideTimer    = null;   // fallback leaderboard hide
@@ -376,7 +407,7 @@ function onGameShow() {
   // Attach WebSocket handlers
   WS.on('QUESTION',    _onQuestion);
   WS.on('ANSWER_REVEAL', _onAnswerReveal);
-  WS.on('LEADERBOARD', _onLeaderboard);
+  WS.on('INTERMISSION_LEADERBOARD', _onIntermissionLeaderboard);
   WS.on('GAME_OVER',   _onGameOver);
   WS.on('ERROR', (d)  => Toast.error(d.message || 'Error'));
 }
@@ -386,12 +417,18 @@ function onGameShow() {
 function _onQuestion(data) {
   // data: { index, text, options: [str,str,str,str], time_limit_ms }
   _answered = false;
+  _chosenIndex = null;
   _qIndex   = data.index;
+  State.phase = data.phase || 'question';
+  State.currentQ = data;
+  _setPhaseLabel('QUESTION LIVE');
 
   _clearLeaderboardTimers();
 
   // Hide leaderboard overlay
   _hideLB();
+  const lbList = document.getElementById('lb-list');
+  if (lbList) lbList.innerHTML = '';
 
   // Show timer ring (hidden initially during loading)
   const timerWrap = document.getElementById('timer-wrap');
@@ -447,6 +484,11 @@ function _startTimer(limitMs) {
   const circleEl = document.getElementById('timer-circle');
   const numberEl = document.getElementById('timer-number');
   if (!circleEl || !numberEl) return;
+  const limitEl = document.getElementById('timer-limit-label');
+  if (limitEl) limitEl.textContent = `${Math.round(totalSecs)} SEC ROUND`;
+  numberEl.textContent = Math.ceil(totalSecs);
+  const timerWrap = document.getElementById('timer-wrap');
+  if (timerWrap) timerWrap.setAttribute('aria-label', `${Math.round(totalSecs)} second timer`);
 
   // Reset ring
   circleEl.style.strokeDashoffset = 0;
@@ -463,10 +505,10 @@ function _startTimer(limitMs) {
     numberEl.textContent = secsLeft;
 
     // Shrink ring stroke (dashoffset goes from 0 → CIRCUMFERENCE)
-    circleEl.style.strokeDashoffset = progress * CIRCUMFERENCE;
+    circleEl.style.strokeDashoffset = Math.min(1, progress) * CIRCUMFERENCE;
 
     // Go red in last 5s
-    if (secsLeft <= 5) {
+    if (remaining > 0 && remaining <= 5000) {
       circleEl.classList.add('urgent');
       numberEl.classList.add('urgent');
     }
@@ -474,7 +516,10 @@ function _startTimer(limitMs) {
     if (remaining <= 0) {
       _stopTimer();
       // Time's up — disable all options without answer
-      if (!_answered) _disableOptions();
+      if (!_answered) {
+        _answered = true;
+        _disableOptions();
+      }
     }
   }, 200);
 }
@@ -493,6 +538,7 @@ function _stopTimer() {
 function gameAnswer(choiceIndex) {
   if (_answered) return;
   _answered = true;
+  _chosenIndex = choiceIndex;
   _stopTimer();
 
   const timeMs = Date.now() - (_timerStart || Date.now());
@@ -519,13 +565,17 @@ function _onAnswerReveal(data) {
   _stopTimer();
   _clearLeaderboardTimers();
   _hideLB();
+  State.phase = data.phase || 'answer_reveal';
+  _setPhaseLabel('ANSWER REVEAL - 4 SEC');
 
   const correctIdx = data.correct_index;
   _latestScores = data.scores || _latestScores;
 
   document.querySelectorAll('.option-btn').forEach((btn, i) => {
     btn.setAttribute('disabled', 'true');
-    btn.classList.remove('wrong', 'reveal-correct', 'correct');
+    btn.style.opacity = '';
+    btn.style.transform = '';
+    btn.classList.remove('wrong', 'dimmed', 'chosen-wrong', 'reveal-correct', 'correct');
 
     if (i === correctIdx) {
       btn.classList.add('reveal-correct');
@@ -535,8 +585,10 @@ function _onAnswerReveal(data) {
       icon.className = 'option-result-icon';
       icon.textContent = '✓';
       btn.appendChild(icon);
+    } else if (i === _chosenIndex) {
+      btn.classList.add('chosen-wrong');
     } else {
-      btn.classList.add('wrong');
+      btn.classList.add('dimmed');
     }
   });
 
@@ -549,19 +601,25 @@ function _onAnswerReveal(data) {
 /* ── LEADERBOARD ─────────────────────────────────────────── */
 
 /**
- * Server broadcasts LEADERBOARD after all players answer.
- * data: { scores: {name: pts}, correct_index: int }
+ * Server broadcasts INTERMISSION_LEADERBOARD in classic mode after reveal.
+ * data: { scores: {name: pts}, points_gained: {name: pts} }
  */
-function _onLeaderboard(data) {
+function _onIntermissionLeaderboard(data) {
   _stopTimer();
   _clearLeaderboardTimers();
   _latestScores = data.scores || _latestScores;
+  State.phase = data.phase || 'intermission_leaderboard';
+  _setPhaseLabel('ROUND STANDINGS - 5 SEC');
 
   // Update my score in topbar
   const myScore = (_latestScores && _latestScores[State.playerName]) || 0;
   State.scores  = _latestScores || State.scores;
   const scoreEl = document.getElementById('game-my-score');
   if (scoreEl) scoreEl.textContent = myScore.toLocaleString();
+  const nextLabel = document.getElementById('lb-next-label');
+  if (nextLabel) {
+    nextLabel.textContent = data.is_final ? 'FINAL RESULTS LOADING...' : 'NEXT QUESTION LOADING...';
+  }
 
   // Build sorted leaderboard
   const sorted = Object.entries(_latestScores || {})
@@ -576,27 +634,32 @@ function _onLeaderboard(data) {
       const isYou   = name === State.playerName;
       const rankCls = rank <= 3 ? `rank-${rank}` : '';
       const medal   = rank <= 3 ? medals[i] : `${rank}`;
+      const points  = (data.points_gained && data.points_gained[name]) || 0;
       return `
         <div class="lb-row ${rankCls}">
           <span class="lb-rank ${rankCls}">${medal}</span>
           <span class="lb-name ${isYou ? 'is-you' : ''}">${_escHtml(name)}${isYou ? ' ★' : ''}</span>
-          <span class="lb-score">${score.toLocaleString()}</span>
+          <span class="lb-score">${score.toLocaleString()}<small class="lb-gain">+${points}</small></span>
         </div>`;
     }).join('');
   }
 
-  _lbShowTimer = setTimeout(_showLB, 80);
-  // Fallback: hide the overlay even if the next QUESTION message is delayed.
-  _lbHideTimer = setTimeout(_hideLB, 3200);
+  _showLB();
 }
 
 function _showLB() {
   const overlay = document.getElementById('lb-overlay');
-  if (overlay) overlay.classList.add('visible');
+  if (overlay) {
+    overlay.classList.add('visible');
+    overlay.setAttribute('aria-hidden', 'false');
+  }
 }
 function _hideLB() {
   const overlay = document.getElementById('lb-overlay');
-  if (overlay) overlay.classList.remove('visible');
+  if (overlay) {
+    overlay.classList.remove('visible');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
 }
 
 function _clearLeaderboardTimers() {
@@ -622,11 +685,19 @@ function _onGameOver(data) {
   _hideLB();
   // data.final_scores: { name: pts }
   State.scores = data.final_scores;
-  // Brief delay so player can see last leaderboard state
-  setTimeout(() => goTo('results'), 2000);
+  State.playMode = data.play_mode || State.playMode || 'classic';
+  State.resultStats = data;
+  State.phase = 'complete';
+  goTo('results');
 }
 
 /* ── UTILS ───────────────────────────────────────────────── */
+/** Update the phase banner while retaining the mounted question content. */
+function _setPhaseLabel(label) {
+  const phaseEl = document.getElementById('game-phase-label');
+  if (phaseEl) phaseEl.textContent = label;
+}
+
 function _escHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
