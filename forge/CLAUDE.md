@@ -113,7 +113,7 @@ gcloud run deploy forge-backend \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=your_key_here,GEMINI_MODEL=gemini-2.0-flash \
+  --set-env-vars GEMINI_API_KEY=your_key_here,GEMINI_MODEL=gemini-2.5-flash \
   --min-instances 0 \
   --max-instances 3 \
   --memory 512Mi \
@@ -124,7 +124,7 @@ gcloud run deploy forge-backend \
 ```bash
 gcloud run services update forge-backend \
   --region us-central1 \
-  --update-env-vars GEMINI_API_KEY=YOUR_NEW_KEY_HERE
+  --update-env-vars GEMINI_API_KEY=YOUR_NEW_KEY_HERE,GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ### Re-sync frontend into Android after any HTML/JS changes
@@ -257,7 +257,7 @@ home.html → lobby.html → game.html → results.html
 ---
 
 ## 🤖 Gemini Config
-- Model: `gemini-2.0-flash` (GEMINI_MODEL env var)
+- Model: `gemini-2.5-flash` (GEMINI_MODEL env var)
 - max_output_tokens: 8192
 - temperature: 0.8
 - Difficulty injected into prompt via DIFFICULTY_PROMPTS dict in ai.py
