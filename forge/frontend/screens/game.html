@@ -57,6 +57,7 @@
     margin: 24px 0 28px;
     position: relative; width: 80px; height: 80px;
     display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
   }
   .timer-svg {
     position: absolute; top: 0; left: 0;
@@ -86,12 +87,6 @@
     text-align: center;
   }
   .timer-number.urgent { color: var(--red); }
-  .timer-limit-label {
-    position: absolute; top: 84px; width: 110px;
-    text-align: center; font-family: var(--font-pixel);
-    font-size: 6px; color: rgba(255,255,255,0.48);
-    letter-spacing: 0.4px;
-  }
 
   /* ── QUESTION CARD ──────────────────────────────────────── */
   .game-question-card {
@@ -328,7 +323,6 @@
       <circle class="timer-bg-circle" cx="40" cy="40" r="35"/>
       <circle class="timer-fg-circle" id="timer-circle" cx="40" cy="40" r="35"/>
     </svg>
-    <span class="timer-limit-label" id="timer-limit-label">20 SEC ROUND</span>
     <span class="timer-number" id="timer-number">—</span>
   </div>
 
@@ -394,8 +388,7 @@ function onGameShow() {
   const topicEl = document.getElementById('game-topic-label');
   if (topicEl) {
     const modeLabel = (State.mode || 'medium').toUpperCase();
-    const seconds = Math.round((State.timeLimitMs || TIME_LIMIT_MS) / 1000);
-    topicEl.textContent = State.topic ? `${State.topic} · ${modeLabel} · ${seconds}s` : `${modeLabel} · ${seconds}s`;
+    topicEl.textContent = State.topic ? `${State.topic} · ${modeLabel}` : modeLabel;
   }
 
   // Reset local state
@@ -484,8 +477,6 @@ function _startTimer(limitMs) {
   const circleEl = document.getElementById('timer-circle');
   const numberEl = document.getElementById('timer-number');
   if (!circleEl || !numberEl) return;
-  const limitEl = document.getElementById('timer-limit-label');
-  if (limitEl) limitEl.textContent = `${Math.round(totalSecs)} SEC ROUND`;
   numberEl.textContent = Math.ceil(totalSecs);
   const timerWrap = document.getElementById('timer-wrap');
   if (timerWrap) timerWrap.setAttribute('aria-label', `${Math.round(totalSecs)} second timer`);
@@ -566,7 +557,7 @@ function _onAnswerReveal(data) {
   _clearLeaderboardTimers();
   _hideLB();
   State.phase = data.phase || 'answer_reveal';
-  _setPhaseLabel('ANSWER REVEAL - 4 SEC');
+  _setPhaseLabel('ANSWER REVEAL');
 
   const correctIdx = data.correct_index;
   _latestScores = data.scores || _latestScores;
@@ -609,7 +600,7 @@ function _onIntermissionLeaderboard(data) {
   _clearLeaderboardTimers();
   _latestScores = data.scores || _latestScores;
   State.phase = data.phase || 'intermission_leaderboard';
-  _setPhaseLabel('ROUND STANDINGS - 5 SEC');
+  _setPhaseLabel('ROUND STANDINGS');
 
   // Update my score in topbar
   const myScore = (_latestScores && _latestScores[State.playerName]) || 0;
