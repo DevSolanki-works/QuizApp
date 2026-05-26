@@ -361,4 +361,3 @@ Room        (Model)   → code, host, status, players, questions,
 11. ADB commands must use Windows PowerShell, not WSL terminal.
 12. Website is live at forgetrivia.online — frontend deployed on Vercel,
     connected via Namecheap DNS (A record + CNAME to Vercel).
-
