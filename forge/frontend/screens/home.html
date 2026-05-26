@@ -10,11 +10,13 @@
   }
   @media (min-width: 1024px) {
     .home-wrap {
-      flex-direction: row;
+      display: grid;
+      grid-template-columns: minmax(300px, 400px) minmax(320px, 400px);
+      grid-template-rows: auto auto;
       justify-content: center;
-      align-items: center;
-      gap: 40px;
-      padding: 0 40px;
+      align-content: start;
+      gap: 28px 40px;
+      padding: 42px 40px 36px;
     }
   }
   .home-hero {
@@ -23,9 +25,11 @@
   }
   @media (min-width: 1024px) {
     .home-hero {
-      flex: 1;
+      grid-column: 1;
+      grid-row: 1;
       padding: 0;
       max-width: 400px;
+      align-self: center;
     }
   }
   .home-trophy {
@@ -84,7 +88,8 @@
   }
   @media (min-width: 1024px) {
     .home-card {
-      flex: 1;
+      grid-column: 2;
+      grid-row: 1;
       max-width: 400px;
     }
   }
@@ -108,10 +113,11 @@
   }
   @media (min-width: 1024px) {
     .home-features {
-      position: absolute;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
+      grid-column: 1 / -1;
+      grid-row: 2;
+      position: static;
+      transform: none;
+      margin-top: 0;
     }
   }
   .feature-pill {
@@ -235,7 +241,7 @@ async function _homeUpdateStatus() {
     const d = await API.health();
     badge.textContent = `${d.active_rooms ?? 0} ROOMS ACTIVE`;
   } catch {
-    badge.textContent = 'SERVER OFFLINE';
+    badge.textContent = IS_LOCAL_DEV ? 'START LOCAL BACKEND' : 'SERVER OFFLINE';
   }
 }
 

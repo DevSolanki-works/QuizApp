@@ -433,3 +433,8 @@ solo:    QUESTION -> ANSWER_REVEAL (4000 ms)
   late or duplicate answers cannot advance a resolved round twice.
 - Milestone 14: game mode menu, difficulty-aware timer, fixed reveal and
   intermission timing, solo results, and server timeout resolution are done.
+- Desktop home layout uses a grid at widths of 1024 px and above so the
+  expanded mode menu cannot overlap the feature strip.
+- Capacitor's `https://localhost` asset origin is treated as native app
+  routing; only desktop `http://localhost` or file-based development targets
+  the local FastAPI server at `127.0.0.1:8000`.

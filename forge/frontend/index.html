@@ -345,10 +345,19 @@
 
 <script>
 /* ── CONFIG ─────────────────────────────────────────────── */
-const IS_LOCAL_DEV =
+// Capacitor serves Android assets from https://localhost. It must use Cloud
+// Run, while the documented HTTP localhost workflow should use local FastAPI.
+const IS_NATIVE_APP =
+  window.location.protocol === 'capacitor:' ||
+  (window.location.protocol === 'https:' && window.location.hostname === 'localhost') ||
+  (typeof window.Capacitor?.isNativePlatform === 'function' &&
+   window.Capacitor.isNativePlatform());
+const IS_LOCAL_DEV = !IS_NATIVE_APP && (
   window.location.protocol === 'file:' ||
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1';
+  (window.location.protocol === 'http:' &&
+   (window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'))
+);
 const API_BASE = IS_LOCAL_DEV
   ? 'http://127.0.0.1:8000'
   : 'https://forge-backend-878124462453.us-central1.run.app';
