@@ -17,6 +17,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.core.state import rooms
 from app.models.quiz import (
     DEFAULT_GAME_MODE,
+    Question,
     GameMode,
     GameStatus,
     PlayMode,
@@ -25,6 +26,7 @@ from app.models.quiz import (
     time_limit_for_mode,
 )
 from app.services.ai import generate_questions
+from app.services.ai import FALLBACK_QUESTIONS
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -32,6 +34,7 @@ router = APIRouter()
 BASE_POINTS = 1000
 ANSWER_REVEAL_SECONDS = 4
 INTERMISSION_LEADERBOARD_SECONDS = 5
+GENERATION_TIMEOUT_SECONDS = 30
 
 _round_timeout_tasks: dict[str, asyncio.Task] = {}
 
@@ -324,7 +327,17 @@ async def websocket_endpoint(
                 )
 
                 try:
-                    room.questions = await generate_questions(topic)
+                    room.questions = await asyncio.wait_for(
+                        generate_questions(topic), timeout=GENERATION_TIMEOUT_SECONDS
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Question generation timed out for room '%s' after %s seconds; using fallback questions",
+                        room_code,
+                        GENERATION_TIMEOUT_SECONDS,
+                    )
+                    # Use the predefined fallback questions from the AI service module
+                    room.questions = [Question(**q) for q in FALLBACK_QUESTIONS]
                 except Exception as exc:
                     logger.error("Question generation failed for room '%s': %s", room_code, exc)
                     room.status = GameStatus.WAITING
