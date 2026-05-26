@@ -371,4 +371,74 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
     Do NOT revert to hacker/neon/dark theme.
 11. ADB commands must use Windows PowerShell, not WSL terminal.
 12. Website is live at forgetrivia.online — frontend deployed on Vercel,
+<<<<<<< HEAD
     connected via Namecheap DNS (A record + CNAME to Vercel).
+=======
+    connected via Namecheap DNS (A record + CNAME to Vercel).
+
+---
+
+## Milestone 14 - Solo/Classic Modes and Authoritative Round Phases (May 26, 2026)
+
+This section supersedes earlier game-loop and WebSocket flow notes where they
+conflict.
+
+### Current Game Setup
+- Main menu exposes `solo` and `classic` play modes.
+- Solo creates a private one-player room through the existing in-memory
+  WebSocket pipeline; it does not expose a room code or intermission standings.
+- Classic creates or joins a sharable room and shows competitive standings.
+- Difficulty is selected before starting: `easy` = 30000 ms, `medium` =
+  20000 ms, and `hard` = 10000 ms.
+- The timer ring, number, duration label, warning styling, and server deadline
+  all use the selected difficulty limit.
+
+### Authoritative Phase Flow
+```
+classic: QUESTION -> ANSWER_REVEAL (4000 ms)
+                  -> INTERMISSION_LEADERBOARD (5000 ms)
+                  -> next QUESTION or GAME_OVER
+
+solo:    QUESTION -> ANSWER_REVEAL (4000 ms)
+                  -> next QUESTION or GAME_OVER
+```
+
+- The server enters reveal when every connected player answers or when the
+  selected question timer expires.
+- `RoundPhase` values are `lobby`, `question`, `answer_reveal`,
+  `intermission_leaderboard`, and `complete`.
+- The game partial stays mounted while phase visuals change, preserving the
+  selected answer and correct/wrong highlights.
+- The question phase contains no standings list. Classic standings are only
+  populated in the full-screen intermission view, including per-round gains.
+
+### State and Models
+- `PlayMode` values are `solo` and `classic`.
+- `Room` additionally stores `play_mode`, `phase`, and `points_gained`.
+- `Player` additionally stores `correct_answers` for final accuracy.
+- Solo results display final score, accuracy, and a per-difficulty personal
+  best stored locally on the device; classic results retain final standings.
+
+### Current WebSocket Protocol
+```json
+{ "action": "start_game", "topic": "Space", "mode": "hard", "play_mode": "classic" }
+{ "type": "GAME_STARTING", "data": { "topic": "Space", "mode": "hard", "play_mode": "classic", "time_limit_ms": 10000, "total_questions": 10 } }
+{ "type": "QUESTION", "data": { "index": 0, "text": "...", "options": ["A", "B", "C", "D"], "phase": "question", "mode": "hard", "play_mode": "classic", "time_limit_ms": 10000 } }
+{ "type": "ANSWER_REVEAL", "data": { "phase": "answer_reveal", "hold_ms": 4000, "correct_index": 2, "scores": {}, "points_gained": {}, "answers": {}, "play_mode": "classic" } }
+{ "type": "INTERMISSION_LEADERBOARD", "data": { "phase": "intermission_leaderboard", "hold_ms": 5000, "is_final": false, "scores": {}, "points_gained": {}, "play_mode": "classic" } }
+{ "type": "GAME_OVER", "data": { "final_scores": {}, "correct_answers": {}, "accuracy_percentages": {}, "total_questions": 10, "play_mode": "classic" } }
+```
+
+### Implementation Notes
+- `frontend/index.html` queues messages received before a lazy-loaded screen
+  registers its handler, preventing loss of the first question.
+- `backend/app/routers/websocket.py` owns deadline tasks and phase guards so
+  late or duplicate answers cannot advance a resolved round twice.
+- Milestone 14: game mode menu, difficulty-aware timer, fixed reveal and
+  intermission timing, solo results, and server timeout resolution are done.
+- Desktop home layout uses a grid at widths of 1024 px and above so the
+  expanded mode menu cannot overlap the feature strip.
+- Capacitor's `https://localhost` asset origin is treated as native app
+  routing; only desktop `http://localhost` or file-based development targets
+  the local FastAPI server at `127.0.0.1:8000`.
+>>>>>>> Soloooo

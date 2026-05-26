@@ -207,6 +207,41 @@
     font-family: var(--font-body); font-size: 15px;
     font-weight: 700; color: rgba(255,255,255,0.7);
   }
+  .solo-results-card {
+    width: 100%; margin-top: 20px; padding: 24px 20px;
+    border-radius: var(--radius-lg); text-align: center;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    flex-direction: column; gap: 20px;
+  }
+  .solo-score-label {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.55); letter-spacing: 0.5px;
+  }
+  .solo-score-value {
+    font-family: var(--font-pixel); font-size: 34px;
+    color: var(--yellow); margin-top: 10px;
+  }
+  .solo-stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .solo-stat {
+    padding: 14px 8px; border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .solo-stat-value {
+    display: block; font-family: var(--font-pixel);
+    font-size: 14px; color: var(--white); margin-bottom: 8px;
+  }
+  .solo-stat-label {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.45);
+  }
+  .solo-best-note {
+    font-family: var(--font-body); font-size: 14px;
+    font-weight: 800; color: var(--green);
+  }
 
   /* ── ACTION BUTTONS ─────────────────────────────────────── */
   .results-actions {
@@ -236,12 +271,30 @@
   <div class="results-header z1">
     <span class="results-trophy-anim" id="results-trophy">🏆</span>
     <h1 class="results-title">GAME OVER!</h1>
-    <p class="results-subtitle">FINAL STANDINGS</p>
+    <p class="results-subtitle" id="results-subtitle">FINAL STANDINGS</p>
     <div class="results-topic-badge" id="results-topic">🎯 —</div>
   </div>
 
+  <div class="solo-results-card z1" id="solo-results-card" style="display:none;">
+    <div>
+      <p class="solo-score-label">YOUR FINAL SCORE</p>
+      <p class="solo-score-value" id="solo-final-score">0</p>
+    </div>
+    <div class="solo-stat-grid">
+      <div class="solo-stat">
+        <span class="solo-stat-value" id="solo-accuracy">0%</span>
+        <span class="solo-stat-label">ACCURACY</span>
+      </div>
+      <div class="solo-stat">
+        <span class="solo-stat-value" id="solo-high-score">0</span>
+        <span class="solo-stat-label">HIGH SCORE</span>
+      </div>
+    </div>
+    <p class="solo-best-note" id="solo-best-note"></p>
+  </div>
+
   <!-- PODIUM & LEADERBOARD WRAPPER -->
-  <div class="results-main-content z1">
+  <div class="results-main-content z1" id="classic-results-content">
     
     <!-- LEFT SIDE: PODIUM + MY RESULT -->
     <div class="results-left">
@@ -292,6 +345,20 @@ function onResultsShow() {
   const topicEl = document.getElementById('results-topic');
   if (topicEl) topicEl.textContent = `🎯 ${State.topic || 'Trivia'}`;
 
+  const isSolo = State.playMode === 'solo';
+  const soloCard = document.getElementById('solo-results-card');
+  const classicContent = document.getElementById('classic-results-content');
+  const subtitle = document.getElementById('results-subtitle');
+  if (soloCard) soloCard.style.display = isSolo ? 'flex' : 'none';
+  if (classicContent) classicContent.style.display = isSolo ? 'none' : 'flex';
+  if (subtitle) subtitle.textContent = isSolo ? 'SOLO RESULTS' : 'FINAL STANDINGS';
+
+  if (isSolo) {
+    _renderSoloResult();
+    if (State.ws) { State.ws.close(); State.ws = null; }
+    return;
+  }
+
   // Sort scores
   const sorted = Object.entries(State.scores || {})
     .sort((a, b) => b[1] - a[1]);
@@ -319,6 +386,39 @@ function onResultsShow() {
 }
 
 /* ── PODIUM ──────────────────────────────────────────────── */
+/** Render score, accuracy, and a difficulty-specific local solo best. */
+function _renderSoloResult() {
+  const score = (State.scores && State.scores[State.playerName]) || 0;
+  const stats = State.resultStats || {};
+  const accuracy = (stats.accuracy_percentages && stats.accuracy_percentages[State.playerName]) || 0;
+  const correct = (stats.correct_answers && stats.correct_answers[State.playerName]) || 0;
+  const total = stats.total_questions || State.totalQ || 10;
+  const storageKey = `forge.solo.highScore.${State.mode || 'medium'}`;
+  let previousBest = 0;
+  try {
+    previousBest = Number(window.localStorage.getItem(storageKey)) || 0;
+  } catch (error) {
+    previousBest = 0;
+  }
+  const highScore = Math.max(previousBest, score);
+  if (highScore > previousBest) {
+    try { window.localStorage.setItem(storageKey, String(highScore)); } catch (error) {}
+  }
+
+  const scoreEl = document.getElementById('solo-final-score');
+  const accuracyEl = document.getElementById('solo-accuracy');
+  const highScoreEl = document.getElementById('solo-high-score');
+  const noteEl = document.getElementById('solo-best-note');
+  if (scoreEl) scoreEl.textContent = score.toLocaleString();
+  if (accuracyEl) accuracyEl.textContent = `${accuracy}% (${correct}/${total})`;
+  if (highScoreEl) highScoreEl.textContent = highScore.toLocaleString();
+  if (noteEl) {
+    noteEl.textContent = score > previousBest
+      ? `NEW ${String(State.mode || 'medium').toUpperCase()} HIGH SCORE!`
+      : `${String(State.mode || 'medium').toUpperCase()} PERSONAL BEST`;
+  }
+}
+
 function _renderPodium(sorted) {
   const wrap = document.getElementById('results-podium');
   if (!wrap) return;
@@ -427,10 +527,11 @@ async function resultsPlayAgain() {
   if (State.isHost) {
     // Re-create a fresh room
     try {
-      const data = await API.createRoom(State.playerName);
+      const data = await API.createRoom(State.playerName, State.playMode || 'classic');
       State.roomCode = data.room_code;
       State.players  = [State.playerName];
       State.scores   = {};
+      State.resultStats = null;
       WS.connect(State.roomCode, State.playerName);
       await goTo('lobby');
     } catch(e) {
@@ -446,8 +547,10 @@ async function resultsPlayAgain() {
 function resultsGoHome() {
   State.roomCode = '';
   State.isHost   = false;
+  State.playMode = 'classic';
   State.players  = [];
   State.scores   = {};
+  State.resultStats = null;
   State.topic    = '';
   if (State.ws) { State.ws.close(); State.ws = null; }
   goTo('home');

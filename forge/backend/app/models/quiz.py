@@ -1,60 +1,105 @@
 """
-Pydantic models for Forge's game entities.
+Pydantic models for Forge game entities.
 
-Why Pydantic?
-- Auto-validates data from Gemini (catches malformed AI output early)
-- Gives us typed, IDE-friendly objects instead of raw dicts
-- .model_dump() makes JSON serialization trivial for WS messages
+Rooms and players live in memory for the duration of an active game.
+Question objects validate structured AI output before it enters the game loop.
 """
 
 from enum import Enum
 from typing import Optional
+
 from pydantic import BaseModel, Field
-from fastapi import WebSocket
 
 
 class GameStatus(str, Enum):
     """Lifecycle states a room can be in."""
-    WAITING   = "waiting"    # Created, host hasn't started yet
-    STARTING  = "starting"   # AI is generating questions
-    ACTIVE    = "active"     # Quiz is in progress
-    FINISHED  = "finished"   # All questions done
+
+    WAITING = "waiting"
+    STARTING = "starting"
+    ACTIVE = "active"
+    FINISHED = "finished"
+
+
+class GameMode(str, Enum):
+    """Difficulty presets that set the question countdown duration."""
+
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
+
+
+class PlayMode(str, Enum):
+    """Competition formats supported by a room."""
+
+    SOLO = "solo"
+    CLASSIC = "classic"
+
+
+class RoundPhase(str, Enum):
+    """Presentation state for the active round."""
+
+    LOBBY = "lobby"
+    QUESTION = "question"
+    ANSWER_REVEAL = "answer_reveal"
+    INTERMISSION_LEADERBOARD = "intermission_leaderboard"
+    COMPLETE = "complete"
+
+
+TIME_LIMIT_MS_BY_MODE = {
+    GameMode.EASY: 30000,
+    GameMode.MEDIUM: 20000,
+    GameMode.HARD: 10000,
+}
+
+DEFAULT_GAME_MODE = GameMode.MEDIUM
+DEFAULT_PLAY_MODE = PlayMode.CLASSIC
+
+
+def time_limit_for_mode(mode: str | GameMode) -> int:
+    """Return the round timer for the selected difficulty."""
+
+    try:
+        value = mode.value if isinstance(mode, GameMode) else str(mode).lower()
+        return TIME_LIMIT_MS_BY_MODE[GameMode(value)]
+    except (TypeError, ValueError):
+        return TIME_LIMIT_MS_BY_MODE[DEFAULT_GAME_MODE]
 
 
 class Question(BaseModel):
-    """A single quiz question as returned (and validated) from Gemini."""
-    question:      str           = Field(..., description="The question text")
-    options:       list[str]     = Field(..., min_length=4, max_length=4)
-    correct_index: int           = Field(..., ge=0, le=3)
+    """A single validated quiz question."""
+
+    question: str = Field(..., description="The question text")
+    options: list[str] = Field(..., min_length=4, max_length=4)
+    correct_index: int = Field(..., ge=0, le=3)
 
 
 class Player(BaseModel):
     """Represents one connected player in a room."""
-    name:            str
-    score:           int = 0
-    answered:        bool = False   # Has this player answered the CURRENT question?
-    last_answer:     Optional[int] = None   # Index they chose (for showing correct/wrong)
 
-    # WebSocket connection — excluded from JSON serialization
-    # (WebSocket objects can't be serialised; we manage them separately)
+    name: str
+    score: int = 0
+    correct_answers: int = 0
+    answered: bool = False
+    last_answer: Optional[int] = None
     websocket: Optional[object] = Field(default=None, exclude=True)
 
     model_config = {"arbitrary_types_allowed": True}
 
 
 class Room(BaseModel):
-    """
-    The full state of one game room.
+    """The full in-memory state of one game room."""
 
-    Lives entirely in memory (state.rooms dict). No DB writes.
-    One Room = one 4-digit code = one game session.
-    """
-    code:             str
-    host:             str                        # Player name of whoever created the room
-    status:           GameStatus = GameStatus.WAITING
-    players:          dict[str, Player] = {}     # keyed by player name
-    questions:        list[Question] = []
-    current_q_index:  int = 0                    # Which question is active right now
-    answers_this_round: dict[str, int] = {}      # name → choice index for current Q
+    code: str
+    host: str
+    status: GameStatus = GameStatus.WAITING
+    play_mode: PlayMode = DEFAULT_PLAY_MODE
+    mode: GameMode = DEFAULT_GAME_MODE
+    time_limit_ms: int = TIME_LIMIT_MS_BY_MODE[DEFAULT_GAME_MODE]
+    phase: RoundPhase = RoundPhase.LOBBY
+    players: dict[str, Player] = Field(default_factory=dict)
+    questions: list[Question] = Field(default_factory=list)
+    current_q_index: int = 0
+    answers_this_round: dict[str, int] = Field(default_factory=dict)
+    points_gained: dict[str, int] = Field(default_factory=dict)
 
     model_config = {"arbitrary_types_allowed": True}

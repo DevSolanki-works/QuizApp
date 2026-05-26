@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     Add new env vars here — never hardcode secrets in source files.
     """
 
-    # Gemini API key — get yours free at https://aistudio.google.com
-    GEMINI_API_KEY: str
+    # Gemini API key — optional for local fallback mode.
+    GEMINI_API_KEY: str = ""
 
     # Optional: override the model name without redeploying
     GEMINI_MODEL: str = "gemini-1.5-flash"

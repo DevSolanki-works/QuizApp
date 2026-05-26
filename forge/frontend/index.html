@@ -345,7 +345,22 @@
 
 <script>
 /* ── CONFIG ─────────────────────────────────────────────── */
-const API_BASE = 'https://forge-backend-878124462453.us-central1.run.app';
+// Capacitor serves Android assets from https://localhost. It must use Cloud
+// Run, while the documented HTTP localhost workflow should use local FastAPI.
+const IS_NATIVE_APP =
+  window.location.protocol === 'capacitor:' ||
+  (window.location.protocol === 'https:' && window.location.hostname === 'localhost') ||
+  (typeof window.Capacitor?.isNativePlatform === 'function' &&
+   window.Capacitor.isNativePlatform());
+const IS_LOCAL_DEV = !IS_NATIVE_APP && (
+  window.location.protocol === 'file:' ||
+  (window.location.protocol === 'http:' &&
+   (window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'))
+);
+const API_BASE = IS_LOCAL_DEV
+  ? 'http://127.0.0.1:8000'
+  : 'https://forge-backend-878124462453.us-central1.run.app';
 const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 
 /* ── GLOBAL STATE ────────────────────────────────────────── */
@@ -353,11 +368,16 @@ const State = {
   playerName : '',
   roomCode   : '',
   isHost     : false,
+  playMode   : 'classic',
   topic      : '',
+  mode       : 'medium',
+  timeLimitMs: 20000,
+  phase      : 'lobby',
   ws         : null,
   players    : [],
   currentQ   : null,
   scores     : {},
+  resultStats: null,
   totalQ     : 10,
 };
 
@@ -414,11 +434,11 @@ const Toast = {
 
 /* ── API ────────────────────────────────────────────────── */
 const API = {
-  async createRoom(hostName) {
+  async createRoom(hostName, playMode = 'classic') {
     const r = await fetch(`${API_BASE}/rooms/create`, {
       method  : 'POST',
       headers : { 'Content-Type': 'application/json' },
-      body    : JSON.stringify({ host_name: hostName }),
+      body    : JSON.stringify({ host_name: hostName, play_mode: playMode }),
     });
     if (!r.ok) throw new Error(await r.text());
     return r.json();
@@ -453,9 +473,23 @@ const WS = {
       State.ws.send(JSON.stringify(payload));
   },
   _handlers: {},
-  on(type, fn)  { this._handlers[type] = fn; },
+  _pending: {},
+  on(type, fn)  {
+    this._handlers[type] = fn;
+    const queued = this._pending[type] || [];
+    delete this._pending[type];
+    queued.forEach(data => fn(data));
+  },
   off(type)     { delete this._handlers[type]; },
-  _dispatch(msg){ const h = this._handlers[msg.type]; if (h) h(msg.data); },
+  _dispatch(msg){
+    const handler = this._handlers[msg.type];
+    if (handler) {
+      handler(msg.data);
+      return;
+    }
+    if (!this._pending[msg.type]) this._pending[msg.type] = [];
+    this._pending[msg.type].push(msg.data);
+  },
 };
 
 /* ── DECORATION HELPERS ─────────────────────────────────── */
