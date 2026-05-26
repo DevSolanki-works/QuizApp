@@ -362,7 +362,8 @@ function onGameShow() {
   const topicEl = document.getElementById('game-topic-label');
   if (topicEl) {
     const modeLabel = (State.mode || 'medium').toUpperCase();
-    topicEl.textContent = State.topic ? `${State.topic} · ${modeLabel}` : modeLabel;
+    const seconds = Math.round((State.timeLimitMs || TIME_LIMIT_MS) / 1000);
+    topicEl.textContent = State.topic ? `${State.topic} · ${modeLabel} · ${seconds}s` : `${modeLabel} · ${seconds}s`;
   }
 
   // Reset local state
@@ -429,7 +430,9 @@ function _onQuestion(data) {
   }
 
   // Start countdown timer
-  _startTimer(data.time_limit_ms || TIME_LIMIT_MS);
+  const roundLimitMs = data.time_limit_ms || State.timeLimitMs || TIME_LIMIT_MS;
+  State.timeLimitMs = roundLimitMs;
+  _startTimer(roundLimitMs);
 }
 
 /* ── TIMER ───────────────────────────────────────────────── */
@@ -563,9 +566,9 @@ function _onLeaderboard(data) {
   }
 
   // Show after a short delay (give time to see correct answer)
-  _lbShowTimer = setTimeout(_showLB, 1200);
+  _lbShowTimer = setTimeout(_showLB, 900);
   // Fallback: hide the overlay even if the next QUESTION message is delayed.
-  _lbHideTimer = setTimeout(_hideLB, 2800);
+  _lbHideTimer = setTimeout(_hideLB, 3900);
 }
 
 function _showLB() {

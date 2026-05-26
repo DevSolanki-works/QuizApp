@@ -90,6 +90,7 @@ async def broadcast_question(room_code: str) -> None:
             "index": room.current_q_index,
             "text": q.question,
             "options": q.options,
+            "mode": room.mode.value,
             "time_limit_ms": room.time_limit_ms,
         }
     })
@@ -265,8 +266,8 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                         }
                     })
 
-                    # Give players 3 seconds to read the leaderboard
-                    await asyncio.sleep(3)
+                    # Give players time to read the highlighted answer and leaderboard
+                    await asyncio.sleep(4)
 
                     room.current_q_index += 1
 

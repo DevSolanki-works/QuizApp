@@ -374,6 +374,7 @@ function onLobbyShow() {
   WS.on('GAME_STARTING', (data) => {
     State.topic  = data.topic;
     State.mode   = data.mode || State.mode || 'medium';
+    State.timeLimitMs = data.time_limit_ms || State.timeLimitMs || 20000;
     State.totalQ = data.total_questions;
     goTo('game');
   });
