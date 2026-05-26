@@ -31,6 +31,7 @@ env/
 .env
 .env.local
 .env.*.local
+.venv-win
 
 # IDEs and System Files
 .DS_Store
