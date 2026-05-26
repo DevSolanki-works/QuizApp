@@ -32,7 +32,7 @@ env/
 .env.local
 .env.*.local
 .venv-win
-
+.venv-win/
 # IDEs and System Files
 .DS_Store
 Thumbs.db
