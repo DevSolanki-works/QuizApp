@@ -24,7 +24,7 @@ quiz → players compete live via WebSockets using a 4-digit room code.
 | Frontend | HTML5 + Tailwind CSS + Vanilla JS | Stays portable for CapacitorJS wrapping |
 | Mobile Wrapper | CapacitorJS → Android .aab | $0 — no React Native licenses |
 | Backend | Python + FastAPI | Student knows Python well |
-| AI | Gemini 2.0 Flash (`google-generativeai`) | $0 free tier, structured outputs |
+| AI | Gemini Flash 2.5 (`google-generativeai`) | $0 free tier, with local fallback if unavailable |
 | Real-time | FastAPI WebSockets | Built-in, no extra infra |
 | State | In-memory Python dicts | $0 — NO Redis, NO database |
 | Deployment | Docker → Google Cloud Run | $0 free tier, scale-to-zero |
@@ -33,7 +33,8 @@ quiz → players compete live via WebSockets using a 4-digit room code.
 - **$0 infrastructure** — never suggest Redis, paid DBs, paid queues, etc.
 - **ARM64 dev machine** — all local Docker builds use `docker buildx` for multi-arch (linux/amd64 target)
 - **No heavy ORM** — plain Python dicts for in-memory state only
-- **Structured AI outputs** — always use Pydantic models to validate Gemini responses
+- **Structured AI outputs** — always validate Gemini responses with Pydantic
+- **Backend must still boot without Gemini** — local fallback questions are acceptable for dev and crash recovery
 - **Android only** — iOS requires Mac + Xcode + $99/year Apple Developer account; out of scope
 
 ---
@@ -124,7 +125,7 @@ gcloud run deploy forge-backend \
 ```bash
 gcloud run services update forge-backend \
   --region us-central1 \
-  --update-env-vars GEMINI_API_KEY=YOUR_NEW_KEY_HERE
+  --update-env-vars GEMINI_API_KEY=YOUR_NEW_KEY_HERE,GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ### Re-sync frontend into Android after any HTML/JS changes
@@ -140,6 +141,10 @@ cd /mnt/c/QuizApp/forge/frontend
 python3 -m http.server 8080
 # Open http://localhost:8080
 ```
+
+Current frontend behavior:
+- When opened from `localhost`, `127.0.0.1`, or `file:`, the app points to local backend `http://127.0.0.1:8000`.
+- In production, it uses the Cloud Run backend URL.
 
 ### ADB install via PowerShell (Windows)
 ```powershell
@@ -161,16 +166,20 @@ python3 -m http.server 8080
    → Player joins, server broadcasts PLAYER_JOINED to all in room
 
 3. Host sends: { "action": "start_game", "topic": "Marvel Movies",
-                 "difficulty": "hard", "total_questions": 15 }   ✅
-   → Server calls Gemini → gets structured questions
+                 "mode": "hard" }   ✅
+   → Server sets timer from mode: Easy 30s, Medium 20s, Hard 10s
+   → Server calls Gemini (or local fallback) → gets 10 questions
    → Stores in room.questions
    → Broadcasts: GAME_STARTING + first QUESTION
 
 4. Player sends: { "action": "answer", "choice": 2, "time_ms": 3400 }   ✅
    → Server validates answer
-   → Calculates score: speed-based 500–1000 pts
+   → Calculates score: speed-based 500–1000 pts using current mode timer
    → Updates room.scores
-   → When ALL players answered → broadcast LEADERBOARD + next QUESTION
+   → When ALL players answered:
+     - broadcast ANSWER_REVEAL first
+     - then broadcast LEADERBOARD
+     - then next QUESTION after a short delay
 
 5. After final question → broadcast GAME_OVER with final scores   ✅
 ```
@@ -187,13 +196,13 @@ score = max(500, min(1000, score))   # Clamped 500–1000
 
 ---
 
-## 🎮 Game Configuration Options (v2)
+## 🎮 Game Configuration Options (current)
 
 | Option | Values | Default |
 |--------|--------|---------|
-| Difficulty | `easy` / `medium` / `hard` | `easy` |
-| Questions | 5 / 10 / 15 / 20 | `10` |
-| Timer | 30000ms (30 seconds) | `30000` |
+| Mode | `easy` / `medium` / `hard` | `medium` |
+| Questions | fixed `10` | `10` |
+| Timer | `30000ms` / `20000ms` / `10000ms` | `20000ms` |
 
 ---
 
@@ -221,7 +230,7 @@ score = max(500, min(1000, score))   # Clamped 500–1000
 ### Global Objects
 | Object | Purpose |
 |--------|---------|
-| `State` | `playerName, roomCode, isHost, topic, ws, players, scores, totalQ, timeLimitMs` |
+| `State` | `playerName, roomCode, isHost, topic, mode, timeLimitMs, ws, players, scores, totalQ` |
 | `API`   | `createRoom()`, `getRoom()`, `health()` |
 | `WS`    | `connect()`, `send()`, `on(type,fn)`, `off(type)` |
 | `Toast` | `Toast.error()`, `.success()`, `.info()` |
@@ -234,6 +243,8 @@ home.html → lobby.html → game.html → results.html
                └─────── Play Again ────────┘
 ```
 
+Lobby now only asks for topic + mode. Question count is fixed at 10.
+
 ---
 
 ## 🔌 WebSocket Message Protocol
@@ -241,8 +252,9 @@ home.html → lobby.html → game.html → results.html
 ### Server → Client
 ```json
 { "type": "PLAYER_JOINED",  "data": { "players": ["Alice", "Bob"] } }
-{ "type": "GAME_STARTING",  "data": { "topic": "Marvel Movies", "total_questions": 10, "difficulty": "hard", "time_limit_ms": 30000 } }
-{ "type": "QUESTION",       "data": { "index": 0, "text": "...", "options": ["A","B","C","D"], "time_limit_ms": 30000, "total": 10, "difficulty": "hard" } }
+{ "type": "GAME_STARTING",  "data": { "topic": "Marvel Movies", "mode": "hard", "total_questions": 10, "time_limit_ms": 10000 } }
+{ "type": "QUESTION",       "data": { "index": 0, "text": "...", "options": ["A","B","C","D"], "time_limit_ms": 10000, "mode": "hard" } }
+{ "type": "ANSWER_REVEAL",  "data": { "scores": {"Alice": 2300, "Bob": 1800}, "correct_index": 2 } }
 { "type": "LEADERBOARD",    "data": { "scores": {"Alice": 2300, "Bob": 1800}, "correct_index": 2 } }
 { "type": "GAME_OVER",      "data": { "final_scores": {"Alice": 9100, "Bob": 7200} } }
 { "type": "ERROR",          "data": { "message": "Room not found" } }
@@ -250,17 +262,17 @@ home.html → lobby.html → game.html → results.html
 
 ### Client → Server
 ```json
-{ "action": "start_game", "topic": "Quantum Physics", "difficulty": "hard", "total_questions": 15 }
+{ "action": "start_game", "topic": "Quantum Physics", "mode": "hard" }
 { "action": "answer",     "choice": 2, "time_ms": 3400 }
 ```
 
 ---
 
 ## 🤖 Gemini Config
-- Model: `gemini-2.5-flash` (GEMINI_MODEL env var)
-- max_output_tokens: 8192
+- Model: `GEMINI_MODEL` env var, default currently `gemini-2.5-flash`
+- max_output_tokens: 2048 in current service
 - temperature: 0.8
-- Difficulty injected into prompt via DIFFICULTY_PROMPTS dict in ai.py
+- AI service falls back to local questions if Gemini cannot be imported or is not configured
 
 ---
 
@@ -268,12 +280,12 @@ home.html → lobby.html → game.html → results.html
 
 ```
 GameStatus  (Enum)    → WAITING | STARTING | ACTIVE | FINISHED
-Difficulty  (Enum)    → easy | medium | hard          ← NEW
+GameMode    (Enum)    → easy | medium | hard
 Question    (Model)   → question, options x4, correct_index
 Player      (Model)   → name, score, answered, last_answer, websocket (excluded)
-Room        (Model)   → code, host, status, players, questions,
-                         current_q_index, answers_this_round,
-                         difficulty, total_questions, time_limit_ms   ← NEW
+Room        (Model)   → code, host, status, mode, time_limit_ms,
+                         players, questions, current_q_index,
+                         answers_this_round
 ```
 
 ---
@@ -315,8 +327,8 @@ Room        (Model)   → code, host, status, players, questions,
 | 8 | CapacitorJS setup → Android APK | ✅ Done |
 | 9 | Website live at forgetrivia.online | ✅ Done |
 | 10 | Google AdSense applied | ✅ Done |
-| 11 | Game improvements: difficulty + question count + 30s timer | ✅ Done |
-| 12 | Solo mode | 🔲 Next |
+| 11 | Game improvements: mode timer + fixed 10 questions + reveal/leaderboard flow | ✅ Done |
+| 12 | Local dev / production routing cleanup | ✅ Done |
 | 13 | Play Store submission | 🔲 Blocked (needs ID) |
 
 ---
@@ -327,9 +339,10 @@ Room        (Model)   → code, host, status, players, questions,
 - ARM64 dev machine: always `docker buildx --platform linux/amd64 --push`.
 - `Player.websocket` uses `exclude=True` — never leaks into JSON.
 - Room codes: 4-char UPPERCASE alphanumeric (36^4 = ~1.6M possibilities).
-- Gemini model: `gemini-2.0-flash` — `gemini-1.5-flash` returns 404.
-- max_output_tokens must be 8192+ — 2048 causes JSON truncation.
-- WebSocket test script must be event-driven, not sleep-based.
+- Gemini is optional at runtime right now; if missing or misconfigured, local fallback questions keep the backend running.
+- Current game flow is 10 fixed questions, no question-count picker.
+- Mode only affects timer length; it does not change question difficulty.
+- Correct answer is shown first, then leaderboard, then next question.
 - Cloud Run timeout must be 300s — default 60s kills WS sessions.
 - `--workers 1` is intentional — multiple workers split in-memory state.
 - Frontend local dev: serve from frontend/ dir, open http://localhost:8080.
@@ -338,9 +351,8 @@ Room        (Model)   → code, host, status, players, questions,
 - After any frontend change: `npx cap sync android` then rebuild APK.
 - Gemini API key was exposed in git history on May 24 2026 — rotated and updated in Cloud Run.
 - AdSense identity verification (PAN) pending — earnings accumulate, payouts unlock when verified.
-- Timer increased from 15s to 30s per question for better UX.
-- Difficulty levels: Easy (green) / Medium (yellow) / Hard (red) — colour-coded in UI.
-- Question count: configurable 5/10/15/20 — sent by host in start_game action.
+- Timer now depends on mode: Easy 30s / Medium 20s / Hard 10s.
+- Difficulty colors still map to mode in UI: Easy (green) / Medium (yellow) / Hard (red).
 
 ---
 
@@ -353,8 +365,7 @@ Room        (Model)   → code, host, status, players, questions,
 6. ARM64 context: flag any ARM64 compat issues proactively.
 7. When user pastes error output, fix root cause — don't patch symptoms.
 8. Always assume existing files are correct unless user pastes them.
-9. Frontend must point to live Cloud Run URL for all API/WS calls:
-   `https://forge-backend-878124462453.us-central1.run.app`
+9. Frontend production build must point to live Cloud Run URL; local dev auto-switches to `http://127.0.0.1:8000` when opened from `localhost` or `file:`.
 10. Design language: blue/white quiz-game theme, Press Start 2P for UI chrome,
     Nunito for body text, yellow #FFD93D accent, Kahoot-style answer buttons.
     Do NOT revert to hacker/neon/dark theme.
