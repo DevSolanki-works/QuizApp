@@ -18,9 +18,13 @@ WHY NO STRUCTURED OUTPUT API:
 import json
 import logging
 import re
+from importlib import import_module
 from typing import List
 
-import google.generativeai as genai
+try:
+    genai = import_module("google.generativeai")
+except Exception:  # pragma: no cover - optional dependency for local runs
+    genai = None
 
 from app.core.config import settings
 from app.models.quiz import Question
@@ -28,9 +32,9 @@ from app.models.quiz import Question
 logger = logging.getLogger(__name__)
 
 # ── Gemini client setup ───────────────────────────────────────────────────────
-# Configure once at module load time using the API key from settings.
-# All calls in this module reuse this configuration.
-genai.configure(api_key=settings.GEMINI_API_KEY)
+# Configure once at module load time using the API key from settings when available.
+if genai and settings.GEMINI_API_KEY:
+    genai.configure(api_key=settings.GEMINI_API_KEY)
 
 # ── Prompt template ───────────────────────────────────────────────────────────
 # Kept as a module-level constant so it's easy to tweak without touching logic.
@@ -52,6 +56,60 @@ Example of the required format (2 questions shown):
   {{"question": "...", "options": ["A", "B", "C", "D"], "correct_index": 2}},
   {{"question": "...", "options": ["A", "B", "C", "D"], "correct_index": 0}}
 ]"""
+
+
+FALLBACK_QUESTIONS = [
+    {
+        "question": "Which planet is known as the Red Planet?",
+        "options": ["Mars", "Venus", "Jupiter", "Saturn"],
+        "correct_index": 0,
+    },
+    {
+        "question": "How many days are there in a week?",
+        "options": ["5", "6", "7", "8"],
+        "correct_index": 2,
+    },
+    {
+        "question": "What color do you get by mixing blue and yellow?",
+        "options": ["Orange", "Green", "Purple", "Brown"],
+        "correct_index": 1,
+    },
+    {
+        "question": "Which animal says 'meow'?",
+        "options": ["Dog", "Cat", "Cow", "Horse"],
+        "correct_index": 1,
+    },
+    {
+        "question": "What is the opposite of 'hot'?",
+        "options": ["Warm", "Cold", "Wet", "Fast"],
+        "correct_index": 1,
+    },
+    {
+        "question": "Which shape has three sides?",
+        "options": ["Circle", "Square", "Triangle", "Rectangle"],
+        "correct_index": 2,
+    },
+    {
+        "question": "How many hours are there in one day?",
+        "options": ["12", "18", "24", "30"],
+        "correct_index": 2,
+    },
+    {
+        "question": "Which season comes after winter?",
+        "options": ["Spring", "Summer", "Autumn", "Monsoon"],
+        "correct_index": 0,
+    },
+    {
+        "question": "Which gas do humans need to breathe?",
+        "options": ["Oxygen", "Carbon dioxide", "Hydrogen", "Nitrogen"],
+        "correct_index": 0,
+    },
+    {
+        "question": "What do bees make?",
+        "options": ["Milk", "Honey", "Bread", "Juice"],
+        "correct_index": 1,
+    },
+]
 
 
 def _strip_markdown_fences(text: str) -> str:
@@ -129,6 +187,10 @@ async def generate_questions(topic: str) -> List[Question]:
       avoid blocking.
     """
     import asyncio
+
+    if not genai or not settings.GEMINI_API_KEY:
+        logger.warning("Gemini unavailable or not configured; using fallback questions for topic '%s'", topic)
+        return [Question(**item) for item in FALLBACK_QUESTIONS]
 
     prompt = QUIZ_PROMPT.format(topic=topic)
     model = genai.GenerativeModel(settings.GEMINI_MODEL)
