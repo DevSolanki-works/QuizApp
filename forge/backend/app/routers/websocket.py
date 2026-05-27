@@ -49,6 +49,8 @@ async def broadcast(room_code: str, message: dict[str, Any]) -> None:
 
     dead: list[str] = []
     for name, player in list(room.players.items()):
+        if player.websocket is None:
+            continue
         try:
             await player.websocket.send_text(json.dumps(message))
         except Exception:
@@ -57,6 +59,21 @@ async def broadcast(room_code: str, message: dict[str, Any]) -> None:
     for name in dead:
         room.players.pop(name, None)
         logger.warning("Removed dead player '%s' from room '%s'", name, room_code)
+
+
+async def _delayed_room_cleanup(room_code: str, delay: int = 60) -> None:
+    """Delete a room if it remains empty after a grace period."""
+
+    await asyncio.sleep(delay)
+    room = rooms.get(room_code)
+    if not room:
+        return
+
+    # If still no one is connected, delete the room
+    if not any(p.websocket is not None for p in room.players.values()):
+        _cancel_round_timeout(room_code)
+        rooms.pop(room_code, None)
+        logger.info("Room '%s' deleted after grace period", room_code)
 
 
 async def send_to(websocket: WebSocket, message: dict[str, Any]) -> None:
@@ -240,29 +257,40 @@ async def websocket_endpoint(
         await websocket.close()
         return
 
-    if room.status != GameStatus.WAITING:
-        await send_to(
-            websocket, {"type": "ERROR", "data": {"message": "Game already in progress"}}
-        )
-        await websocket.close()
-        return
+    # RE-JOIN LOGIC: 
+    # If the player was already in the room but their socket is gone, allow re-join.
+    existing_player = room.players.get(player_name)
+    
+    if existing_player:
+        if existing_player.websocket is not None:
+            await send_to(
+                websocket, {"type": "ERROR", "data": {"message": "Name already taken in this room"}}
+            )
+            await websocket.close()
+            return
+        else:
+            # Re-join: assign new websocket and continue
+            existing_player.websocket = websocket
+            logger.info("Player '%s' re-joined room '%s'", player_name, room_code)
+    else:
+        # New player joining
+        if room.status != GameStatus.WAITING:
+            await send_to(
+                websocket, {"type": "ERROR", "data": {"message": "Game already in progress"}}
+            )
+            await websocket.close()
+            return
 
-    if room.play_mode == PlayMode.SOLO and player_name != room.host:
-        await send_to(
-            websocket, {"type": "ERROR", "data": {"message": "Solo rooms are private"}}
-        )
-        await websocket.close()
-        return
+        if room.play_mode == PlayMode.SOLO and player_name != room.host:
+            await send_to(
+                websocket, {"type": "ERROR", "data": {"message": "Solo rooms are private"}}
+            )
+            await websocket.close()
+            return
 
-    if player_name in room.players:
-        await send_to(
-            websocket, {"type": "ERROR", "data": {"message": "Name already taken in this room"}}
-        )
-        await websocket.close()
-        return
+        room.players[player_name] = Player(name=player_name, websocket=websocket)
+        logger.info("Player '%s' joined room '%s'", player_name, room_code)
 
-    room.players[player_name] = Player(name=player_name, websocket=websocket)
-    logger.info("Player '%s' joined room '%s'", player_name, room_code)
     await broadcast(
         room_code,
         {"type": "PLAYER_JOINED", "data": {"players": list(room.players.keys())}},
@@ -408,20 +436,28 @@ async def websocket_endpoint(
                 )
 
     except WebSocketDisconnect:
-        room.players.pop(player_name, None)
+        player = room.players.get(player_name)
+        if player:
+            player.websocket = None
+        
         logger.info("Player '%s' disconnected from room '%s'", player_name, room_code)
-        if room.players:
+        
+        # Check if any players are still connected
+        any_connected = any(p.websocket is not None for p in room.players.values())
+        
+        if any_connected:
             await broadcast(
                 room_code,
                 {"type": "PLAYER_JOINED", "data": {"players": list(room.players.keys())}},
             )
+            # Check if we should resolve the round (if others are still playing)
+            connected_players = [p for p in room.players.values() if p.websocket is not None]
             if (
                 room.status == GameStatus.ACTIVE
                 and room.phase == RoundPhase.QUESTION
-                and len(room.answers_this_round) >= len(room.players)
+                and len(room.answers_this_round) >= len(connected_players)
             ):
                 asyncio.create_task(resolve_round(room_code, room.current_q_index))
         else:
-            _cancel_round_timeout(room_code)
-            rooms.pop(room_code, None)
-            logger.info("Room '%s' deleted after its last player disconnected", room_code)
+            # Last player left, start cleanup timer
+            asyncio.create_task(_delayed_room_cleanup(room_code))

@@ -330,6 +330,9 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 | 11 | Game improvements: mode timer + fixed 10 questions + reveal/leaderboard flow | ✅ Done |
 | 12 | Local dev / production routing cleanup | ✅ Done |
 | 13 | Play Store submission | 🔲 Blocked (needs ID) |
+| 14 | Solo/Classic modes + Authoritative Round Phases | ✅ Done |
+| 15 | In-memory Rate Limiting (3 quizes/min) | ✅ Done |
+| 16 | Session Persistence & Hash Routing | ✅ Done |
 
 ---
 
@@ -457,3 +460,25 @@ sliding-window rate limits based on client IP.
   `X-Forwarded-For` header (if present via proxy) or the direct connection.
 - Rate limit hits return a `429 Too Many Requests` for HTTP or an `ERROR`
   WebSocket message.
+
+---
+
+## Milestone 16 - Session Persistence & Hash Routing (May 27, 2026)
+
+The web app now survives refreshes and supports browser navigation (back/forward).
+
+### Frontend Routing
+- `goTo(name)` updates `window.location.hash` (e.g. `/#lobby`).
+- `hashchange` listener handles manual URL edits or browser navigation.
+- App boot sequence restores the last known screen from the URL hash.
+
+### Session Persistence
+- `Session` utility saves/loads `playerName`, `roomCode`, `isHost`, and `playMode` to `localStorage`.
+- On boot, if a session exists, the app automatically attempts to re-validate the
+  room and reconnect to the WebSocket if the user is on a game-related screen.
+
+### Backend Re-join Support
+- Players are no longer immediately removed from rooms on `WebSocketDisconnect`.
+- Disconnected players can re-join `ACTIVE` rooms if their name matches an
+  existing player with a `None` websocket.
+- Empty rooms (no connected players) are deleted after a **60-second grace period**.

@@ -221,6 +221,12 @@ function onHomeShow() {
   if (starsEl)    { starsEl.innerHTML    = ''; spawnStars(starsEl);       }
   _homeUpdateStatus();
 
+  // Pre-fill name from session if available
+  const nameInput = document.getElementById('input-name');
+  if (nameInput && State.playerName) {
+    nameInput.value = State.playerName;
+  }
+
   const codeInput = document.getElementById('input-code');
   if (codeInput) {
     codeInput.addEventListener('input', () => {
@@ -273,6 +279,7 @@ async function homeCreateRoom() {
     State.playMode   = 'classic';
     State.resultStats = null;
     State.players    = [name];
+    Session.save();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
   } catch(e) {
@@ -296,6 +303,7 @@ async function homeStartSolo() {
     State.playMode = 'solo';
     State.resultStats = null;
     State.players = [name];
+    Session.save();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
   } catch(e) {
@@ -326,6 +334,7 @@ async function homeJoinRoom() {
     State.isHost     = false;
     State.playMode   = 'classic';
     State.resultStats = null;
+    Session.save();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
   } catch(e) {

@@ -363,6 +363,32 @@ const API_BASE = IS_LOCAL_DEV
   : 'https://forge-backend-878124462453.us-central1.run.app';
 const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 
+/* ── SESSION PERSISTENCE ─────────────────────────────────── */
+const Session = {
+  KEY: 'forge_session_v1',
+  save() {
+    const data = {
+      playerName: State.playerName,
+      roomCode:   State.roomCode,
+      isHost:     State.isHost,
+      playMode:   State.playMode,
+      // We don't persist results data here as it can be large, 
+      // but we could if needed.
+    };
+    localStorage.setItem(this.KEY, JSON.stringify(data));
+  },
+  load() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch { return null; }
+  },
+  clear() {
+    localStorage.removeItem(this.KEY);
+  }
+};
+
 /* ── GLOBAL STATE ────────────────────────────────────────── */
 const State = {
   playerName : '',
@@ -381,6 +407,15 @@ const State = {
   totalQ     : 10,
 };
 
+// Restore basic state on boot
+const saved = Session.load();
+if (saved) {
+  State.playerName = saved.playerName || '';
+  State.roomCode   = saved.roomCode   || '';
+  State.isHost     = !!saved.isHost;
+  State.playMode   = saved.playMode   || 'classic';
+}
+
 /* ── ROUTER ─────────────────────────────────────────────── */
 const Screens = {
   home    : { id: 'screen-home',    file: 'screens/home.html'    },
@@ -389,7 +424,7 @@ const Screens = {
   results : { id: 'screen-results', file: 'screens/results.html' },
 };
 
-async function goTo(name) {
+async function goTo(name, skipHash = false) {
   const cfg = Screens[name];
   if (!cfg) return;
   const el = document.getElementById(cfg.id);
@@ -412,10 +447,17 @@ async function goTo(name) {
 
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   el.classList.add('active');
+  if (!skipHash) window.location.hash = name;
 
   const hook = `on${name.charAt(0).toUpperCase() + name.slice(1)}Show`;
   if (typeof window[hook] === 'function') window[hook]();
 }
+
+// Handle browser back/forward buttons
+window.addEventListener('hashchange', () => {
+  const h = window.location.hash.replace('#', '') || 'home';
+  goTo(h, true);
+});
 
 /* ── TOAST ──────────────────────────────────────────────── */
 const Toast = {
@@ -532,7 +574,36 @@ function spawnStars(container) {
 /* ── BOOT ───────────────────────────────────────────────── */
 (async () => {
   API.health().catch(() => {});  // warm up Cloud Run silently
-  await goTo('home');
+
+  const hash = window.location.hash.replace('#', '') || 'home';
+  const saved = Session.load();
+
+  // If we have a saved session and aren't on home, try to reconnect
+  if (saved && saved.roomCode && hash !== 'home') {
+    try {
+      // Validate room still exists
+      await API.getRoom(saved.roomCode);
+      
+      // If we are on lobby or results, reconnect
+      if (hash === 'lobby' || hash === 'results') {
+        WS.connect(saved.roomCode, saved.playerName);
+      }
+      // Note: If on 'game', re-joining depends on backend support.
+      // For now, we'll try to connect anyway.
+      if (hash === 'game') {
+        WS.connect(saved.roomCode, saved.playerName);
+      }
+
+      await goTo(hash, true);
+    } catch (e) {
+      console.warn('Saved room no longer valid:', e);
+      Session.clear();
+      window.location.hash = 'home';
+      await goTo('home', true);
+    }
+  } else {
+    await goTo(hash, true);
+  }
 })();
 </script>
 </body>
