@@ -24,7 +24,7 @@ quiz → players compete live via WebSockets using a 4-digit room code.
 | Frontend | HTML5 + Tailwind CSS + Vanilla JS | Stays portable for CapacitorJS wrapping |
 | Mobile Wrapper | CapacitorJS → Android .aab | $0 — no React Native licenses |
 | Backend | Python + FastAPI | Student knows Python well |
-| AI | Gemini Flash 2.5 (`google-generativeai`) | $0 free tier, with local fallback if unavailable |
+| AI | Gemini Flash 1.5 8B (`google-generativeai`) | $0 free tier, with local fallback if unavailable |
 | Real-time | FastAPI WebSockets | Built-in, no extra infra |
 | State | In-memory Python dicts | $0 — NO Redis, NO database |
 | Deployment | Docker → Google Cloud Run | $0 free tier, scale-to-zero |
@@ -114,7 +114,7 @@ gcloud run deploy forge-backend \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=your_key_here,GEMINI_MODEL=gemini-2.5-flash,GOOGLE_CLIENT_ID=878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com \
+  --set-env-vars GEMINI_API_KEY=your_key_here,GEMINI_MODEL=gemini-2.5-flash-lite,GOOGLE_CLIENT_ID=878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com \
   --min-instances 0 \
   --max-instances 3 \
   --memory 512Mi \
@@ -125,7 +125,7 @@ gcloud run deploy forge-backend \
 ```bash
 gcloud run services update forge-backend \
   --region us-central1 \
-  --update-env-vars GEMINI_API_KEY=YOUR_NEW_KEY_HERE,GEMINI_MODEL=gemini-2.5-flash,GOOGLE_CLIENT_ID=878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com
+  --update-env-vars GEMINI_API_KEY=YOUR_NEW_KEY_HERE,GEMINI_MODEL=gemini-2.5-flash-lite,GOOGLE_CLIENT_ID=878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com
 ```
 
 ### Re-sync frontend into Android after any HTML/JS changes
@@ -269,7 +269,7 @@ Lobby now only asks for topic + mode. Question count is fixed at 10.
 ---
 
 ## 🤖 Gemini Config
-- Model: `GEMINI_MODEL` env var, default currently `gemini-2.5-flash`
+- Model: `GEMINI_MODEL` env var, default currently `gemini-2.5-flash-lite`
 - max_output_tokens: 2048 in current service
 - temperature: 0.8
 - AI service falls back to local questions if Gemini cannot be imported or is not configured

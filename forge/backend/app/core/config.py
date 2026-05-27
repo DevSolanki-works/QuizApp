@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
 
     # Optional: override the model name without redeploying
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash-lite"
 
     # Milestone 17: Google Auth
     GOOGLE_CLIENT_ID: str = ""
