@@ -587,6 +587,190 @@ function spawnStars(container) {
   }
 }
 
+/* ── SOUND ENGINE ────────────────────────────────────────── */
+/**
+ * Sound — synthesized audio via Web Audio API.
+ * No hosted files needed. Mobile AudioContext unlocks on first user tap.
+ *
+ * WHY WEB AUDIO OVER <audio> TAGS:
+ *  <audio> files need hosting; Web Audio generates tones in the browser.
+ *  This keeps the entire frontend file-free and plays correctly inside
+ *  Capacitor's WebView on Android with no extra permissions.
+ */
+const Sound = {
+  _ctx: null,
+  _masterGain: null,
+  _bgInterval: null,
+  muted: false,
+
+  /** Lazily create AudioContext — must happen after a user gesture on mobile. */
+  init() {
+    if (this._ctx) return;
+    try {
+      this._ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this._masterGain = this._ctx.createGain();
+      this._masterGain.connect(this._ctx.destination);
+      try { this.muted = localStorage.getItem('forge_muted') === 'true'; } catch {}
+      this._masterGain.gain.value = this.muted ? 0 : 1;
+      _updateMuteBtn();
+    } catch (e) {
+      console.warn('[Sound] Web Audio API unavailable:', e);
+    }
+  },
+
+  /** Return a ready AudioContext or null if unsupported. */
+  _safe() {
+    this.init();
+    if (!this._ctx) return null;
+    if (this._ctx.state === 'suspended') this._ctx.resume();
+    return this._ctx;
+  },
+
+  /**
+   * Play one synthesized tone.
+   * @param {number} freq       - Frequency in Hz
+   * @param {string} type       - Oscillator type: sine | square | sawtooth | triangle
+   * @param {number} duration   - Duration in seconds
+   * @param {number} volume     - Peak gain (0–1); fades to silence at end
+   * @param {number} startTime  - AudioContext.currentTime offset
+   */
+  _tone(freq, type, duration, volume, startTime) {
+    const ctx = this._ctx; if (!ctx) return;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(volume, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(this._masterGain);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.02);
+  },
+
+  /* ─── Sound Effects ──────────────────────────────────── */
+
+  /** Short UI tap feedback for buttons. */
+  click() {
+    const ctx = this._safe(); if (!ctx) return;
+    this._tone(700, 'sine', 0.06, 0.22, ctx.currentTime);
+  },
+
+  /** Ascending C-E-G-C arpeggio for a correct answer. */
+  correct() {
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
+    this._tone(523,  'sine', 0.15, 0.45, t);        // C5
+    this._tone(659,  'sine', 0.15, 0.45, t + 0.10); // E5
+    this._tone(784,  'sine', 0.20, 0.45, t + 0.20); // G5
+    this._tone(1047, 'sine', 0.35, 0.40, t + 0.32); // C6
+  },
+
+  /** Descending sawtooth buzz for a wrong answer. */
+  wrong() {
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
+    this._tone(220, 'sawtooth', 0.18, 0.35, t);
+    this._tone(155, 'sawtooth', 0.22, 0.28, t + 0.18);
+  },
+
+  /** Soft two-note ding when a player joins the lobby. */
+  playerJoin() {
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
+    this._tone(880,  'sine', 0.12, 0.28, t);
+    this._tone(1100, 'sine', 0.18, 0.22, t + 0.10);
+  },
+
+  /** Four-note ascending fanfare before the first question. */
+  gameStart() {
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
+    [523, 659, 784, 1047].forEach((f, i) =>
+      this._tone(f, 'square', 0.14, 0.28, t + i * 0.14)
+    );
+  },
+
+  /**
+   * Single sharp tick for timer urgency.
+   * Called once per remaining second when ≤ 5 s left.
+   */
+  tick() {
+    const ctx = this._safe(); if (!ctx) return;
+    this._tone(1050, 'square', 0.04, 0.18, ctx.currentTime);
+  },
+
+  /** Six-note victory jingle for the results screen. */
+  gameOver() {
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
+    const notes = [523, 659, 523, 784, 659, 1047];
+    const times = [0, 0.14, 0.28, 0.40, 0.54, 0.68];
+    notes.forEach((f, i) => this._tone(f, 'sine', 0.22, 0.40, t + times[i]));
+  },
+
+  /* ─── Background Music ───────────────────────────────── */
+
+  /**
+   * Start a gentle C-major pentatonic arpeggio loop.
+   * Volume is deliberately low (gain 0.05) — atmospheric texture only.
+   * Played on home + lobby screens; silenced during the game.
+   */
+  startBgMusic() {
+    this.stopBgMusic();
+    const ctx = this._safe(); if (!ctx) return;
+    const notes = [261, 329, 392, 440, 523, 392, 329, 261]; // C E G A C G E C
+    let i = 0;
+    this._bgInterval = setInterval(() => {
+      const c = this._safe(); if (!c) return;
+      const t = c.currentTime;
+      const osc  = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = notes[i % notes.length];
+      gain.gain.setValueAtTime(0.045, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.connect(gain);
+      gain.connect(this._masterGain);
+      osc.start(t);
+      osc.stop(t + 0.58);
+      i++;
+    }, 500);
+  },
+
+  /** Stop background music without affecting sound effects. */
+  stopBgMusic() {
+    clearInterval(this._bgInterval);
+    this._bgInterval = null;
+  },
+
+  /* ─── Mute Control ───────────────────────────────────── */
+
+  toggleMute() {
+    this.muted = !this.muted;
+    if (this._masterGain && this._ctx) {
+      // Smooth 50 ms fade to avoid a click artifact
+      this._masterGain.gain.setTargetAtTime(
+        this.muted ? 0 : 1, this._ctx.currentTime, 0.05
+      );
+    }
+    try { localStorage.setItem('forge_muted', String(this.muted)); } catch {}
+    _updateMuteBtn();
+    return this.muted;
+  },
+};
+
+/** Keep the mute button emoji in sync with current state. */
+function _updateMuteBtn() {
+  const btn = document.getElementById('mute-btn');
+  if (btn) btn.textContent = Sound.muted ? '🔇' : '🔊';
+}
+
+// Unlock AudioContext on first user interaction (mandatory on mobile).
+['click', 'touchstart'].forEach(ev =>
+  document.addEventListener(ev, () => Sound.init(), { once: true })
+);
+
 /* ── BOOT ───────────────────────────────────────────────── */
 (async () => {
   API.health().catch(() => {});  // warm up Cloud Run silently
