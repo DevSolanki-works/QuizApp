@@ -378,9 +378,11 @@ let _qIndex         = 0;      // current question index (0-based)
 let _lbShowTimer    = null;   // delayed leaderboard reveal
 let _lbHideTimer    = null;   // fallback leaderboard hide
 let _latestScores   = null;
+let _lastTickSecond = -1;
 
 /** Called by router when screen becomes active */
 function onGameShow() {
+  Sound.stopBgMusic();      // silence ambient music during the game
   const starsEl = document.getElementById('game-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
 
@@ -471,6 +473,7 @@ function _onQuestion(data) {
 
 function _startTimer(limitMs) {
   _stopTimer();
+  _lastTickSecond = -1;   // reset tick tracker for new question
   _timerStart = Date.now();
   const totalSecs = limitMs / 1000;
 
@@ -497,6 +500,13 @@ function _startTimer(limitMs) {
 
     // Shrink ring stroke (dashoffset goes from 0 → CIRCUMFERENCE)
     circleEl.style.strokeDashoffset = Math.min(1, progress) * CIRCUMFERENCE;
+
+    // tick sound once per second during the last 5 seconds ──
+    if (remaining > 0 && remaining <= 5000 && secsLeft !== _lastTickSecond) {
+      _lastTickSecond = secsLeft;
+      Sound.tick();
+    }
+    // ─────────────────────────────────────────────────────────────
 
     // Go red in last 5s
     if (remaining > 0 && remaining <= 5000) {
@@ -528,6 +538,7 @@ function _stopTimer() {
  */
 function gameAnswer(choiceIndex) {
   if (_answered) return;
+  Sound.click();
   _answered = true;
   _chosenIndex = choiceIndex;
   _stopTimer();
@@ -560,6 +571,14 @@ function _onAnswerReveal(data) {
   _setPhaseLabel('ANSWER REVEAL');
 
   const correctIdx = data.correct_index;
+
+  // play correct / wrong sound based on the player's choice ──
+  if (_chosenIndex !== null) {
+    if (_chosenIndex === correctIdx) Sound.correct();
+    else                             Sound.wrong();
+  }
+  // ────────────────────────────────────────────────────────────────
+
   _latestScores = data.scores || _latestScores;
 
   document.querySelectorAll('.option-btn').forEach((btn, i) => {
