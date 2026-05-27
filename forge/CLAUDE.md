@@ -139,7 +139,7 @@ npx cap sync android
 ```bash
 cd /mnt/c/QuizApp/forge/frontend
 python3 -m http.server 8080
-# Open http://localhost:8080
+# Open http://127.0.0.1:8080
 ```
 
 Current frontend behavior:
