@@ -114,7 +114,7 @@ gcloud run deploy forge-backend \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=your_key_here,GEMINI_MODEL=gemini-2.5-flash \
+  --set-env-vars GEMINI_API_KEY=your_key_here,GEMINI_MODEL=gemini-2.5-flash,GOOGLE_CLIENT_ID=878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com \
   --min-instances 0 \
   --max-instances 3 \
   --memory 512Mi \
@@ -125,7 +125,7 @@ gcloud run deploy forge-backend \
 ```bash
 gcloud run services update forge-backend \
   --region us-central1 \
-  --update-env-vars GEMINI_API_KEY=YOUR_NEW_KEY_HERE,GEMINI_MODEL=gemini-2.5-flash
+  --update-env-vars GEMINI_API_KEY=YOUR_NEW_KEY_HERE,GEMINI_MODEL=gemini-2.5-flash,GOOGLE_CLIENT_ID=878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com
 ```
 
 ### Re-sync frontend into Android after any HTML/JS changes
