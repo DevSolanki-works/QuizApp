@@ -333,6 +333,7 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 | 14 | Solo/Classic modes + Authoritative Round Phases | ✅ Done |
 | 15 | In-memory Rate Limiting (3 quizes/min) | ✅ Done |
 | 16 | Session Persistence & Hash Routing | ✅ Done |
+| 17 | Google Authentication | ✅ Done |
 
 ---
 
@@ -482,3 +483,30 @@ The web app now survives refreshes and supports browser navigation (back/forward
 - Disconnected players can re-join `ACTIVE` rooms if their name matches an
   existing player with a `None` websocket.
 - Empty rooms (no connected players) are deleted after a **60-second grace period**.
+
+---
+
+## Milestone 17 - Google Authentication (May 27, 2026)
+
+Professional Google Login is now integrated into the Forge ecosystem.
+
+### Frontend Integration
+- **Google Identity Services**: Loaded via script in `index.html`.
+- **UI Components**: Standard "Sign in with Google" button and a professional user
+  profile badge (avatar + name) on the home screen.
+- **Auto-fill**: Successfully logging in automatically pre-fills the "YOUR NAME"
+  field for faster room entry.
+- **Persistence**: User profile is saved to `localStorage` alongside the session.
+
+### Backend Verification
+- **Token Verification**: New `/auth/google` POST endpoint in `app/routers/auth.py`.
+- **Security**: Uses the `google-auth` library to verify the integrity and audience
+  of Google ID tokens received from the frontend.
+- **Configuration**: Added `GOOGLE_CLIENT_ID` to `app/core/config.py` and
+  `.env.example`.
+
+### How to Configure
+1. Create a project in the [Google Cloud Console](https://console.cloud.google.com/).
+2. Create an **OAuth 2.0 Client ID** for a "Web application".
+3. Add `http://localhost:8080` (dev) and your production domain to the **Authorized JavaScript origins**.
+4. Update `GOOGLE_CLIENT_ID` in `frontend/index.html` and your backend `.env` file.

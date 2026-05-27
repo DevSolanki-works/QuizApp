@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Optional: override the model name without redeploying
     GEMINI_MODEL: str = "gemini-1.5-flash"
 
+    # Milestone 17: Google Auth
+    GOOGLE_CLIENT_ID: str = ""
+
     class Config:
         # Load from a .env file when present (local dev).
         # In production (Cloud Run), real env vars take precedence automatically.
