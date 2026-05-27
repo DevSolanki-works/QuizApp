@@ -338,6 +338,8 @@ function onResultsShow() {
   const conf = document.getElementById('results-confetti');
   if (conf) { conf.innerHTML = ''; spawnConfetti(conf); }
 
+  Sound.gameOver();  // victory jingle
+
   // Fire a confetti burst from centre
   _confettiBurst();
 
@@ -383,6 +385,7 @@ function onResultsShow() {
 
   // Disconnect WS — game is over
   if (State.ws) { State.ws.close(); State.ws = null; }
+  setTimeout(() => Sound.startBgMusic(), 1200);
 }
 
 /* ── PODIUM ──────────────────────────────────────────────── */
