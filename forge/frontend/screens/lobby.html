@@ -344,6 +344,7 @@ const AVATARS = ['😀','🤩','🧠','🦊','🐼','🦁','🐯','🤖','👾',
 
 /** Called by the router when this screen becomes active */
 function onLobbyShow() {
+  Sound.startBgMusic();
   const starsEl = document.getElementById('lobby-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
 
@@ -378,6 +379,7 @@ function onLobbyShow() {
   WS.on('PLAYER_JOINED',  (data) => {
     State.players = data.players;
     _renderPlayerList(data.players);
+    Sound.playerJoin();
   });
   WS.on('GAME_STARTING', (data) => {
     State.topic  = data.topic;
@@ -508,6 +510,7 @@ function lobbyPickTopic(el, topic) {
 
 /** Copy room code to clipboard */
 function lobbyCopyCode() {
+  Sound.click();
   navigator.clipboard?.writeText(State.roomCode).then(() => {
     Toast.success(`Code ${State.roomCode} copied!`);
   }).catch(() => {
@@ -517,6 +520,7 @@ function lobbyCopyCode() {
 
 /** Go back to home screen, close WS */
 function lobbyGoHome() {
+  Sound.click();
   if (State.ws) { State.ws.close(); State.ws = null; }
   State.roomCode = '';
   State.isHost   = false;
@@ -539,6 +543,8 @@ function lobbyStartGame() {
 
   const btn = document.getElementById('btn-start-game');
   if (btn) { btn.textContent = '⏳  GENERATING...'; btn.disabled = true; }
+
+  Sound.gameStart();  // fanfare when host kicks off the game 
 
   WS.send({
     action: 'start_game',
