@@ -15,3 +15,7 @@ from app.models.quiz import Room
 
 # Master rooms registry: { "1234": Room(...), "5678": Room(...) }
 rooms: dict[str, Room] = {}
+
+# Rate limit records: { "1.2.3.4": [timestamp1, timestamp2, ...] }
+# We use this to track quiz generation requests per user (IP).
+quiz_rate_limits: dict[str, list[float]] = {}

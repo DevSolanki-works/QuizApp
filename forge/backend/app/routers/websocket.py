@@ -15,6 +15,7 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.core.state import rooms
+from app.core.limiter import is_rate_limited
 from app.models.quiz import (
     DEFAULT_GAME_MODE,
     Question,
@@ -290,6 +291,20 @@ async def websocket_endpoint(
                     await send_to(
                         websocket,
                         {"type": "ERROR", "data": {"message": "Game already started"}},
+                    )
+                    continue
+
+                # Rate limit check: max 3 quizzes per minute per IP
+                ip = websocket.client.host
+                forwarded = websocket.headers.get("X-Forwarded-For")
+                if forwarded:
+                    ip = forwarded.split(",")[0].strip()
+                
+                if is_rate_limited(ip, action="quiz", limit=3):
+                    logger.warning("Rate limit hit for IP %s (start_game)", ip)
+                    await send_to(
+                        websocket,
+                        {"type": "ERROR", "data": {"message": "Quiz generation limit reached. Wait a minute!"}},
                     )
                     continue
 

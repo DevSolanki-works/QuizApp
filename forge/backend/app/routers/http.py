@@ -2,13 +2,16 @@
 
 import random
 import string
+import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.core import state
+from app.core.limiter import is_rate_limited
 from app.models.quiz import DEFAULT_PLAY_MODE, GameStatus, PlayMode, Room
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -48,8 +51,21 @@ async def health_check():
 
 
 @router.post("/rooms/create", response_model=CreateRoomResponse)
-async def create_room(body: CreateRoomRequest):
+async def create_room(body: CreateRoomRequest, request: Request):
     """Create a waiting solo or classic room in process memory."""
+
+    # Rate limit check: max 3 rooms/quizzes per minute per IP
+    ip = request.client.host
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        ip = forwarded.split(",")[0].strip()
+    
+    if is_rate_limited(ip, action="room", limit=5):
+        logger.warning("Rate limit hit for IP %s (create_room)", ip)
+        raise HTTPException(
+            status_code=429, 
+            detail="Too many rooms created. Please wait a minute before starting another!"
+        )
 
     code = _generate_room_code()
     room = Room(

@@ -371,9 +371,6 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
     Do NOT revert to hacker/neon/dark theme.
 11. ADB commands must use Windows PowerShell, not WSL terminal.
 12. Website is live at forgetrivia.online — frontend deployed on Vercel,
-<<<<<<< HEAD
-    connected via Namecheap DNS (A record + CNAME to Vercel).
-=======
     connected via Namecheap DNS (A record + CNAME to Vercel).
 
 ---
@@ -441,4 +438,22 @@ solo:    QUESTION -> ANSWER_REVEAL (4000 ms)
 - Capacitor's `https://localhost` asset origin is treated as native app
   routing; only desktop `http://localhost` or file-based development targets
   the local FastAPI server at `127.0.0.1:8000`.
->>>>>>> Soloooo
+
+---
+
+## Milestone 15 - In-memory Rate Limiting (May 27, 2026)
+
+To prevent resource abuse and Gemini API spam, the backend now enforces simple
+sliding-window rate limits based on client IP.
+
+### Limits
+- **Room Creation**: 5 per minute per IP (`POST /rooms/create`)
+- **Quiz Generation**: 3 per minute per IP (`WS start_game`)
+
+### Implementation Details
+- `app/core/state.py` tracks timestamps in a `quiz_rate_limits` dictionary.
+- `app/core/limiter.py` provides the `is_rate_limited` utility.
+- Both HTTP and WebSocket routers extract the real client IP from the
+  `X-Forwarded-For` header (if present via proxy) or the direct connection.
+- Rate limit hits return a `429 Too Many Requests` for HTTP or an `ERROR`
+  WebSocket message.
