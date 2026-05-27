@@ -382,7 +382,7 @@ let _lastTickSecond = -1;
 
 /** Called by router when screen becomes active */
 function onGameShow() {
-  Sound.stopBgMusic();      // silence ambient music during the game
+  Sound.startGameMusic();   // play driving music during the game
   const starsEl = document.getElementById('game-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
 
