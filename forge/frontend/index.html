@@ -743,7 +743,7 @@ const Sound = {
       const gain = c.createGain();
       osc.type = 'triangle';
       osc.frequency.value = notes[i % notes.length];
-      gain.gain.setValueAtTime(0.1, t);
+      gain.gain.setValueAtTime(0.2, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
       osc.connect(gain);
       gain.connect(this._masterGain);
