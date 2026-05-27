@@ -269,6 +269,7 @@
 
 <script>
 function onHomeShow() {
+  Sound.startBgMusic();
   const confettiEl = document.getElementById('home-confetti');
   const starsEl    = document.getElementById('home-stars');
   if (confettiEl) { confettiEl.innerHTML = ''; spawnConfetti(confettiEl); }
@@ -391,6 +392,7 @@ function _setLoading(id, on) {
 }
 
 async function homeCreateRoom() {
+  Sound.click();
   const name = _validateName();
   if (!name) return;
   _setLoading('btn-create', true);
@@ -415,6 +417,7 @@ async function homeCreateRoom() {
 
 /** Create a private room and open solo setup before the first question. */
 async function homeStartSolo() {
+  Sound.click();
   const name = _validateName();
   if (!name) return;
   _setLoading('btn-solo', true);
@@ -438,6 +441,7 @@ async function homeStartSolo() {
 }
 
 async function homeJoinRoom() {
+  Sound.click();
   const name = _validateName();
   if (!name) return;
   const codeEl = document.getElementById('input-code');
