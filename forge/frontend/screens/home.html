@@ -291,7 +291,6 @@ function onHomeShow() {
     });
     codeInput.addEventListener('keydown', e => { if (e.key==='Enter') homeJoinRoom(); });
   }
-  const nameInput = document.getElementById('input-name');
   if (nameInput) {
     nameInput.addEventListener('keydown', e => { if (e.key==='Enter') homeCreateRoom(); });
   }
