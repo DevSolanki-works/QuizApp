@@ -743,7 +743,7 @@ const Sound = {
       const gain = c.createGain();
       osc.type = 'triangle';
       osc.frequency.value = notes[i % notes.length];
-      gain.gain.setValueAtTime(0.07, t);
+      gain.gain.setValueAtTime(0.1, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
       osc.connect(gain);
       gain.connect(this._masterGain);
@@ -751,32 +751,6 @@ const Sound = {
       osc.stop(t + 0.58);
       i++;
     }, 500);
-  },
-
-  /**
-   * Start a more rhythmic, driving track for gameplay.
-   * Uses a slightly faster tempo and tense interval.
-   */
-  startGameMusic() {
-    this.stopBgMusic();
-    const ctx = this._safe(); if (!ctx) return;
-    const notes = [130, 155, 174, 185, 196, 233, 261, 196]; // C-Eb-F-Gb-G-Bb-C-G
-    let i = 0;
-    this._bgInterval = setInterval(() => {
-      const c = this._safe(); if (!c) return;
-      const t = c.currentTime;
-      const osc  = c.createOscillator();
-      const gain = c.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(notes[i % notes.length], t);
-      gain.gain.setValueAtTime(0.065, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-      osc.connect(gain);
-      gain.connect(this._masterGain);
-      osc.start(t);
-      osc.stop(t + 0.38);
-      i++;
-    }, 380);
   },
 
   /** Stop background music without affecting sound effects. */
