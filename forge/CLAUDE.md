@@ -510,3 +510,38 @@ Professional Google Login is now integrated into the Forge ecosystem.
 2. Create an **OAuth 2.0 Client ID** for a "Web application".
 3. Add `http://localhost:8080` (dev) and your production domain to the **Authorized JavaScript origins**.
 4. Update `GOOGLE_CLIENT_ID` in `frontend/index.html` and your backend `.env` file.
+
+---
+
+## Milestone 18 - AdSense Compliance Fixes (May 28, 2026)
+
+Fixed critical issues blocking Google AdSense approval.
+
+### Changes Made
+
+**`frontend/index.html`**
+- Added AdSense script tag to `<head>` (was missing entirely — primary rejection risk)
+- Added persistent `<nav id="app-footer">` bar with links to About, Privacy Policy,
+  and contact email — visible on all screens except during active gameplay
+- Added cookie consent banner (`#cookie-banner`) that slides up on first visit,
+  stores decision in `localStorage`, and sets `requestNonPersonalizedAds = 1`
+  if the user declines
+- Footer auto-hides during the game screen (`game-active` CSS class) so it
+  never overlaps answer buttons
+
+**`frontend/privacy.html`**
+- Added `rel="noopener noreferrer"` to all external links (Google, Vercel)
+- Styled the contact email as a prominent call-out card
+- Added mention of `localStorage` usage (mute, high scores) to the cookies section
+
+### AdSense Checklist
+| Requirement | Status |
+|-------------|--------|
+| AdSense script on every page | ✅ All pages |
+| Privacy Policy page | ✅ /privacy.html |
+| Privacy Policy link accessible from main app | ✅ Footer nav |
+| About page | ✅ /about.html |
+| Contact info visible | ✅ Footer nav + privacy page |
+| ads.txt | ✅ /ads.txt |
+| Cookie consent banner | ✅ index.html |
+| No prohibited content | ✅ |
