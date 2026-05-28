@@ -12,9 +12,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-  
+
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- ✅ FIX 1: AdSense script — required on every page for review -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922314688440658" crossorigin="anonymous"></script>
 
   <style>
     /* ══════════════════════════════════════════════════════
@@ -48,6 +51,9 @@
       --radius-md:    14px;
       --radius-lg:    20px;
       --radius-pill:  999px;
+
+      /* Footer height — screens pad their bottom by this amount */
+      --footer-h:     32px;
     }
 
     @media (min-width: 1024px) {
@@ -93,7 +99,8 @@
     .screen {
       width: 100%;
       max-width: var(--max-w);
-      height: 100%;
+      /* Leave room for the footer bar at the bottom */
+      height: calc(100% - var(--footer-h));
       display: none;
       flex-direction: column;
       align-items: center;
@@ -109,10 +116,11 @@
 
     @media (min-width: 1024px) {
       .screen {
-        height: 100%;
+        height: calc(100% - var(--footer-h));
         max-height: 900px;
-        border-radius: var(--radius-lg);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         border: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: none;
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
       }
     }
@@ -334,31 +342,170 @@
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+    /* ── ✅ FIX 2: PERSISTENT FOOTER NAV ─────────────────── */
+    /*
+     * Sits at the very bottom of the viewport, always visible.
+     * Contains Privacy Policy, About, and Contact links so
+     * AdSense reviewers can find them from any screen.
+     * Hidden on the game screen to avoid covering answer buttons.
+     */
+    #app-footer {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: var(--max-w);
+      height: var(--footer-h);
+      z-index: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 0 16px;
+      background: rgba(9, 19, 100, 0.92);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: opacity 0.25s ease;
+    }
+    #app-footer a, #app-footer span {
+      font-family: var(--font-pixel);
+      font-size: 6px;
+      color: rgba(255, 255, 255, 0.38);
+      text-decoration: none;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      transition: color 0.15s;
+    }
+    #app-footer a:hover { color: var(--yellow); }
+    #app-footer .footer-dot {
+      width: 3px; height: 3px; border-radius: 50%;
+      background: rgba(255,255,255,0.2); flex-shrink: 0;
+    }
+    /* Hide footer during active gameplay so it doesn't cover answer buttons */
+    #app-footer.game-active {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ── ✅ FIX 3: COOKIE CONSENT BANNER ─────────────────── */
+    /*
+     * Required by Google's publisher policies for EEA/UK visitors.
+     * Appears on first visit, stored acceptance in localStorage.
+     * Slides up from below the footer.
+     */
+    #cookie-banner {
+      position: fixed;
+      bottom: var(--footer-h);   /* sits directly above the footer */
+      left: 50%;
+      transform: translateX(-50%) translateY(100%);
+      width: 100%;
+      max-width: var(--max-w);
+      z-index: 500;
+      background: rgba(13, 27, 120, 0.98);
+      border: 1px solid rgba(255, 217, 61, 0.25);
+      border-bottom: none;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      padding: 14px 18px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      backdrop-filter: blur(12px);
+      transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    #cookie-banner.visible {
+      transform: translateX(-50%) translateY(0);
+    }
+    .cookie-text {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.78);
+      line-height: 1.6;
+    }
+    .cookie-text a {
+      color: var(--yellow);
+      text-decoration: underline;
+    }
+    .cookie-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .cookie-btn {
+      flex: 1;
+      height: 36px;
+      border: none;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.1s;
+    }
+    .cookie-btn:active { transform: scale(0.97); }
+    .cookie-accept {
+      background: var(--yellow);
+      color: var(--text-dark);
+    }
+    .cookie-decline {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.6);
+      border: 1px solid rgba(255,255,255,0.2) !important;
+    }
   </style>
 </head>
 <body>
 <div id="app">
   <div id="toast-container"></div>
+
   <!-- Persistent mute toggle — visible across all screens -->
-<button id="mute-btn"
-  onclick="Sound.toggleMute()"
-  aria-label="Toggle sound"
-  style="
-    position: fixed; top: 12px; right: 12px; z-index: 500;
-    width: 40px; height: 40px; border-radius: 50%;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.22);
-    font-size: 18px; cursor: pointer; display: flex;
-    align-items: center; justify-content: center;
-    -webkit-tap-highlight-color: transparent;
-    transition: background 0.15s;
-  ">
-  🔊
-</button>
+  <button id="mute-btn"
+    onclick="Sound.toggleMute()"
+    aria-label="Toggle sound"
+    style="
+      position: fixed; top: 12px; right: 12px; z-index: 500;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      font-size: 18px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s;
+    ">
+    🔊
+  </button>
+
   <section id="screen-home"    class="screen active"></section>
   <section id="screen-lobby"   class="screen"></section>
   <section id="screen-game"    class="screen"></section>
   <section id="screen-results" class="screen"></section>
+
+  <!-- ✅ FIX 2: Persistent footer — always visible, hidden during gameplay -->
+  <nav id="app-footer" role="navigation" aria-label="Site links">
+    <a href="/about.html">ABOUT</a>
+    <div class="footer-dot"></div>
+    <a href="/privacy.html">PRIVACY POLICY</a>
+    <div class="footer-dot"></div>
+    <a href="mailto:devsolanki.works@gmail.com">CONTACT</a>
+    <div class="footer-dot"></div>
+    <span>© 2026 FORGE</span>
+  </nav>
+</div>
+
+<!-- ✅ FIX 3: Cookie consent banner (outside #app so it overlays correctly) -->
+<div id="cookie-banner" role="dialog" aria-label="Cookie consent" aria-live="polite">
+  <p class="cookie-text">
+    We use cookies to serve ads and improve your experience.
+    By clicking <strong>Accept</strong>, you agree to our use of cookies.
+    <a href="/privacy.html" target="_blank" rel="noopener">Learn more</a>
+  </p>
+  <div class="cookie-actions">
+    <button class="cookie-btn cookie-accept" onclick="cookieConsent(true)">ACCEPT</button>
+    <button class="cookie-btn cookie-decline" onclick="cookieConsent(false)">DECLINE</button>
+  </div>
 </div>
 
 <script>
@@ -381,7 +528,6 @@ const API_BASE = IS_LOCAL_DEV
   : 'https://forge-backend-878124462453.us-central1.run.app';
 const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 
-// 💡 REPLACE THIS with your own Google Client ID from Google Cloud Console
 const GOOGLE_CLIENT_ID = '878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com';
 
 /* ── SESSION PERSISTENCE ─────────────────────────────────── */
@@ -393,7 +539,7 @@ const Session = {
       roomCode:   State.roomCode,
       isHost:     State.isHost,
       playMode:   State.playMode,
-      user:       State.user, // Save user info too
+      user:       State.user,
     };
     localStorage.setItem(this.KEY, JSON.stringify(data));
   },
@@ -425,7 +571,7 @@ const State = {
   scores     : {},
   resultStats: null,
   totalQ     : 10,
-  user       : null, // { name, email, picture, id }
+  user       : null,
 };
 
 // Restore basic state on boot
@@ -470,6 +616,13 @@ async function goTo(name, skipHash = false) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   el.classList.add('active');
   if (!skipHash) window.location.hash = name;
+
+  // ── ✅ FIX 2: Toggle footer visibility ──────────────────
+  // Hide footer during gameplay so it never covers answer buttons.
+  const footer = document.getElementById('app-footer');
+  if (footer) {
+    footer.classList.toggle('game-active', name === 'game');
+  }
 
   const hook = `on${name.charAt(0).toUpperCase() + name.slice(1)}Show`;
   if (typeof window[hook] === 'function') window[hook]();
@@ -603,22 +756,12 @@ function spawnStars(container) {
 }
 
 /* ── SOUND ENGINE ────────────────────────────────────────── */
-/**
- * Sound — synthesized audio via Web Audio API.
- * No hosted files needed. Mobile AudioContext unlocks on first user tap.
- *
- * WHY WEB AUDIO OVER <audio> TAGS:
- *  <audio> files need hosting; Web Audio generates tones in the browser.
- *  This keeps the entire frontend file-free and plays correctly inside
- *  Capacitor's WebView on Android with no extra permissions.
- */
 const Sound = {
   _ctx: null,
   _masterGain: null,
   _bgInterval: null,
   muted: false,
 
-  /** Lazily create AudioContext — must happen after a user gesture on mobile. */
   init() {
     if (this._ctx) return;
     try {
@@ -633,7 +776,6 @@ const Sound = {
     }
   },
 
-  /** Return a ready AudioContext or null if unsupported. */
   _safe() {
     this.init();
     if (!this._ctx) return null;
@@ -641,14 +783,6 @@ const Sound = {
     return this._ctx;
   },
 
-  /**
-   * Play one synthesized tone.
-   * @param {number} freq       - Frequency in Hz
-   * @param {string} type       - Oscillator type: sine | square | sawtooth | triangle
-   * @param {number} duration   - Duration in seconds
-   * @param {number} volume     - Peak gain (0–1); fades to silence at end
-   * @param {number} startTime  - AudioContext.currentTime offset
-   */
   _tone(freq, type, duration, volume, startTime) {
     const ctx = this._ctx; if (!ctx) return;
     const osc  = ctx.createOscillator();
@@ -663,25 +797,20 @@ const Sound = {
     osc.stop(startTime + duration + 0.02);
   },
 
-  /* ─── Sound Effects ──────────────────────────────────── */
-
-  /** Short UI tap feedback for buttons. */
   click() {
     const ctx = this._safe(); if (!ctx) return;
     this._tone(700, 'sine', 0.06, 0.22, ctx.currentTime);
   },
 
-  /** Ascending C-E-G-C arpeggio for a correct answer. */
   correct() {
     const ctx = this._safe(); if (!ctx) return;
     const t = ctx.currentTime;
-    this._tone(523,  'sine', 0.15, 0.45, t);        // C5
-    this._tone(659,  'sine', 0.15, 0.45, t + 0.10); // E5
-    this._tone(784,  'sine', 0.20, 0.45, t + 0.20); // G5
-    this._tone(1047, 'sine', 0.35, 0.40, t + 0.32); // C6
+    this._tone(523,  'sine', 0.15, 0.45, t);
+    this._tone(659,  'sine', 0.15, 0.45, t + 0.10);
+    this._tone(784,  'sine', 0.20, 0.45, t + 0.20);
+    this._tone(1047, 'sine', 0.35, 0.40, t + 0.32);
   },
 
-  /** Descending sawtooth buzz for a wrong answer. */
   wrong() {
     const ctx = this._safe(); if (!ctx) return;
     const t = ctx.currentTime;
@@ -689,7 +818,6 @@ const Sound = {
     this._tone(155, 'sawtooth', 0.22, 0.28, t + 0.18);
   },
 
-  /** Soft two-note ding when a player joins the lobby. */
   playerJoin() {
     const ctx = this._safe(); if (!ctx) return;
     const t = ctx.currentTime;
@@ -697,7 +825,6 @@ const Sound = {
     this._tone(1100, 'sine', 0.18, 0.22, t + 0.10);
   },
 
-  /** Four-note ascending fanfare before the first question. */
   gameStart() {
     const ctx = this._safe(); if (!ctx) return;
     const t = ctx.currentTime;
@@ -706,16 +833,11 @@ const Sound = {
     );
   },
 
-  /**
-   * Single sharp tick for timer urgency.
-   * Called once per remaining second when ≤ 5 s left.
-   */
   tick() {
     const ctx = this._safe(); if (!ctx) return;
     this._tone(1050, 'square', 0.04, 0.18, ctx.currentTime);
   },
 
-  /** Six-note victory jingle for the results screen. */
   gameOver() {
     const ctx = this._safe(); if (!ctx) return;
     const t = ctx.currentTime;
@@ -724,17 +846,10 @@ const Sound = {
     notes.forEach((f, i) => this._tone(f, 'sine', 0.22, 0.40, t + times[i]));
   },
 
-  /* ─── Background Music ───────────────────────────────── */
-
-  /**
-   * Start a gentle C-major pentatonic arpeggio loop.
-   * Volume is deliberately low (gain 0.05) — atmospheric texture only.
-   * Played on home + lobby screens; silenced during the game.
-   */
   startBgMusic() {
     this.stopBgMusic();
     const ctx = this._safe(); if (!ctx) return;
-    const notes = [261, 329, 392, 440, 523, 392, 329, 261]; // C E G A C G E C
+    const notes = [261, 329, 392, 440, 523, 392, 329, 261];
     let i = 0;
     this._bgInterval = setInterval(() => {
       const c = this._safe(); if (!c) return;
@@ -753,18 +868,14 @@ const Sound = {
     }, 500);
   },
 
-  /** Stop background music without affecting sound effects. */
   stopBgMusic() {
     clearInterval(this._bgInterval);
     this._bgInterval = null;
   },
 
-  /* ─── Mute Control ───────────────────────────────────── */
-
   toggleMute() {
     this.muted = !this.muted;
     if (this._masterGain && this._ctx) {
-      // Smooth 50 ms fade to avoid a click artifact
       this._masterGain.gain.setTargetAtTime(
         this.muted ? 0 : 1, this._ctx.currentTime, 0.05
       );
@@ -775,40 +886,73 @@ const Sound = {
   },
 };
 
-/** Keep the mute button emoji in sync with current state. */
 function _updateMuteBtn() {
   const btn = document.getElementById('mute-btn');
   if (btn) btn.textContent = Sound.muted ? '🔇' : '🔊';
 }
 
-// Unlock AudioContext on first user interaction (mandatory on mobile).
 ['click', 'touchstart'].forEach(ev =>
   document.addEventListener(ev, () => Sound.init(), { once: true })
 );
 
+/* ── ✅ FIX 3: COOKIE CONSENT LOGIC ─────────────────────── */
+/**
+ * Show the cookie consent banner unless the user has already responded.
+ * Stores the decision in localStorage so it only appears once.
+ * 'accepted' → AdSense personalised ads run normally.
+ * 'declined' → Banner dismissed; non-personalised ads only.
+ */
+function _initCookieConsent() {
+  // Don't show inside the native Capacitor app
+  if (IS_NATIVE_APP) return;
+
+  try {
+    const consent = localStorage.getItem('forge_cookie_consent');
+    if (consent) return;   // already decided
+  } catch { return; }
+
+  // Delay slightly so the UI loads first
+  setTimeout(() => {
+    const banner = document.getElementById('cookie-banner');
+    if (banner) banner.classList.add('visible');
+  }, 1200);
+}
+
+function cookieConsent(accepted) {
+  try {
+    localStorage.setItem('forge_cookie_consent', accepted ? 'accepted' : 'declined');
+  } catch {}
+
+  const banner = document.getElementById('cookie-banner');
+  if (banner) {
+    banner.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    banner.style.opacity = '0';
+    banner.style.transform = 'translateX(-50%) translateY(100%)';
+    setTimeout(() => banner.remove(), 350);
+  }
+
+  // If declined, instruct AdSense not to personalise ads for this user
+  if (!accepted && window.adsbygoogle) {
+    try {
+      (adsbygoogle = window.adsbygoogle || []).requestNonPersonalizedAds = 1;
+    } catch {}
+  }
+}
+
 /* ── BOOT ───────────────────────────────────────────────── */
 (async () => {
   API.health().catch(() => {});  // warm up Cloud Run silently
+  _initCookieConsent();           // show cookie banner if needed
 
   const hash = window.location.hash.replace('#', '') || 'home';
   const saved = Session.load();
 
-  // If we have a saved session and aren't on home, try to reconnect
   if (saved && saved.roomCode && hash !== 'home') {
     try {
-      // Validate room still exists
       await API.getRoom(saved.roomCode);
-      
-      // If we are on lobby or results, reconnect
-      if (hash === 'lobby' || hash === 'results') {
+      if (hash === 'lobby' || hash === 'results' || hash === 'game') {
         WS.connect(saved.roomCode, saved.playerName);
       }
-      // Note: If on 'game', re-joining depends on backend support.
-      // For now, we'll try to connect anyway.
-      if (hash === 'game') {
-        WS.connect(saved.roomCode, saved.playerName);
-      }
-
       await goTo(hash, true);
     } catch (e) {
       console.warn('Saved room no longer valid:', e);
