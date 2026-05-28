@@ -191,7 +191,11 @@ Current frontend behavior:
 BASE_POINTS = 1000
 score = int(BASE_POINTS * (1 - (time_ms / time_limit_ms) * 0.5))
 score = max(500, min(1000, score))   # Clamped 500–1000
-# Wrong answer = 0 pts. Correct = 500–1000 pts depending on speed.
+# Streak/combo multiplier (streak resets on wrong answer or timeout)
+multiplier = min(1.0 + (streak // 3) * 0.5, 3.0)
+# streak 1–2 → ×1.0 | streak 3–5 → ×1.5 | streak 6–8 → ×2.0 | streak 9–11 → ×2.5 | streak 12+ → ×3.0
+final_score = int(base_score * multiplier)
+# Wrong answer or timeout = 0 pts, streak resets to 0.
 ```
 
 ---
@@ -254,7 +258,7 @@ Lobby now only asks for topic + mode. Question count is fixed at 10.
 { "type": "PLAYER_JOINED",  "data": { "players": ["Alice", "Bob"] } }
 { "type": "GAME_STARTING",  "data": { "topic": "Marvel Movies", "mode": "hard", "total_questions": 10, "time_limit_ms": 10000 } }
 { "type": "QUESTION",       "data": { "index": 0, "text": "...", "options": ["A","B","C","D"], "time_limit_ms": 10000, "mode": "hard" } }
-{ "type": "ANSWER_REVEAL",  "data": { "scores": {"Alice": 2300, "Bob": 1800}, "correct_index": 2 } }
+{ "type": "ANSWER_REVEAL",  "data": { "phase": "answer_reveal", "hold_ms": 4000, "correct_index": 2, "scores": {}, "points_gained": {}, "answers": {}, "streaks": {"Alice": 3, "Bob": 0}, "play_mode": "classic" } }
 { "type": "LEADERBOARD",    "data": { "scores": {"Alice": 2300, "Bob": 1800}, "correct_index": 2 } }
 { "type": "GAME_OVER",      "data": { "final_scores": {"Alice": 9100, "Bob": 7200} } }
 { "type": "ERROR",          "data": { "message": "Room not found" } }
@@ -282,7 +286,7 @@ Lobby now only asks for topic + mode. Question count is fixed at 10.
 GameStatus  (Enum)    → WAITING | STARTING | ACTIVE | FINISHED
 GameMode    (Enum)    → easy | medium | hard
 Question    (Model)   → question, options x4, correct_index
-Player      (Model)   → name, score, answered, last_answer, websocket (excluded)
+Player      (Model)   → name, score, correct_answers, streak, answered, last_answer, websocket(excluded)
 Room        (Model)   → code, host, status, mode, time_limit_ms,
                          players, questions, current_q_index,
                          answers_this_round
@@ -334,7 +338,7 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 | 15 | In-memory Rate Limiting (3 quizes/min) | ✅ Done |
 | 16 | Session Persistence & Hash Routing | ✅ Done |
 | 17 | Google Authentication | ✅ Done |
-
+| 19 | Streak/Combo Multiplier (×1.5 at 3, ×2.0 at 6, cap ×3.0) + combo sound | ✅ Done |
 ---
 
 ## 🐛 Known Issues / Decisions Log
@@ -357,7 +361,7 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 - AdSense identity verification (PAN) pending — earnings accumulate, payouts unlock when verified.
 - Timer now depends on mode: Easy 30s / Medium 20s / Hard 10s.
 - Difficulty colors still map to mode in UI: Easy (green) / Medium (yellow) / Hard (red).
-
+- Streak multiplier applies AFTER the base score calculation. Points shown in `points_gained` already reflect the multiplier so the leaderboard "+1350" is accurate. Timed-out players (no answer sent) have streak reset server-side in `resolve_round` before `_round_payload` reads streaks, ensuring the broadcast is always correct.
 ---
 
 ## 📝 Claude's Instructions

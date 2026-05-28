@@ -843,6 +843,16 @@ const Sound = {
     this._tone(1050, 'square', 0.04, 0.18, ctx.currentTime);
   },
 
+  combo() {
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
+    this._tone(523,  'square', 0.12, 0.40, t);
+    this._tone(659,  'square', 0.12, 0.40, t + 0.09);
+    this._tone(784,  'square', 0.12, 0.40, t + 0.18);
+    this._tone(1047, 'square', 0.18, 0.50, t + 0.27);
+    this._tone(1319, 'sine',   0.28, 0.55, t + 0.39);
+  },
+
   gameOver() {
     const ctx = this._safe(); if (!ctx) return;
     const t = ctx.currentTime;
