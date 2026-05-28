@@ -52,9 +52,78 @@
     color: var(--yellow); letter-spacing: 0.8px;
   }
 
+  /* ── STREAK BAR ─────────────────────────────────────────── */
+  /*
+   * Sits between the progress strip and the timer ring.
+   * Hidden (visibility:hidden) when streak = 0 so layout doesn't shift.
+   * The multiplier badge pulses to draw the eye without being distracting.
+   */
+  .game-streak-bar {
+    width: 100%; display: flex;
+    align-items: center; justify-content: center;
+    gap: 6px; min-height: 26px; margin-top: 6px;
+  }
+  .streak-fires {
+    font-size: 14px; line-height: 1;
+    /* pop-in each time streak tier increases */
+    transition: opacity 0.2s;
+  }
+  .streak-label {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--yellow); letter-spacing: 0.4px;
+  }
+  .streak-mult-badge {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--green);
+    padding: 2px 8px; border-radius: var(--radius-pill);
+    background: rgba(6,214,160,0.15);
+    border: 1px solid rgba(6,214,160,0.4);
+    animation: mult-pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes mult-pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(6,214,160,0.45); }
+    50%      { box-shadow: 0 0 0 5px rgba(6,214,160,0); }
+  }
+
+  /* ── COMBO FLASH OVERLAY ────────────────────────────────── */
+  /*
+   * Fixed-position overlay that pops up for ~1.5s when a combo milestone
+   * is reached (streak 3, 6, 9 …). Lives outside .game-wrap so it can
+   * escape any overflow:hidden clipping.
+   */
+  .combo-flash {
+    position: fixed; top: 38%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    z-index: 300; text-align: center;
+    pointer-events: none; visibility: hidden;
+  }
+  .combo-flash.visible {
+    visibility: visible;
+    animation: combo-burst 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .combo-title {
+    font-family: var(--font-pixel); font-size: 26px;
+    color: var(--yellow); line-height: 1.3;
+    text-shadow:
+      0 0 30px rgba(255,217,61,0.9),
+      0 4px 0 rgba(0,0,0,0.5);
+  }
+  .combo-sub {
+    font-family: var(--font-pixel); font-size: 10px;
+    color: var(--green); margin-top: 8px;
+    text-shadow: 0 0 12px rgba(6,214,160,0.7);
+  }
+  @keyframes combo-burst {
+    0%   { transform: translate(-50%,-50%) scale(0) rotate(-8deg); opacity: 0; }
+    18%  { transform: translate(-50%,-50%) scale(1.25) rotate(2deg); opacity: 1; }
+    32%  { transform: translate(-50%,-50%) scale(1) rotate(0deg);   opacity: 1; }
+    72%  { transform: translate(-50%,-50%) scale(1) rotate(0deg);   opacity: 1; }
+    100% { transform: translate(-50%,-50%) scale(0.7) rotate(0deg); opacity: 0; }
+  }
+
   /* ── TIMER RING ─────────────────────────────────────────── */
   .timer-wrap {
-    margin: 24px 0 28px;
+    margin: 16px 0 22px;
     position: relative; width: 80px; height: 80px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
@@ -62,7 +131,7 @@
   .timer-svg {
     position: absolute; top: 0; left: 0;
     width: 80px; height: 80px;
-    transform: rotate(-90deg);   /* start stroke from top */
+    transform: rotate(-90deg);
   }
   .timer-bg-circle {
     fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 5;
@@ -70,7 +139,7 @@
   .timer-fg-circle {
     fill: none; stroke: var(--yellow); stroke-width: 5;
     stroke-linecap: round;
-    stroke-dasharray: 220;       /* circumference ≈ 2π×35 */
+    stroke-dasharray: 220;
     stroke-dashoffset: 0;
     transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
   }
@@ -80,11 +149,9 @@
     color: var(--white); z-index: 1;
     transition: color 0.3s;
     position: absolute;
-    top: 50%;
-    left: 50%;
+    top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    width: 100%;
-    text-align: center;
+    width: 100%; text-align: center;
   }
   .timer-number.urgent { color: var(--red); }
 
@@ -107,22 +174,13 @@
     line-height: 1.45;
   }
   @media (min-width: 1024px) {
-    .game-question-text {
-      font-size: 28px;
-    }
-    .game-options-grid {
-      gap: 20px;
-    }
-    .option-btn {
-      min-height: 84px;
-    }
-    .option-text {
-      font-size: 18px;
-    }
+    .game-question-text { font-size: 28px; }
+    .game-options-grid  { gap: 20px; }
+    .option-btn         { min-height: 84px; }
+    .option-text        { font-size: 18px; }
   }
 
   /* ── ANSWER OPTIONS GRID ────────────────────────────────── */
-  /* 2×2 grid on wide screens, 1-col on narrow */
   .game-options-grid {
     width: 100%;
     display: grid;
@@ -147,7 +205,6 @@
   .option-btn:active:not([disabled]) { transform: scale(0.97); }
   .option-btn[disabled] { cursor: default; }
 
-  /* Each option has its own colour */
   .option-btn[data-idx="0"] { background: var(--opt-a); box-shadow: 0 5px 0 #8b0011; }
   .option-btn[data-idx="1"] { background: var(--opt-b); box-shadow: 0 5px 0 #0d5fa3; }
   .option-btn[data-idx="2"] { background: var(--opt-c); box-shadow: 0 5px 0 #038a67; }
@@ -158,7 +215,6 @@
   .option-btn:active:not([disabled])[data-idx="2"] { box-shadow: 0 1px 0 #038a67; transform: translateY(4px); }
   .option-btn:active:not([disabled])[data-idx="3"] { box-shadow: 0 1px 0 #5a2d8e; transform: translateY(4px); }
 
-  /* Letter badge A/B/C/D */
   .option-letter {
     width: 28px; height: 28px; border-radius: 6px;
     background: rgba(0,0,0,0.22); flex-shrink: 0;
@@ -170,7 +226,7 @@
     font-size: 14px; font-weight: 800; color: #fff; line-height: 1.3;
   }
 
-  /* ── ANSWER FEEDBACK states ─────────────────────────────── */
+  /* ── ANSWER FEEDBACK ────────────────────────────────────── */
   .option-btn.correct {
     animation: correct-flash 0.4s ease;
     box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(6,214,160,0.7) !important;
@@ -178,13 +234,11 @@
   }
   .option-btn.wrong {
     opacity: 0.4; filter: grayscale(60%);
-    box-shadow: none !important;
-    transform: scale(0.96);
+    box-shadow: none !important; transform: scale(0.96);
   }
   .option-btn.dimmed {
     opacity: 0.4; filter: grayscale(60%);
-    box-shadow: none !important;
-    transform: scale(0.96);
+    box-shadow: none !important; transform: scale(0.96);
   }
   .option-btn.chosen-wrong {
     background: var(--red) !important;
@@ -196,12 +250,11 @@
     filter: brightness(1.1);
   }
   @keyframes correct-flash {
-    0%  { transform: scale(1);    }
-    40% { transform: scale(1.06); }
-    100%{ transform: scale(1);    }
+    0%   { transform: scale(1);    }
+    40%  { transform: scale(1.06); }
+    100% { transform: scale(1);    }
   }
 
-  /* Tick / Cross overlay on answered options */
   .option-result-icon {
     position: absolute; right: 10px; top: 50%;
     transform: translateY(-50%);
@@ -214,7 +267,6 @@
   }
 
   /* ── MINI LEADERBOARD OVERLAY ───────────────────────────── */
-  /* Slides up from bottom between questions */
   .leaderboard-overlay {
     position: fixed; inset: 0;
     background: rgba(13,27,142,0.96);
@@ -255,7 +307,6 @@
     from { opacity:0; transform:translateY(12px); }
     to   { opacity:1; transform:translateY(0);    }
   }
-  /* Top-3 special styling */
   .lb-row.rank-1 { background: rgba(255,217,61,0.18); border-color: rgba(255,217,61,0.4); }
   .lb-row.rank-2 { background: rgba(192,192,192,0.12); border-color: rgba(192,192,192,0.3); }
   .lb-row.rank-3 { background: rgba(205,127,50,0.12); border-color: rgba(205,127,50,0.3); }
@@ -272,6 +323,14 @@
     font-size: 16px; font-weight: 800; color: var(--white);
   }
   .lb-name.is-you { color: var(--yellow); }
+  .lb-streak-badge {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: var(--green); padding: 2px 6px;
+    border-radius: var(--radius-pill);
+    background: rgba(6,214,160,0.15);
+    border: 1px solid rgba(6,214,160,0.3);
+    margin-right: 4px;
+  }
   .lb-score {
     font-family: var(--font-pixel); font-size: 10px;
     color: var(--white);
@@ -317,6 +376,18 @@
   </div>
   <p class="game-phase-label z1" id="game-phase-label">QUESTION LIVE</p>
 
+  <!-- STREAK BAR (hidden until first correct answer) -->
+  <!--
+    visibility:hidden keeps the layout space so the timer ring doesn't jump.
+    JS calls _updateStreakUI() on every ANSWER_REVEAL to update content and
+    toggle visibility.
+  -->
+  <div class="game-streak-bar z1" id="game-streak-bar" style="visibility:hidden" aria-live="polite">
+    <span class="streak-fires" id="streak-fires">🔥</span>
+    <span class="streak-label" id="streak-label">1 STREAK</span>
+    <span class="streak-mult-badge" id="streak-mult-badge" style="visibility:hidden">×1.5</span>
+  </div>
+
   <!-- TIMER RING -->
   <div class="timer-wrap z1" id="timer-wrap" style="visibility:hidden">
     <svg class="timer-svg" viewBox="0 0 80 80">
@@ -328,7 +399,6 @@
 
   <!-- QUESTION CARD -->
   <div class="game-question-card z1" id="game-question-card">
-    <!-- Loading state shown while waiting for first question -->
     <div class="game-loading">
       <div class="big-emoji">🤖</div>
       <div class="dot-loader" style="justify-content:center">
@@ -361,6 +431,12 @@
   </div>
 </div>
 
+<!-- COMBO FLASH (fixed, outside game-wrap to escape overflow clipping) -->
+<div class="combo-flash" id="combo-flash" aria-hidden="true" aria-live="assertive">
+  <p class="combo-title" id="combo-title">🔥 COMBO!</p>
+  <p class="combo-sub"   id="combo-sub">×1.5 MULTIPLIER</p>
+</div>
+
 <script>
 /* ═══════════════════════════════════════════════════════════
    GAME SCREEN LOGIC
@@ -368,38 +444,40 @@
 
 const OPTION_LETTERS = ['A','B','C','D'];
 const TIME_LIMIT_MS  = 20000;
-const CIRCUMFERENCE  = 220;  /* 2π × 35 ≈ 220 */
+const CIRCUMFERENCE  = 220;   /* 2π × 35 ≈ 220 */
 
-let _timerInterval  = null;   // setInterval handle
-let _timerStart     = null;   // timestamp when question appeared
-let _answered       = false;  // has this player answered this round?
-let _chosenIndex    = null;   // local choice retained through answer reveal
-let _qIndex         = 0;      // current question index (0-based)
-let _lbShowTimer    = null;   // delayed leaderboard reveal
-let _lbHideTimer    = null;   // fallback leaderboard hide
+let _timerInterval  = null;
+let _timerStart     = null;
+let _answered       = false;
+let _chosenIndex    = null;
+let _qIndex         = 0;
+let _lbShowTimer    = null;
+let _lbHideTimer    = null;
 let _latestScores   = null;
 let _lastTickSecond = -1;
 
+// Streak state — kept locally so the bar doesn't flicker between questions.
+let _currentStreak  = 0;
+
 /** Called by router when screen becomes active */
 function onGameShow() {
-  Sound.stopBgMusic();      // silence ambient music during the game
+  Sound.stopBgMusic();
   const starsEl = document.getElementById('game-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
 
-  // Set topic label
   const topicEl = document.getElementById('game-topic-label');
   if (topicEl) {
     const modeLabel = (State.mode || 'medium').toUpperCase();
     topicEl.textContent = State.topic ? `${State.topic} · ${modeLabel}` : modeLabel;
   }
 
-  // Reset local state
+  // Full reset for each new game session
   _answered = false;
   _qIndex   = 0;
   _clearLeaderboardTimers();
   _hideLB();
+  _resetStreakUI();
 
-  // Attach WebSocket handlers
   WS.on('QUESTION',    _onQuestion);
   WS.on('ANSWER_REVEAL', _onAnswerReveal);
   WS.on('INTERMISSION_LEADERBOARD', _onIntermissionLeaderboard);
@@ -410,26 +488,21 @@ function onGameShow() {
 /* ── QUESTION ────────────────────────────────────────────── */
 
 function _onQuestion(data) {
-  // data: { index, text, options: [str,str,str,str], time_limit_ms }
-  _answered = false;
+  _answered    = false;
   _chosenIndex = null;
-  _qIndex   = data.index;
-  State.phase = data.phase || 'question';
+  _qIndex      = data.index;
+  State.phase  = data.phase || 'question';
   State.currentQ = data;
   _setPhaseLabel('QUESTION LIVE');
 
   _clearLeaderboardTimers();
-
-  // Hide leaderboard overlay
   _hideLB();
   const lbList = document.getElementById('lb-list');
   if (lbList) lbList.innerHTML = '';
 
-  // Show timer ring (hidden initially during loading)
   const timerWrap = document.getElementById('timer-wrap');
   if (timerWrap) timerWrap.style.visibility = 'visible';
 
-  // Update progress & counter
   const total = State.totalQ;
   const pct   = (data.index / total) * 100;
   const progressEl = document.getElementById('game-progress');
@@ -438,7 +511,6 @@ function _onQuestion(data) {
   const counterEl = document.getElementById('game-q-counter');
   if (counterEl) counterEl.textContent = `Q ${data.index + 1} / ${total}`;
 
-  // Render question card
   const card = document.getElementById('game-question-card');
   if (card) {
     card.innerHTML = `
@@ -450,22 +522,19 @@ function _onQuestion(data) {
     card.style.animation = 'fade-up 0.3s ease';
   }
 
-  // Render answer options
   const grid = document.getElementById('game-options-grid');
   if (grid) {
     grid.style.visibility = 'visible';
     grid.innerHTML = data.options.map((opt, i) => `
-      <button class="option-btn" data-idx="${i}"
-              onclick="gameAnswer(${i})">
+      <button class="option-btn" data-idx="${i}" onclick="gameAnswer(${i})">
         <span class="option-letter">${OPTION_LETTERS[i]}</span>
         <span class="option-text">${_escHtml(opt)}</span>
       </button>
     `).join('');
   }
 
-  // Start countdown timer
   const roundLimitMs = data.time_limit_ms || State.timeLimitMs || TIME_LIMIT_MS;
-  State.timeLimitMs = roundLimitMs;
+  State.timeLimitMs  = roundLimitMs;
   _startTimer(roundLimitMs);
 }
 
@@ -473,7 +542,7 @@ function _onQuestion(data) {
 
 function _startTimer(limitMs) {
   _stopTimer();
-  _lastTickSecond = -1;   // reset tick tracker for new question
+  _lastTickSecond = -1;
   _timerStart = Date.now();
   const totalSecs = limitMs / 1000;
 
@@ -481,34 +550,25 @@ function _startTimer(limitMs) {
   const numberEl = document.getElementById('timer-number');
   if (!circleEl || !numberEl) return;
   numberEl.textContent = Math.ceil(totalSecs);
-  const timerWrap = document.getElementById('timer-wrap');
-  if (timerWrap) timerWrap.setAttribute('aria-label', `${Math.round(totalSecs)} second timer`);
 
-  // Reset ring
   circleEl.style.strokeDashoffset = 0;
   circleEl.classList.remove('urgent');
   numberEl.classList.remove('urgent');
 
   _timerInterval = setInterval(() => {
-    const elapsed = Date.now() - _timerStart;
+    const elapsed   = Date.now() - _timerStart;
     const remaining = Math.max(0, limitMs - elapsed);
     const secsLeft  = Math.ceil(remaining / 1000);
-    const progress  = elapsed / limitMs;   /* 0 → 1 */
+    const progress  = elapsed / limitMs;
 
-    // Update number
     numberEl.textContent = secsLeft;
-
-    // Shrink ring stroke (dashoffset goes from 0 → CIRCUMFERENCE)
     circleEl.style.strokeDashoffset = Math.min(1, progress) * CIRCUMFERENCE;
 
-    // tick sound once per second during the last 5 seconds ──
     if (remaining > 0 && remaining <= 5000 && secsLeft !== _lastTickSecond) {
       _lastTickSecond = secsLeft;
       Sound.tick();
     }
-    // ─────────────────────────────────────────────────────────────
 
-    // Go red in last 5s
     if (remaining > 0 && remaining <= 5000) {
       circleEl.classList.add('urgent');
       numberEl.classList.add('urgent');
@@ -516,10 +576,12 @@ function _startTimer(limitMs) {
 
     if (remaining <= 0) {
       _stopTimer();
-      // Time's up — disable all options without answer
       if (!_answered) {
         _answered = true;
         _disableOptions();
+        // Timer expired without an answer → streak will be reset by server.
+        // Optimistically reflect that on the local UI immediately.
+        _resetStreakUI();
       }
     }
   }, 200);
@@ -531,26 +593,18 @@ function _stopTimer() {
 
 /* ── ANSWER ──────────────────────────────────────────────── */
 
-/**
- * Player taps an answer option.
- * Sends { action:'answer', choice:i, time_ms } to server.
- * Disables all buttons immediately to prevent double-tap.
- */
 function gameAnswer(choiceIndex) {
   if (_answered) return;
   Sound.click();
-  _answered = true;
+  _answered    = true;
   _chosenIndex = choiceIndex;
   _stopTimer();
 
   const timeMs = Date.now() - (_timerStart || Date.now());
   WS.send({ action: 'answer', choice: choiceIndex, time_ms: timeMs });
-
-  // Dim un-chosen options; pulse chosen one
   _disableOptions(choiceIndex);
 }
 
-/** Disable all option buttons; optionally highlight the chosen one */
 function _disableOptions(chosenIdx = null) {
   document.querySelectorAll('.option-btn').forEach((btn, i) => {
     btn.setAttribute('disabled', 'true');
@@ -572,27 +626,54 @@ function _onAnswerReveal(data) {
 
   const correctIdx = data.correct_index;
 
-  // play correct / wrong sound based on the player's choice ──
+  // ── Streak / combo logic ──────────────────────────────────
+  // The server includes every player's post-answer streak in the broadcast.
+  // We use our own entry to decide which sound to play and whether to fire
+  // the combo overlay.
+  const myStreak     = (data.streaks || {})[State.playerName] || 0;
+  const myMultiplier = Math.min(1.0 + Math.floor(myStreak / 3) * 0.5, 3.0);
+  // A milestone occurs at streaks 3, 6, 9 … — every multiple of 3.
+  const hitMilestone = myStreak > 0 && myStreak % 3 === 0;
+
+  // ── Sound selection ───────────────────────────────────────
+  // Combo replaces the regular "correct" fanfare at milestone streaks.
   if (_chosenIndex !== null) {
-    if (_chosenIndex === correctIdx) Sound.correct();
-    else                             Sound.wrong();
+    if (_chosenIndex === correctIdx) {
+      if (hitMilestone) Sound.combo();
+      else              Sound.correct();
+    } else {
+      Sound.wrong();
+    }
   }
-  // ────────────────────────────────────────────────────────────────
+  // Timeout (no choice made) — streak already reset optimistically in timer
+  // handler; server confirms via streaks:{name:0} in the payload.
+
+  // ── Update streak bar & optionally flash combo overlay ────
+  _updateStreakUI(myStreak, myMultiplier);
+  if (hitMilestone && _chosenIndex === correctIdx) {
+    _showComboFlash(myMultiplier);
+  }
+  // ─────────────────────────────────────────────────────────
 
   _latestScores = data.scores || _latestScores;
+  State.scores  = _latestScores || State.scores;
+  const myScore = (_latestScores && _latestScores[State.playerName]) || 0;
+  const scoreEl = document.getElementById('game-my-score');
+  if (scoreEl) scoreEl.textContent = myScore.toLocaleString();
 
+  // Colour each option button based on correct / wrong / dimmed
   document.querySelectorAll('.option-btn').forEach((btn, i) => {
     btn.setAttribute('disabled', 'true');
-    btn.style.opacity = '';
+    btn.style.opacity  = '';
     btn.style.transform = '';
-    btn.classList.remove('wrong', 'dimmed', 'chosen-wrong', 'reveal-correct', 'correct');
+    btn.classList.remove('wrong','dimmed','chosen-wrong','reveal-correct','correct');
 
     if (i === correctIdx) {
       btn.classList.add('reveal-correct');
       const oldIcon = btn.querySelector('.option-result-icon');
       if (oldIcon) oldIcon.remove();
       const icon = document.createElement('span');
-      icon.className = 'option-result-icon';
+      icon.className   = 'option-result-icon';
       icon.textContent = '✓';
       btn.appendChild(icon);
     } else if (i === _chosenIndex) {
@@ -601,42 +682,109 @@ function _onAnswerReveal(data) {
       btn.classList.add('dimmed');
     }
   });
+}
 
-  const myScore = (_latestScores && _latestScores[State.playerName]) || 0;
-  State.scores = _latestScores || State.scores;
-  const scoreEl = document.getElementById('game-my-score');
-  if (scoreEl) scoreEl.textContent = myScore.toLocaleString();
+/* ── STREAK UI HELPERS ───────────────────────────────────── */
+
+/**
+ * Update the streak bar to reflect the player's current consecutive correct
+ * answers and the resulting multiplier.
+ *
+ * Tier mapping (mirrors server apply_streak_multiplier):
+ *   streak 0   → hidden
+ *   streak 1–2 → 🔥  "N STREAK"  (no multiplier badge yet)
+ *   streak 3–5 → 🔥🔥 "N STREAK ×1.5"
+ *   streak 6–8 → 🔥🔥🔥 "N STREAK ×2.0"
+ *   streak 9+  → 🔥🔥🔥 "N STREAK ×2.5" … up to ×3.0 cap
+ */
+function _updateStreakUI(streak, multiplier) {
+  _currentStreak = streak;
+  const bar       = document.getElementById('game-streak-bar');
+  const firesEl   = document.getElementById('streak-fires');
+  const labelEl   = document.getElementById('streak-label');
+  const multEl    = document.getElementById('streak-mult-badge');
+  if (!bar) return;
+
+  if (streak <= 0) {
+    bar.style.visibility = 'hidden';
+    return;
+  }
+
+  bar.style.visibility = 'visible';
+
+  // Number of fire icons indicates which tier the player is in (max 3 shown)
+  const tier      = Math.floor(streak / 3);  // 0 = building, 1 = ×1.5, 2 = ×2.0 …
+  const fireCount = Math.min(tier + 1, 3);
+  if (firesEl) firesEl.textContent = '🔥'.repeat(fireCount);
+  if (labelEl) labelEl.textContent = `${streak} STREAK`;
+
+  if (multEl) {
+    if (multiplier > 1.0) {
+      multEl.textContent        = `×${multiplier.toFixed(1)}`;
+      multEl.style.visibility   = 'visible';
+    } else {
+      multEl.style.visibility   = 'hidden';
+    }
+  }
+}
+
+/**
+ * Show the full-screen combo burst overlay for ~1.5 s.
+ * Re-triggering before the previous animation ends resets it cleanly via
+ * the offsetWidth reflow trick.
+ */
+function _showComboFlash(multiplier) {
+  const el    = document.getElementById('combo-flash');
+  const title = document.getElementById('combo-title');
+  const sub   = document.getElementById('combo-sub');
+  if (!el) return;
+
+  if (title) title.textContent = '🔥 COMBO!';
+  if (sub)   sub.textContent   = `×${multiplier.toFixed(1)} MULTIPLIER`;
+
+  el.setAttribute('aria-hidden', 'false');
+  el.classList.remove('visible');
+  void el.offsetWidth;          // force reflow so animation restarts
+  el.classList.add('visible');
+  setTimeout(() => {
+    el.classList.remove('visible');
+    el.setAttribute('aria-hidden', 'true');
+  }, 1500);
+}
+
+/** Hide streak bar and reset local counter. Called at game start. */
+function _resetStreakUI() {
+  _currentStreak = 0;
+  const bar = document.getElementById('game-streak-bar');
+  if (bar) bar.style.visibility = 'hidden';
+  const multEl = document.getElementById('streak-mult-badge');
+  if (multEl) multEl.style.visibility = 'hidden';
 }
 
 /* ── LEADERBOARD ─────────────────────────────────────────── */
 
-/**
- * Server broadcasts INTERMISSION_LEADERBOARD in classic mode after reveal.
- * data: { scores: {name: pts}, points_gained: {name: pts} }
- */
 function _onIntermissionLeaderboard(data) {
   _stopTimer();
   _clearLeaderboardTimers();
   _latestScores = data.scores || _latestScores;
-  State.phase = data.phase || 'intermission_leaderboard';
+  State.phase   = data.phase || 'intermission_leaderboard';
   _setPhaseLabel('ROUND STANDINGS');
 
-  // Update my score in topbar
   const myScore = (_latestScores && _latestScores[State.playerName]) || 0;
   State.scores  = _latestScores || State.scores;
   const scoreEl = document.getElementById('game-my-score');
   if (scoreEl) scoreEl.textContent = myScore.toLocaleString();
+
   const nextLabel = document.getElementById('lb-next-label');
   if (nextLabel) {
-    nextLabel.textContent = data.is_final ? 'FINAL RESULTS LOADING...' : 'NEXT QUESTION LOADING...';
+    nextLabel.textContent = data.is_final
+      ? 'FINAL RESULTS LOADING...'
+      : 'NEXT QUESTION LOADING...';
   }
 
-  // Build sorted leaderboard
-  const sorted = Object.entries(_latestScores || {})
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
-
-  const lbList = document.getElementById('lb-list');
+  const sorted   = Object.entries(_latestScores || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const streaks  = data.streaks || {};
+  const lbList   = document.getElementById('lb-list');
   if (lbList) {
     const medals = ['🥇','🥈','🥉'];
     lbList.innerHTML = sorted.map(([name, score], i) => {
@@ -645,10 +793,16 @@ function _onIntermissionLeaderboard(data) {
       const rankCls = rank <= 3 ? `rank-${rank}` : '';
       const medal   = rank <= 3 ? medals[i] : `${rank}`;
       const points  = (data.points_gained && data.points_gained[name]) || 0;
+      const streak  = streaks[name] || 0;
+      // Show a small streak badge in the leaderboard for players on a combo
+      const streakHtml = streak >= 3
+        ? `<span class="lb-streak-badge">🔥×${Math.min(1 + Math.floor(streak/3)*0.5, 3).toFixed(1)}</span>`
+        : '';
       return `
         <div class="lb-row ${rankCls}">
           <span class="lb-rank ${rankCls}">${medal}</span>
           <span class="lb-name ${isYou ? 'is-you' : ''}">${_escHtml(name)}${isYou ? ' ★' : ''}</span>
+          ${streakHtml}
           <span class="lb-score">${score.toLocaleString()}<small class="lb-gain">+${points}</small></span>
         </div>`;
     }).join('');
@@ -673,36 +827,25 @@ function _hideLB() {
 }
 
 function _clearLeaderboardTimers() {
-  if (_lbShowTimer) {
-    clearTimeout(_lbShowTimer);
-    _lbShowTimer = null;
-  }
-  if (_lbHideTimer) {
-    clearTimeout(_lbHideTimer);
-    _lbHideTimer = null;
-  }
+  if (_lbShowTimer) { clearTimeout(_lbShowTimer); _lbShowTimer = null; }
+  if (_lbHideTimer) { clearTimeout(_lbHideTimer); _lbHideTimer = null; }
 }
 
 /* ── GAME OVER ───────────────────────────────────────────── */
 
-/**
- * Server broadcasts GAME_OVER with final scores.
- * Store results in State and navigate to results screen.
- */
 function _onGameOver(data) {
   _stopTimer();
   _clearLeaderboardTimers();
   _hideLB();
-  // data.final_scores: { name: pts }
-  State.scores = data.final_scores;
-  State.playMode = data.play_mode || State.playMode || 'classic';
+  State.scores      = data.final_scores;
+  State.playMode    = data.play_mode || State.playMode || 'classic';
   State.resultStats = data;
-  State.phase = 'complete';
+  State.phase       = 'complete';
   goTo('results');
 }
 
 /* ── UTILS ───────────────────────────────────────────────── */
-/** Update the phase banner while retaining the mounted question content. */
+
 function _setPhaseLabel(label) {
   const phaseEl = document.getElementById('game-phase-label');
   if (phaseEl) phaseEl.textContent = label;
