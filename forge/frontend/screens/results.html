@@ -9,6 +9,10 @@
     align-items: center; padding: 0 24px 40px;
     overflow-y: auto;
   }
+  @media (max-width: 400px) {
+    .results-wrap { padding: 0 16px 40px; }
+    .results-lb-card { padding: 16px 12px !important; }
+  }
   @media (min-width: 1024px) {
     .results-main-content {
       display: flex;
@@ -145,10 +149,11 @@
     margin-bottom: 14px; text-align: center;
   }
   .results-lb-row {
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: stretch; gap: 8px;
     padding: 10px 12px; border-radius: var(--radius-md);
     margin-bottom: 8px;
     animation: fade-up 0.3s ease both;
+    flex-direction: column;
   }
   .results-lb-row:last-child { margin-bottom: 0; }
   .results-lb-row.is-you {
@@ -159,18 +164,22 @@
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.08);
   }
+  .rlb-main {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+  }
   .rlb-rank {
-    font-family: var(--font-pixel); font-size: 9px;
-    color: rgba(255,255,255,0.4); width: 20px;
+    font-family: var(--font-pixel); font-size: 10px;
+    color: rgba(255,255,255,0.4); width: 22px;
     text-align: center; flex-shrink: 0;
   }
   .rlb-name {
     flex: 1; font-family: var(--font-body);
     font-size: 15px; font-weight: 800; color: var(--white);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .rlb-name.is-you { color: var(--yellow); }
   .rlb-score {
-    font-family: var(--font-pixel); font-size: 9px;
+    font-family: var(--font-pixel); font-size: 10px;
     color: var(--white);
   }
   /* Score bar behind each row */
@@ -457,9 +466,8 @@ function _renderFullLB(sorted, maxScore) {
     const rankStr = rank <= 3 ? medals[i] : `#${rank}`;
     const barPct  = Math.round((score / maxScore) * 100);
     return `
-      <div class="results-lb-row ${isYou ? 'is-you' : ''}"
-           style="animation-delay:${i * 0.05}s; flex-direction:column; padding:10px 12px;">
-        <div style="display:flex;align-items:center;gap:12px;width:100%">
+      <div class="results-lb-row ${isYou ? 'is-you' : ''}" style="animation-delay:${i * 0.05}s;">
+        <div class="rlb-main">
           <span class="rlb-rank">${rankStr}</span>
           <span class="rlb-name ${isYou ? 'is-you' : ''}">${_escHtml(name)}${isYou ? ' ✦' : ''}</span>
           <span class="rlb-score">${score.toLocaleString()}</span>

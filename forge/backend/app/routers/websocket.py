@@ -219,18 +219,20 @@ async def resolve_round(room_code: str, question_index: int) -> None:
     if room.play_mode == PlayMode.CLASSIC:
         room.phase = RoundPhase.INTERMISSION_LEADERBOARD
         intermission_data = _round_payload(room)
+        is_final = room.current_q_index + 1 >= len(room.questions)
+        hold_seconds = 2 if is_final else INTERMISSION_LEADERBOARD_SECONDS
         intermission_data.update(
             {
                 "phase": room.phase.value,
-                "hold_ms": INTERMISSION_LEADERBOARD_SECONDS * 1000,
-                "is_final": room.current_q_index + 1 >= len(room.questions),
+                "hold_ms": hold_seconds * 1000,
+                "is_final": is_final,
             }
         )
         await broadcast(
             room_code,
             {"type": "INTERMISSION_LEADERBOARD", "data": intermission_data},
         )
-        await asyncio.sleep(INTERMISSION_LEADERBOARD_SECONDS)
+        await asyncio.sleep(hold_seconds)
 
     room = rooms.get(room_code)
     if not room or room.status != GameStatus.ACTIVE:
