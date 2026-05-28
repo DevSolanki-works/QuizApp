@@ -37,6 +37,9 @@ ANSWER_REVEAL_SECONDS = 4
 INTERMISSION_LEADERBOARD_SECONDS = 5
 GENERATION_TIMEOUT_SECONDS = 30
 
+# Multiplier caps at 3x regardless of streak length.
+MAX_MULTIPLIER = 3.0
+
 _round_timeout_tasks: dict[str, asyncio.Task] = {}
 
 
@@ -69,7 +72,6 @@ async def _delayed_room_cleanup(room_code: str, delay: int = 60) -> None:
     if not room:
         return
 
-    # If still no one is connected, delete the room
     if not any(p.websocket is not None for p in room.players.values()):
         _cancel_round_timeout(room_code)
         rooms.pop(room_code, None)
@@ -91,14 +93,35 @@ def _cancel_round_timeout(room_code: str) -> None:
 
 
 def calculate_score(time_ms: int, time_limit_ms: int) -> int:
-    """Calculate a correct-answer score between 500 and 1000 points."""
+    """Calculate a correct-answer base score between 500 and 1000 points."""
 
     clamped = max(0, min(time_ms, time_limit_ms))
     return int(BASE_POINTS * (1 - (clamped / time_limit_ms) * 0.5))
 
 
+def apply_streak_multiplier(base_score: int, streak: int) -> int:
+    """
+    Apply the combo multiplier to a base score.
+
+    Formula: multiplier = 1.0 + floor(streak / 3) × 0.5, capped at MAX_MULTIPLIER.
+
+    streak 1–2  → ×1.0  (no bonus yet — building toward combo)
+    streak 3–5  → ×1.5
+    streak 6–8  → ×2.0
+    streak 9–11 → ×2.5
+    streak 12+  → ×3.0  (hard cap)
+    """
+    multiplier = min(1.0 + (streak // 3) * 0.5, MAX_MULTIPLIER)
+    return int(base_score * multiplier)
+
+
 def _round_payload(room) -> dict[str, Any]:
-    """Build shared answer and score data for reveal/intermission screens."""
+    """
+    Build shared answer and score data broadcast at reveal/intermission.
+
+    Includes per-player streaks so the frontend can show combo indicators
+    and trigger the correct sounds without an extra round-trip.
+    """
 
     question = room.questions[room.current_q_index]
     return {
@@ -107,6 +130,8 @@ def _round_payload(room) -> dict[str, Any]:
         "answers": dict(room.answers_this_round),
         "correct_index": question.correct_index,
         "play_mode": room.play_mode.value,
+        # Current streak per player after this round's scoring is applied.
+        "streaks": {name: player.streak for name, player in room.players.items()},
     }
 
 
@@ -134,6 +159,8 @@ async def broadcast_question(room_code: str) -> None:
     for player in room.players.values():
         player.answered = False
         player.last_answer = None
+        # NOTE: streak is intentionally NOT reset here.
+        # It persists across questions and only breaks on wrong answer or timeout.
 
     await broadcast(
         room_code,
@@ -205,6 +232,14 @@ async def resolve_round(room_code: str, question_index: int) -> None:
 
     _cancel_round_timeout(room_code)
     room.phase = RoundPhase.ANSWER_REVEAL
+
+    # Players who never sent an answer (timed out) lose their streak.
+    # This must happen before _round_payload() reads streaks.
+    for name, player in room.players.items():
+        if name not in room.answers_this_round:
+            player.streak = 0
+            logger.debug("Streak reset for '%s' — timed out in room '%s'", name, room_code)
+
     reveal_data = _round_payload(room)
     reveal_data.update(
         {"phase": room.phase.value, "hold_ms": ANSWER_REVEAL_SECONDS * 1000}
@@ -259,10 +294,8 @@ async def websocket_endpoint(
         await websocket.close()
         return
 
-    # RE-JOIN LOGIC: 
-    # If the player was already in the room but their socket is gone, allow re-join.
     existing_player = room.players.get(player_name)
-    
+
     if existing_player:
         if existing_player.websocket is not None:
             await send_to(
@@ -271,11 +304,9 @@ async def websocket_endpoint(
             await websocket.close()
             return
         else:
-            # Re-join: assign new websocket and continue
             existing_player.websocket = websocket
             logger.info("Player '%s' re-joined room '%s'", player_name, room_code)
     else:
-        # New player joining
         if room.status != GameStatus.WAITING:
             await send_to(
                 websocket, {"type": "ERROR", "data": {"message": "Game already in progress"}}
@@ -324,12 +355,11 @@ async def websocket_endpoint(
                     )
                     continue
 
-                # Rate limit check: max 3 quizzes per minute per IP
                 ip = websocket.client.host
                 forwarded = websocket.headers.get("X-Forwarded-For")
                 if forwarded:
                     ip = forwarded.split(",")[0].strip()
-                
+
                 if is_rate_limited(ip, action="quiz", limit=3):
                     logger.warning("Rate limit hit for IP %s (start_game)", ip)
                     await send_to(
@@ -377,11 +407,10 @@ async def websocket_endpoint(
                     )
                 except asyncio.TimeoutError:
                     logger.warning(
-                        "Question generation timed out for room '%s' after %s seconds; using fallback questions",
+                        "Question generation timed out for room '%s' after %s seconds; using fallback",
                         room_code,
                         GENERATION_TIMEOUT_SECONDS,
                     )
-                    # Use the predefined fallback questions from the AI service module
                     room.questions = [Question(**q) for q in FALLBACK_QUESTIONS]
                 except Exception as exc:
                     logger.error("Question generation failed for room '%s': %s", room_code, exc)
@@ -396,6 +425,7 @@ async def websocket_endpoint(
                 for participant in room.players.values():
                     participant.score = 0
                     participant.correct_answers = 0
+                    participant.streak = 0  # fresh start for every new game
                 room.status = GameStatus.ACTIVE
                 room.current_q_index = 0
                 await broadcast_question(room_code)
@@ -419,14 +449,36 @@ async def websocket_endpoint(
 
                 question = room.questions[room.current_q_index]
                 is_correct = choice == question.correct_index
-                points = calculate_score(time_ms, room.time_limit_ms) if is_correct else 0
                 player = room.players[player_name]
+
+                # ── Streak bookkeeping ────────────────────────────────────
+                # Increment on correct, reset to zero on wrong.
+                # The multiplier is applied to the BASE score immediately.
+                if is_correct:
+                    player.streak += 1
+                    player.correct_answers += 1
+                else:
+                    player.streak = 0
+
+                # ── Scoring with combo multiplier ─────────────────────────
+                # Base: 500–1000 pts depending on speed.
+                # Multiplier: ×1.5 at streak 3, ×2.0 at 6, ×2.5 at 9, ×3.0 cap.
+                base_score = calculate_score(time_ms, room.time_limit_ms) if is_correct else 0
+                points = apply_streak_multiplier(base_score, player.streak) if is_correct else 0
+
                 player.score += points
-                player.correct_answers += int(is_correct)
                 player.answered = True
                 player.last_answer = choice
                 room.answers_this_round[player_name] = choice
                 room.points_gained[player_name] = points
+
+                logger.debug(
+                    "Player '%s' answered %s | streak=%d | pts=%d",
+                    player_name,
+                    "correctly" if is_correct else "incorrectly",
+                    player.streak,
+                    points,
+                )
 
                 if room.players and len(room.answers_this_round) >= len(room.players):
                     await resolve_round(room_code, room.current_q_index)
@@ -441,18 +493,16 @@ async def websocket_endpoint(
         player = room.players.get(player_name)
         if player:
             player.websocket = None
-        
+
         logger.info("Player '%s' disconnected from room '%s'", player_name, room_code)
-        
-        # Check if any players are still connected
+
         any_connected = any(p.websocket is not None for p in room.players.values())
-        
+
         if any_connected:
             await broadcast(
                 room_code,
                 {"type": "PLAYER_JOINED", "data": {"players": list(room.players.keys())}},
             )
-            # Check if we should resolve the round (if others are still playing)
             connected_players = [p for p in room.players.values() if p.websocket is not None]
             if (
                 room.status == GameStatus.ACTIVE
@@ -461,5 +511,4 @@ async def websocket_endpoint(
             ):
                 asyncio.create_task(resolve_round(room_code, room.current_q_index))
         else:
-            # Last player left, start cleanup timer
             asyncio.create_task(_delayed_room_cleanup(room_code))

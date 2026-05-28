@@ -79,6 +79,9 @@ class Player(BaseModel):
     name: str
     score: int = 0
     correct_answers: int = 0
+    # Consecutive correct answers — drives the combo multiplier.
+    # Resets to 0 on any wrong answer or unanswered (timeout) round.
+    streak: int = 0
     answered: bool = False
     last_answer: Optional[int] = None
     websocket: Optional[object] = Field(default=None, exclude=True)
