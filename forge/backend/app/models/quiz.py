@@ -33,6 +33,7 @@ class PlayMode(str, Enum):
 
     SOLO = "solo"
     CLASSIC = "classic"
+    TEAM = "team"
 
 
 class RoundPhase(str, Enum):
@@ -79,9 +80,7 @@ class Player(BaseModel):
     name: str
     score: int = 0
     correct_answers: int = 0
-    # Consecutive correct answers — drives the combo multiplier.
-    # Resets to 0 on any wrong answer or unanswered (timeout) round.
-    streak: int = 0
+    streak: int = 0          # consecutive correct answers; resets on wrong/timeout
     answered: bool = False
     last_answer: Optional[int] = None
     websocket: Optional[object] = Field(default=None, exclude=True)
@@ -104,5 +103,18 @@ class Room(BaseModel):
     current_q_index: int = 0
     answers_this_round: dict[str, int] = Field(default_factory=dict)
     points_gained: dict[str, int] = Field(default_factory=dict)
+
+    # ── Team mode fields ───────────────────────────────────────────────────────
+    # teams: { player_name → team_id }  where team_id is "A" or "B"
+    teams: dict[str, str] = Field(default_factory=dict)
+    # team_names: { "A" → "Red Dragons", "B" → "Blue Phoenix" }
+    team_names: dict[str, str] = Field(
+        default_factory=lambda: {"A": "Team A", "B": "Team B"}
+    )
+    # team_topics: { "A" → "Marvel Movies", "B" → "Cricket" }
+    # Host triggers a random pick; the winner becomes room.topic
+    team_topics: dict[str, str] = Field(default_factory=dict)
+    # The resolved topic after randomisation (also used by classic/solo)
+    topic: str = ""
 
     model_config = {"arbitrary_types_allowed": True}

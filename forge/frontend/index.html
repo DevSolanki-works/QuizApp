@@ -577,6 +577,9 @@ const State = {
   resultStats: null,
   totalQ     : 10,
   user       : null,
+  teams      : {},                              // { playerName → 'A' | 'B' }
+  teamNames  : { A: 'Team A', B: 'Team B' },
+  teamScores : {},                              // { 'A': pts, 'B': pts }
 };
 
 // Restore basic state on boot
