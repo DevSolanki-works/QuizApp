@@ -1,6 +1,7 @@
 <!--
   RESULTS SCREEN
-  Final podium with top 3, full leaderboard, play-again / home buttons
+  Final podium with top 3, full leaderboard, play-again / home buttons.
+  Team mode: team winner banner + team score cards before individual standings.
 -->
 <style>
   .results-wrap {
@@ -9,18 +10,12 @@
     align-items: center; padding: 0 20px 60px;
     overflow-y: auto;
   }
-  @media (max-width: 400px) {
-    .results-wrap { padding: 0 12px 60px; }
-  }
+  @media (max-width: 400px) { .results-wrap { padding: 0 12px 60px; } }
 
   /* ── HEADER ─────────────────────────────────────────────── */
-  .results-header {
-    width: 100%; text-align: center;
-    padding: 30px 0 20px;
-  }
+  .results-header { width: 100%; text-align: center; padding: 30px 0 20px; }
   .results-trophy-anim {
-    font-size: 56px;
-    display: block; margin: 0 auto 8px;
+    font-size: 56px; display: block; margin: 0 auto 8px;
     animation: winner-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
   }
   @keyframes winner-pop {
@@ -34,236 +29,183 @@
   }
   .results-subtitle {
     font-family: var(--font-pixel); font-size: 8px;
-    color: rgba(255,255,255,0.45); letter-spacing: 1px;
-    margin-top: 6px;
+    color: rgba(255,255,255,0.45); letter-spacing: 1px; margin-top: 6px;
   }
   .results-topic-badge {
-    margin-top: 10px;
-    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 10px; display: inline-flex; align-items: center; gap: 6px;
     padding: 5px 14px; border-radius: var(--radius-pill);
-    background: rgba(255,217,61,0.12);
-    border: 1px solid rgba(255,217,61,0.25);
+    background: rgba(255,217,61,0.12); border: 1px solid rgba(255,217,61,0.25);
     font-family: var(--font-pixel); font-size: 7px;
     color: var(--yellow); letter-spacing: 0.3px;
   }
 
-  /* ── MAIN CONTENT (Single Column) ─────────────────────── */
-  .results-main-content {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    margin-top: 10px;
+  /* ── MAIN CONTENT ────────────────────────────────────────── */
+  .results-main-content { width: 100%; display: flex; flex-direction: column; gap: 24px; margin-top: 10px; }
+
+  /* ── TEAM WINNER BANNER ──────────────────────────────────── */
+  .team-winner-banner {
+    width: 100%; border-radius: var(--radius-lg); padding: 24px 20px;
+    text-align: center; display: flex; flex-direction: column; gap: 10px;
+    animation: winner-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
   }
+  .team-winner-banner.team-a {
+    background: linear-gradient(135deg, rgba(230,57,70,0.25), rgba(230,57,70,0.1));
+    border: 2px solid rgba(230,57,70,0.6);
+    box-shadow: 0 0 30px rgba(230,57,70,0.2);
+  }
+  .team-winner-banner.team-b {
+    background: linear-gradient(135deg, rgba(33,150,243,0.25), rgba(33,150,243,0.1));
+    border: 2px solid rgba(33,150,243,0.6);
+    box-shadow: 0 0 30px rgba(33,150,243,0.2);
+  }
+  .team-winner-banner.tie {
+    background: rgba(255,217,61,0.1); border: 2px solid rgba(255,217,61,0.4);
+  }
+  .team-winner-emoji { font-size: 48px; }
+  .team-winner-label {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.55); letter-spacing: 1px;
+  }
+  .team-winner-name {
+    font-family: var(--font-pixel); font-size: 18px;
+    color: var(--white); letter-spacing: 1px; line-height: 1.4;
+  }
+  .team-score-row {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px;
+    align-items: center; margin-top: 4px;
+  }
+  .team-score-cell { padding: 10px; border-radius: var(--radius-md); text-align: center; }
+  .team-score-cell.team-a { background: rgba(230,57,70,0.2); }
+  .team-score-cell.team-b { background: rgba(33,150,243,0.2); }
+  .team-score-cell-name { font-family: var(--font-pixel); font-size: 7px; color: rgba(255,255,255,0.55); margin-bottom: 4px; }
+  .team-score-cell-pts  { font-family: var(--font-pixel); font-size: 14px; color: var(--white); }
+  .team-vs-divider { font-family: var(--font-pixel); font-size: 10px; color: rgba(255,255,255,0.4); }
 
   /* ── PODIUM ─────────────────────────────────────────────── */
-  .podium-wrap {
-    width: 100%; display: flex;
-    align-items: flex-end; justify-content: center;
-    gap: 8px; margin: 10px 0;
-  }
-  .podium-slot {
-    display: flex; flex-direction: column;
-    align-items: center; gap: 4px;
-  }
+  .podium-wrap { width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 8px; margin: 10px 0; }
+  .podium-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .podium-medal { font-size: 24px; line-height: 1; }
   .podium-name {
-    font-family: var(--font-body); font-size: 12px;
-    font-weight: 900; color: var(--white);
-    text-align: center; max-width: 80px;
-    white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis;
+    font-family: var(--font-body); font-size: 12px; font-weight: 900; color: var(--white);
+    text-align: center; max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .podium-name.is-you { color: var(--yellow); }
-  .podium-pts {
-    font-family: var(--font-pixel); font-size: 7px;
-    color: rgba(255,255,255,0.6);
-  }
+  .podium-pts { font-family: var(--font-pixel); font-size: 7px; color: rgba(255,255,255,0.6); }
   .podium-block {
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    width: 80px; display: flex; align-items: center;
-    justify-content: center;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0; width: 80px;
+    display: flex; align-items: center; justify-content: center;
     font-family: var(--font-pixel); font-size: 14px;
-    animation: block-grow 0.6s cubic-bezier(0.22,1,0.36,1) both;
-    transform-origin: bottom;
+    animation: block-grow 0.6s cubic-bezier(0.22,1,0.36,1) both; transform-origin: bottom;
   }
-  .podium-block.p1 {
-    height: 80px; background: linear-gradient(180deg, #FFD93D, #E6B800);
-    box-shadow: 0 4px 15px rgba(255,217,61,0.3);
-    animation-delay: 0.1s;
-  }
-  .podium-block.p2 {
-    height: 60px; background: linear-gradient(180deg, #C0C0C0, #888);
-    box-shadow: 0 4px 10px rgba(192,192,192,0.25);
-    animation-delay: 0.2s;
-  }
-  .podium-block.p3 {
-    height: 40px; background: linear-gradient(180deg, #CD9F60, #8B6914);
-    box-shadow: 0 4px 8px rgba(205,127,50,0.25);
-    animation-delay: 0.3s;
-  }
+  .podium-block.p1 { height: 80px; background: linear-gradient(180deg, #FFD93D, #E6B800); box-shadow: 0 4px 15px rgba(255,217,61,0.3); animation-delay: 0.1s; }
+  .podium-block.p2 { height: 60px; background: linear-gradient(180deg, #C0C0C0, #888); box-shadow: 0 4px 10px rgba(192,192,192,0.25); animation-delay: 0.2s; }
+  .podium-block.p3 { height: 40px; background: linear-gradient(180deg, #CD9F60, #8B6914); box-shadow: 0 4px 8px rgba(205,127,50,0.25); animation-delay: 0.3s; }
 
-  /* ── FULL LEADERBOARD ───────────────────────────────────── */
+  /* ── LEADERBOARD ─────────────────────────────────────────── */
   .results-lb-card {
-    width: 100%; padding: 20px;
-    border-radius: var(--radius-lg);
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
+    width: 100%; padding: 20px; border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
   }
-  @media (max-width: 400px) {
-    .results-lb-card { padding: 16px 12px; }
-  }
+  @media (max-width: 400px) { .results-lb-card { padding: 16px 12px; } }
   .results-lb-title {
     font-family: var(--font-pixel); font-size: 9px;
-    color: var(--yellow); letter-spacing: 0.5px;
-    margin-bottom: 16px; text-align: center;
+    color: var(--yellow); letter-spacing: 0.5px; margin-bottom: 16px; text-align: center;
   }
   .results-lb-row {
-    display: flex; flex-direction: column;
-    padding: 10px 12px; border-radius: var(--radius-md);
-    margin-bottom: 10px;
-    animation: fade-up 0.3s ease both;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; flex-direction: column; padding: 10px 12px; border-radius: var(--radius-md);
+    margin-bottom: 10px; animation: fade-up 0.3s ease both;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
   }
-  .results-lb-row.is-you {
-    background: rgba(255,217,61,0.1);
-    border: 1px solid rgba(255,217,61,0.25);
-  }
-  .rlb-main {
-    display: flex; align-items: center; gap: 10px; width: 100%;
-  }
-  .rlb-rank {
-    font-family: var(--font-pixel); font-size: 9px;
-    color: rgba(255,255,255,0.4); width: 22px;
-    text-align: center; flex-shrink: 0;
-  }
-  .rlb-name {
-    flex: 1; font-family: var(--font-body);
-    font-size: 14px; font-weight: 800; color: var(--white);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
+  .results-lb-row.is-you { background: rgba(255,217,61,0.1); border: 1px solid rgba(255,217,61,0.25); }
+  .rlb-main { display: flex; align-items: center; gap: 10px; width: 100%; }
+  .rlb-rank { font-family: var(--font-pixel); font-size: 9px; color: rgba(255,255,255,0.4); width: 22px; text-align: center; flex-shrink: 0; }
+  .rlb-name { flex: 1; font-family: var(--font-body); font-size: 14px; font-weight: 800; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rlb-name.is-you { color: var(--yellow); }
-  .rlb-score {
-    font-family: var(--font-pixel); font-size: 9px;
-    color: var(--white);
+  .rlb-score { font-family: var(--font-pixel); font-size: 9px; color: var(--white); }
+  .rlb-bar-wrap { width: 100%; background: rgba(255,255,255,0.05); height: 3px; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .rlb-bar-fill { height: 100%; background: var(--yellow); transition: width 1s ease; }
+  /* Team colour stripe on LB row */
+  .rlb-team-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   }
-  .rlb-bar-wrap {
-    width: 100%; background: rgba(255,255,255,0.05);
-    height: 3px; border-radius: 2px; margin-top: 8px;
-    overflow: hidden;
-  }
-  .rlb-bar-fill {
-    height: 100%; background: var(--yellow);
-    transition: width 1s ease;
-  }
+  .rlb-team-dot.team-a { background: var(--red); }
+  .rlb-team-dot.team-b { background: var(--opt-b); }
 
-  /* ── MY RESULT CALLOUT ──────────────────────────────────── */
+  /* ── MY RESULT ───────────────────────────────────────────── */
   .my-result-card {
-    width: 100%; padding: 24px 20px;
-    border-radius: var(--radius-lg); text-align: center;
-    background: rgba(255,217,61,0.08);
-    border: 2px solid rgba(255,217,61,0.3);
+    width: 100%; padding: 24px 20px; border-radius: var(--radius-lg); text-align: center;
+    background: rgba(255,217,61,0.08); border: 2px solid rgba(255,217,61,0.3);
     display: flex; flex-direction: column; gap: 8px;
   }
-  .my-result-label {
-    font-family: var(--font-pixel); font-size: 8px;
-    color: rgba(255,255,255,0.5);
-  }
+  .my-result-label { font-family: var(--font-pixel); font-size: 8px; color: rgba(255,255,255,0.5); }
   .my-result-score {
-    font-family: var(--font-pixel); font-size: 32px;
-    color: var(--yellow);
+    font-family: var(--font-pixel); font-size: 32px; color: var(--yellow);
     text-shadow: 0 0 20px rgba(255,217,61,0.4);
   }
-  .my-result-rank {
-    font-family: var(--font-body); font-size: 16px;
-    font-weight: 800; color: rgba(255,255,255,0.8);
-  }
+  .my-result-rank { font-family: var(--font-body); font-size: 16px; font-weight: 800; color: rgba(255,255,255,0.8); }
 
-  /* ── SOLO RESULTS ───────────────────────────────────────── */
-  .solo-results-card {
-    width: 100%; padding: 28px 20px;
-    border-radius: var(--radius-lg); text-align: center;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    display: flex; flex-direction: column; gap: 24px;
-  }
-  .solo-score-value {
-    font-family: var(--font-pixel); font-size: 36px;
-    color: var(--yellow); margin-top: 8px;
-  }
-  .solo-stat-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-  }
-  .solo-stat {
-    padding: 16px 8px; border-radius: var(--radius-md);
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-  }
+  /* ── SOLO STATS ──────────────────────────────────────────── */
+  .solo-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .solo-stat { padding: 16px 8px; border-radius: var(--radius-md); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
 
   /* ── ACTIONS ─────────────────────────────────────────────── */
-  .results-actions {
-    width: 100%; display: flex; flex-direction: column;
-    gap: 14px; margin-top: 10px; padding-bottom: 20px;
-  }
+  .results-actions { width: 100%; display: flex; flex-direction: column; gap: 14px; margin-top: 10px; padding-bottom: 20px; }
 </style>
 
 <div class="results-wrap" id="results-wrap">
   <div class="confetti-bg" id="results-confetti"></div>
 
-  <!-- 1. HEADER -->
+  <!-- HEADER -->
   <div class="results-header z1">
     <span class="results-trophy-anim" id="results-trophy">🏆</span>
-    <h1 class="results-title">GAME OVER!</h1>
+    <h1 class="results-title" id="results-title">GAME OVER!</h1>
     <div class="results-topic-badge" id="results-topic">🎯 —</div>
   </div>
 
-  <!-- 2. MAIN CONTENT (Vertical Flow) -->
+  <!-- MAIN CONTENT -->
   <div class="results-main-content z1">
-    
-    <!-- A. PODIUM (Visible in Classic mode) -->
+
+    <!-- A. TEAM WINNER BANNER (team mode only) -->
+    <div id="team-winner-section" style="display:none;"></div>
+
+    <!-- B. PODIUM (classic + team) -->
     <div id="classic-podium-wrap" style="display:none;">
       <div class="podium-wrap" id="results-podium"></div>
     </div>
 
-    <!-- B. LEADERBOARD / SOLO STATS (Prioritized at top) -->
+    <!-- C. LEADERBOARD / SOLO STATS -->
     <div class="results-lb-card" id="leaderboard-card">
       <p class="results-lb-title" id="lb-card-title">📋 LEADERBOARD</p>
       <div id="results-lb-list"></div>
-      
-      <!-- Solo stats nested here if in solo mode -->
+
+      <!-- Solo stats nested -->
       <div id="solo-stats-nest" style="display:none;">
         <div class="solo-stat-grid">
           <div class="solo-stat">
-            <span class="solo-stat-value" id="solo-accuracy" style="display:block; font-family:var(--font-pixel); font-size:12px; margin-bottom:6px;">0%</span>
-            <span class="solo-stat-label" style="font-family:var(--font-pixel); font-size:7px; color:rgba(255,255,255,0.4);">ACCURACY</span>
+            <span id="solo-accuracy" style="display:block;font-family:var(--font-pixel);font-size:12px;margin-bottom:6px;">0%</span>
+            <span style="font-family:var(--font-pixel);font-size:7px;color:rgba(255,255,255,0.4);">ACCURACY</span>
           </div>
           <div class="solo-stat">
-            <span class="solo-stat-value" id="solo-high-score" style="display:block; font-family:var(--font-pixel); font-size:12px; margin-bottom:6px;">0</span>
-            <span class="solo-stat-label" style="font-family:var(--font-pixel); font-size:7px; color:rgba(255,255,255,0.4);">HIGH SCORE</span>
+            <span id="solo-high-score" style="display:block;font-family:var(--font-pixel);font-size:12px;margin-bottom:6px;">0</span>
+            <span style="font-family:var(--font-pixel);font-size:7px;color:rgba(255,255,255,0.4);">HIGH SCORE</span>
           </div>
         </div>
-        <p id="solo-best-note" style="margin-top:16px; font-family:var(--font-body); font-size:13px; font-weight:800; color:var(--green); text-align:center;"></p>
+        <p id="solo-best-note" style="margin-top:16px;font-family:var(--font-body);font-size:13px;font-weight:800;color:var(--green);text-align:center;"></p>
       </div>
     </div>
 
-    <!-- C. MY SPECIFIC RESULT -->
+    <!-- D. MY RESULT -->
     <div class="my-result-card" id="my-result-card">
       <p class="my-result-label" id="my-result-label">YOUR FINAL SCORE</p>
       <p class="my-result-score" id="my-result-score">0</p>
-      <p class="my-result-rank" id="my-result-rank">—</p>
+      <p class="my-result-rank"  id="my-result-rank">—</p>
     </div>
-
   </div>
 
-  <!-- 3. ACTION BUTTONS -->
+  <!-- ACTIONS -->
   <div class="results-actions z1">
-    <button class="btn btn-primary" onclick="resultsPlayAgain()">
-      🔄 &nbsp;PLAY AGAIN
-    </button>
-    <button class="btn btn-secondary" onclick="resultsGoHome()">
-      🏠 &nbsp;BACK TO HOME
-    </button>
+    <button class="btn btn-primary" onclick="resultsPlayAgain()">🔄 &nbsp;PLAY AGAIN</button>
+    <button class="btn btn-secondary" onclick="resultsGoHome()">🏠 &nbsp;BACK TO HOME</button>
   </div>
 </div>
 
@@ -277,109 +219,176 @@ function onResultsShow() {
   const topicEl = document.getElementById('results-topic');
   if (topicEl) topicEl.textContent = `🎯 ${State.topic || 'Trivia'}`;
 
-  const isSolo = State.playMode === 'solo';
-  
-  // Elements
-  const podiumWrap = document.getElementById('classic-podium-wrap');
-  const lbList = document.getElementById('results-lb-list');
-  const soloNest = document.getElementById('solo-stats-nest');
-  const lbTitle = document.getElementById('lb-card-title');
-  const myResultLabel = document.getElementById('my-result-label');
+  const isSolo  = State.playMode === 'solo';
+  const isTeam  = State.playMode === 'team';
+
+  // Element refs
+  const podiumWrap     = document.getElementById('classic-podium-wrap');
+  const lbList         = document.getElementById('results-lb-list');
+  const soloNest       = document.getElementById('solo-stats-nest');
+  const lbTitle        = document.getElementById('lb-card-title');
+  const myResultLabel  = document.getElementById('my-result-label');
+  const teamSection    = document.getElementById('team-winner-section');
+  const titleEl        = document.getElementById('results-title');
+  const trophy         = document.getElementById('results-trophy');
 
   if (isSolo) {
-    podiumWrap.style.display = 'none';
-    lbList.style.display = 'none';
-    soloNest.style.display = 'block';
-    lbTitle.textContent = '📊 SOLO STATS';
+    podiumWrap.style.display  = 'none';
+    lbList.style.display      = 'none';
+    soloNest.style.display    = 'block';
+    teamSection.style.display = 'none';
+    lbTitle.textContent       = '📊 SOLO STATS';
     myResultLabel.textContent = 'FINAL SCORE';
+    if (trophy) trophy.textContent = '🎯';
     _renderSoloResult();
+
+  } else if (isTeam) {
+    // Team mode
+    podiumWrap.style.display  = 'block';
+    lbList.style.display      = 'block';
+    soloNest.style.display    = 'none';
+    teamSection.style.display = 'block';
+    lbTitle.textContent       = '📋 INDIVIDUAL STANDINGS';
+    myResultLabel.textContent = 'YOUR FINAL SCORE';
+    if (titleEl) titleEl.textContent = 'BATTLE OVER!';
+
+    const sorted = Object.entries(State.scores || {}).sort((a,b) => b[1]-a[1]);
+    const maxScore = sorted[0]?.[1] || 1;
+
+    _renderTeamWinner();
+    _renderPodium(sorted, true);
+    _renderFullLB(sorted, maxScore, true);
+    _renderMyResult(sorted);
+
+    const myTeam = (State.teams || {})[State.playerName];
+    const teamScores = State.teamScores || {};
+    const myTeamWon  = myTeam &&
+      Object.entries(teamScores).every(([tid, s]) => tid === myTeam || s <= teamScores[myTeam]);
+    if (trophy) trophy.textContent = myTeamWon ? '🏆' : '🎮';
+
   } else {
-    podiumWrap.style.display = 'block';
-    lbList.style.display = 'block';
-    soloNest.style.display = 'none';
-    lbTitle.textContent = '📋 LEADERBOARD';
+    // Classic
+    podiumWrap.style.display  = 'block';
+    lbList.style.display      = 'block';
+    soloNest.style.display    = 'none';
+    teamSection.style.display = 'none';
+    lbTitle.textContent       = '📋 LEADERBOARD';
     myResultLabel.textContent = 'YOUR FINAL SCORE';
 
-    const sorted = Object.entries(State.scores || {}).sort((a, b) => b[1] - a[1]);
+    const sorted = Object.entries(State.scores || {}).sort((a,b) => b[1]-a[1]);
     const maxScore = sorted[0]?.[1] || 1;
-    _renderPodium(sorted);
-    _renderFullLB(sorted, maxScore);
+    _renderPodium(sorted, false);
+    _renderFullLB(sorted, maxScore, false);
     _renderMyResult(sorted);
-  }
 
-  // Update Trophy based on rank
-  const trophy = document.getElementById('results-trophy');
-  if (!isSolo) {
-    const sorted = Object.entries(State.scores || {}).sort((a, b) => b[1] - a[1]);
-    const myRank = sorted.findIndex(([n]) => n === State.playerName) + 1;
     if (trophy) {
+      const myRank = sorted.findIndex(([n]) => n === State.playerName) + 1;
       trophy.textContent = myRank === 1 ? '🏆' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🎮';
     }
-  } else {
-    if (trophy) trophy.textContent = '🎯';
   }
 
   if (State.ws) { State.ws.close(); State.ws = null; }
   setTimeout(() => Sound.startBgMusic(), 1200);
 }
 
+/* ── TEAM WINNER BANNER ─────────────────────────────────── */
+function _renderTeamWinner() {
+  const section    = document.getElementById('team-winner-section');
+  const teamScores = State.teamScores || {};
+  const teamNames  = State.teamNames  || { A: 'Team A', B: 'Team B' };
+
+  const scoreA = teamScores['A'] || 0;
+  const scoreB = teamScores['B'] || 0;
+  const tie    = scoreA === scoreB;
+
+  let winTeamId   = tie ? null : (scoreA > scoreB ? 'A' : 'B');
+  let bannerClass = tie ? 'tie' : `team-${winTeamId.toLowerCase()}`;
+  let emoji       = tie ? '🤝' : (winTeamId === 'A' ? '🔴' : '🔵');
+  let winnerName  = tie ? 'IT\'S A TIE!' : (teamNames[winTeamId] || `Team ${winTeamId}`);
+  let label       = tie ? 'BOTH TEAMS MATCHED!' : 'TEAM WINS!';
+
+  section.innerHTML = `
+    <div class="team-winner-banner ${bannerClass}">
+      <span class="team-winner-emoji">${emoji}</span>
+      <p class="team-winner-label">${label}</p>
+      <p class="team-winner-name">${_escHtml(winnerName)}</p>
+      <div class="team-score-row">
+        <div class="team-score-cell team-a">
+          <p class="team-score-cell-name">${_escHtml(teamNames['A'] || 'Team A')}</p>
+          <p class="team-score-cell-pts">${scoreA.toLocaleString()}</p>
+        </div>
+        <span class="team-vs-divider">VS</span>
+        <div class="team-score-cell team-b">
+          <p class="team-score-cell-name">${_escHtml(teamNames['B'] || 'Team B')}</p>
+          <p class="team-score-cell-pts">${scoreB.toLocaleString()}</p>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ── SOLO ────────────────────────────────────────────────── */
 function _renderSoloResult() {
   const score = (State.scores && State.scores[State.playerName]) || 0;
   const stats = State.resultStats || {};
   const accuracy = (stats.accuracy_percentages && stats.accuracy_percentages[State.playerName]) || 0;
-  const correct = (stats.correct_answers && stats.correct_answers[State.playerName]) || 0;
-  const total = stats.total_questions || State.totalQ || 10;
+  const correct  = (stats.correct_answers      && stats.correct_answers[State.playerName])      || 0;
+  const total    = stats.total_questions || State.totalQ || 10;
   const storageKey = `forge.solo.highScore.${State.mode || 'medium'}`;
-  
   let prev = 0;
   try { prev = Number(localStorage.getItem(storageKey)) || 0; } catch {}
-  
   const highScore = Math.max(prev, score);
-  if (highScore > prev) {
-    try { localStorage.setItem(storageKey, String(highScore)); } catch {}
-  }
-
-  document.getElementById('my-result-score').textContent = score.toLocaleString();
-  document.getElementById('solo-accuracy').textContent = `${accuracy}% (${correct}/${total})`;
-  document.getElementById('solo-high-score').textContent = highScore.toLocaleString();
-  
-  const noteEl = document.getElementById('solo-best-note');
-  noteEl.textContent = score > prev ? 'NEW PERSONAL BEST!' : 'KEEP IT UP!';
-  document.getElementById('my-result-rank').textContent = 'SOLO MODE';
+  if (highScore > prev) { try { localStorage.setItem(storageKey, String(highScore)); } catch {} }
+  document.getElementById('my-result-score').textContent  = score.toLocaleString();
+  document.getElementById('solo-accuracy').textContent    = `${accuracy}% (${correct}/${total})`;
+  document.getElementById('solo-high-score').textContent  = highScore.toLocaleString();
+  document.getElementById('solo-best-note').textContent   = score > prev ? 'NEW PERSONAL BEST!' : 'KEEP IT UP!';
+  document.getElementById('my-result-rank').textContent   = 'SOLO MODE';
 }
 
-function _renderPodium(sorted) {
+/* ── PODIUM ──────────────────────────────────────────────── */
+function _renderPodium(sorted, isTeam) {
   const wrap = document.getElementById('results-podium');
   if (!wrap) return;
-  const top3 = sorted.slice(0, 3);
+  const top3   = sorted.slice(0, 3);
   const medals = ['🥇','🥈','🥉'];
   const pClass = ['p1','p2','p3'];
+  const teams  = State.teams || {};
+  const tNames = State.teamNames || {};
   wrap.innerHTML = top3.map(([name, score], i) => {
-    const isYou = name === State.playerName;
+    const isYou  = name === State.playerName;
+    const teamId = isTeam ? teams[name] : null;
+    const teamTag = teamId
+      ? `<small style="font-size:9px;opacity:0.6;">${teamId==='A'?'🔴':'🔵'}</small> `
+      : '';
     return `
       <div class="podium-slot ${pClass[i]}">
         <span class="podium-medal">${medals[i]}</span>
-        <p class="podium-name ${isYou ? 'is-you' : ''}">${_escHtml(name)}</p>
+        <p class="podium-name ${isYou?'is-you':''}">${teamTag}${_escHtml(name)}</p>
         <p class="podium-pts">${score.toLocaleString()}</p>
-        <div class="podium-block ${pClass[i]}">${i + 1}</div>
+        <div class="podium-block ${pClass[i]}">${i+1}</div>
       </div>`;
   }).join('');
 }
 
-function _renderFullLB(sorted, maxScore) {
-  const list = document.getElementById('results-lb-list');
+/* ── FULL LEADERBOARD ────────────────────────────────────── */
+function _renderFullLB(sorted, maxScore, isTeam) {
+  const list   = document.getElementById('results-lb-list');
   if (!list) return;
   const medals = ['🥇','🥈','🥉'];
+  const teams  = State.teams || {};
   list.innerHTML = sorted.map(([name, score], i) => {
-    const rank = i + 1;
-    const isYou = name === State.playerName;
+    const rank    = i + 1;
+    const isYou   = name === State.playerName;
     const rankStr = rank <= 3 ? medals[i] : `#${rank}`;
-    const barPct = Math.round((score / maxScore) * 100);
+    const barPct  = Math.round((score / maxScore) * 100);
+    const teamId  = isTeam ? teams[name] : null;
+    const teamDot = teamId ? `<span class="rlb-team-dot team-${teamId.toLowerCase()}"></span>` : '';
     return `
-      <div class="results-lb-row ${isYou ? 'is-you' : ''}" style="animation-delay:${i * 0.05}s;">
+      <div class="results-lb-row ${isYou?'is-you':''}" style="animation-delay:${i*0.05}s;">
         <div class="rlb-main">
           <span class="rlb-rank">${rankStr}</span>
-          <span class="rlb-name ${isYou ? 'is-you' : ''}">${_escHtml(name)}${isYou ? ' ✦' : ''}</span>
+          ${teamDot}
+          <span class="rlb-name ${isYou?'is-you':''}">${_escHtml(name)}${isYou?' ✦':''}</span>
           <span class="rlb-score">${score.toLocaleString()}</span>
         </div>
         <div class="rlb-bar-wrap"><div class="rlb-bar-fill" style="width:${barPct}%"></div></div>
@@ -387,51 +396,53 @@ function _renderFullLB(sorted, maxScore) {
   }).join('');
 }
 
+/* ── MY RESULT ───────────────────────────────────────────── */
 function _renderMyResult(sorted) {
-  const myIdx = sorted.findIndex(([n]) => n === State.playerName);
-  const myScore = myIdx >= 0 ? sorted[myIdx][1] : 0;
+  const myIdx  = sorted.findIndex(([n]) => n === State.playerName);
+  const myScore= myIdx >= 0 ? sorted[myIdx][1] : 0;
   const myRank = myIdx + 1;
-  const total = sorted.length;
+  const total  = sorted.length;
   document.getElementById('my-result-score').textContent = myScore.toLocaleString();
-  const rankLabel = myRank === 1 ? '🏆 WINNER!' : myRank === 2 ? '🥈 2nd Place' : myRank === 3 ? '🥉 3rd Place' : `#${myRank} of ${total} players`;
+  const rankLabel = myRank===1 ? '🏆 WINNER!' : myRank===2 ? '🥈 2nd Place' : myRank===3 ? '🥉 3rd Place' : `#${myRank} of ${total} players`;
   document.getElementById('my-result-rank').textContent = rankLabel;
 }
 
+/* ── CONFETTI BURST ──────────────────────────────────────── */
 function _confettiBurst() {
   const cols = ['#FFD93D','#06D6A0','#EF233C','#9B5DE5','#4FC3F7'];
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 3;
   for (let i = 0; i < 30; i++) {
     const el = document.createElement('div');
-    el.className = 'burst-piece';
     const angle = Math.random() * Math.PI * 2;
-    const dist = 60 + Math.random() * 180;
+    const dist  = 60 + Math.random() * 180;
     const tx = Math.cos(angle) * dist;
     const ty = Math.sin(angle) * dist + 80;
-    el.style.cssText = `left:${cx}px; top:${cy}px; background:${cols[i % cols.length]}; --tx:${tx}px; --ty:${ty}px; --rot:${Math.random()*360}deg; --dur:${0.5+Math.random()}s; --delay:0s;`;
+    el.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;width:8px;height:8px;border-radius:50%;background:${cols[i%cols.length]};pointer-events:none;z-index:9999;animation:confetti-fall 1s ease-out both;--tx:${tx}px;--ty:${ty}px;`;
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1500);
   }
 }
 
+/* ── ACTIONS ─────────────────────────────────────────────── */
 async function resultsPlayAgain() {
   if (State.isHost) {
     try {
       const data = await API.createRoom(State.playerName, State.playMode || 'classic');
       State.roomCode = data.room_code;
       State.players = [State.playerName]; State.scores = {};
+      State.teams = {}; State.teamScores = {};
       WS.connect(State.roomCode, State.playerName);
       await goTo('lobby');
     } catch(e) { Toast.error('Error creating room'); }
   } else { resultsGoHome(); }
 }
-
 function resultsGoHome() {
   State.roomCode = ''; State.players = []; State.scores = {};
+  State.teams = {}; State.teamScores = {};
   if (State.ws) { State.ws.close(); State.ws = null; }
   goTo('home');
 }
-
 function _escHtml(s) {
   return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
 }
