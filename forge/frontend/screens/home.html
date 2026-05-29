@@ -1,6 +1,6 @@
 <!--
   HOME SCREEN
-  Two flows: Host (create room) | Guest (join with code)
+  Three flows: Solo | Classic (create/join) | Team
 -->
 <style>
   .home-wrap {
@@ -24,24 +24,14 @@
     align-items: center; padding: 52px 0 36px; gap: 14px;
   }
   @media (min-width: 1024px) {
-    .home-hero {
-      grid-column: 1;
-      grid-row: 1;
-      padding: 0;
-      max-width: 400px;
-      align-self: center;
-    }
+    .home-hero { grid-column: 1; grid-row: 1; padding: 0; max-width: 400px; align-self: center; }
   }
   .home-trophy {
     font-size: 56px; line-height: 1;
     animation: trophy-bounce 2.4s ease-in-out infinite;
     filter: drop-shadow(0 4px 24px rgba(255,217,61,0.5));
   }
-  @media (min-width: 1024px) {
-    .home-trophy {
-      font-size: 72px;
-    }
-  }
+  @media (min-width: 1024px) { .home-trophy { font-size: 72px; } }
   @keyframes trophy-bounce {
     0%,100% { transform: translateY(0) rotate(-3deg) scale(1); }
     50%      { transform: translateY(-10px) rotate(3deg) scale(1.05); }
@@ -61,9 +51,7 @@
   .home-live-badge {
     display: flex; align-items: center; gap: 8px;
     padding: 6px 14px; border-radius: var(--radius-pill);
-    background: rgba(6,214,160,0.12);
-    border: 1px solid rgba(6,214,160,0.3);
-    margin-top: 4px;
+    background: rgba(6,214,160,0.12); border: 1px solid rgba(6,214,160,0.3); margin-top: 4px;
   }
   .live-dot {
     width: 8px; height: 8px; border-radius: 50%;
@@ -71,13 +59,12 @@
     animation: pulse-dot 1.5s infinite;
   }
   @keyframes pulse-dot {
-    0%,100% { opacity:1; transform:scale(1); }
+    0%,100% { opacity:1; transform:scale(1);    }
     50%      { opacity:0.4; transform:scale(0.75); }
   }
   .live-text {
     font-family: var(--font-pixel); font-size: 7px;
-    color: var(--green); letter-spacing: 0.5px;
-    white-space: nowrap;
+    color: var(--green); letter-spacing: 0.5px; white-space: nowrap;
   }
   .home-card {
     width: 100%; padding: 28px 22px;
@@ -87,11 +74,7 @@
     display: flex; flex-direction: column; gap: 18px;
   }
   @media (min-width: 1024px) {
-    .home-card {
-      grid-column: 2;
-      grid-row: 1;
-      max-width: 400px;
-    }
+    .home-card { grid-column: 2; grid-row: 1; max-width: 400px; }
   }
   .card-heading {
     font-family: var(--font-pixel); font-size: 9px;
@@ -108,23 +91,15 @@
   }
   .home-features {
     display: flex; flex-wrap: wrap; gap: 8px;
-    justify-content: center; margin-top: 24px;
-    width: 100%;
+    justify-content: center; margin-top: 24px; width: 100%;
   }
   @media (min-width: 1024px) {
-    .home-features {
-      grid-column: 1 / -1;
-      grid-row: 2;
-      position: static;
-      transform: none;
-      margin-top: 0;
-    }
+    .home-features { grid-column: 1 / -1; grid-row: 2; margin-top: 0; }
   }
   .feature-pill {
     display: flex; align-items: center; gap: 6px;
     padding: 6px 12px; border-radius: var(--radius-pill);
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
     font-family: var(--font-pixel); font-size: 7px;
     color: rgba(255,255,255,0.5); letter-spacing: 0.3px;
   }
@@ -147,44 +122,36 @@
   }
   .btn-loading { opacity: 0.65 !important; pointer-events: none !important; }
 
-  /* Google Sign-in adjustments */
+  /* ── TEAM button — purple-ish so it stands out from yellow/secondary ── */
+  .btn-team {
+    background: linear-gradient(135deg, #7B2FBE, #9B5DE5);
+    color: #fff;
+    box-shadow: 0 6px 0 #4a1a82, 0 8px 20px rgba(155,93,229,0.35);
+  }
+  .btn-team:active {
+    box-shadow: 0 2px 0 #4a1a82;
+    transform: translateY(4px);
+  }
+
+  /* ── Google auth ── */
   .google-auth-container {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
+    width: 100%; display: flex; flex-direction: column; align-items: center;
+    gap: 12px; margin-bottom: 8px;
   }
   .user-profile-badge {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 16px;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: var(--radius-pill);
-    font-family: var(--font-body);
-    font-weight: 700;
-    font-size: 14px;
-    color: var(--white);
+    display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--radius-pill); font-family: var(--font-body);
+    font-weight: 700; font-size: 14px; color: var(--white);
   }
   .user-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 2px solid var(--yellow);
-    object-fit: cover;
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2px solid var(--yellow); object-fit: cover;
   }
   .btn-logout {
-    font-family: var(--font-pixel);
-    font-size: 7px;
-    color: var(--yellow);
-    background: none;
-    border: none;
-    cursor: pointer;
-    text-decoration: underline;
-    opacity: 0.7;
+    font-family: var(--font-pixel); font-size: 7px; color: var(--yellow);
+    background: none; border: none; cursor: pointer;
+    text-decoration: underline; opacity: 0.7;
   }
 </style>
 
@@ -211,10 +178,7 @@
     <p class="card-heading">✦ LET'S PLAY ✦</p>
 
     <div class="google-auth-container" id="google-auth-area">
-      <!-- Google Button will be rendered here if not logged in -->
       <div id="google-signin-btn"></div>
-      
-      <!-- Profile badge if logged in -->
       <div id="user-profile" style="display: none;">
         <div class="user-profile-badge">
           <img id="user-img" class="user-avatar" src="" alt="">
@@ -232,27 +196,31 @@
     </div>
 
     <div class="divider-text">SOLO MODE</div>
-
     <button class="btn btn-primary" id="btn-solo" onclick="homeStartSolo()">
-      SOLO PLAY
+      🎯 &nbsp;SOLO PLAY
     </button>
     <p class="mode-description">Play alone and chase your high score.</p>
 
-    <div class="divider-text">CLASSIC MODE</div>
+    <div class="divider-text">MULTIPLAYER</div>
 
-    <button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()">
-      <span class="icon">🎮</span> &nbsp;CREATE ROOM
-    </button>
+    <!-- Classic + Team side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()" style="font-size:8px;">
+        🎮 CLASSIC
+      </button>
+      <button class="btn btn-team" id="btn-team" onclick="homeCreateTeamRoom()" style="font-size:8px;">
+        ⚔️ TEAM
+      </button>
+    </div>
+    <p class="mode-description">Classic = free-for-all · Team = squad battle</p>
 
-    <div class="divider-text">OR JOIN A ROOM</div>
-
+    <div class="divider-text">JOIN A ROOM</div>
     <div>
       <label class="input-label" for="input-code">ROOM CODE</label>
       <input id="input-code" class="input-field code-input" type="text"
         placeholder="XXXX" maxlength="4"
         autocomplete="off" autocorrect="off" spellcheck="false" />
     </div>
-
     <button class="btn btn-secondary" id="btn-join" onclick="homeJoinRoom()">
       <span class="icon">🚀</span> &nbsp;JOIN ROOM
     </button>
@@ -264,6 +232,8 @@
     <div class="feature-pill"><span class="fi">⚡</span> REAL-TIME</div>
     <div class="feature-pill"><span class="fi">🌐</span> ANY TOPIC</div>
     <div class="feature-pill"><span class="fi">👥</span> MULTIPLAYER</div>
+    <div class="feature-pill"><span class="fi">⚔️</span> TEAM BATTLE</div>
+    <div class="feature-pill"><span class="fi">🔥</span> STREAK COMBOS</div>
   </div>
 </div>
 
@@ -275,15 +245,10 @@ function onHomeShow() {
   if (confettiEl) { confettiEl.innerHTML = ''; spawnConfetti(confettiEl); }
   if (starsEl)    { starsEl.innerHTML    = ''; spawnStars(starsEl);       }
   _homeUpdateStatus();
-
-  // Initialize Google Sign-In
   _initGoogleSignIn();
 
-  // Pre-fill name from session if available
   const nameInput = document.getElementById('input-name');
-  if (nameInput && State.playerName) {
-    nameInput.value = State.playerName;
-  }
+  if (nameInput && State.playerName) nameInput.value = State.playerName;
 
   const codeInput = document.getElementById('input-code');
   if (codeInput) {
@@ -297,71 +262,41 @@ function onHomeShow() {
   }
 }
 
-/** Initialize Google Identity Services */
 function _initGoogleSignIn() {
   const btnArea     = document.getElementById('google-signin-btn');
   const profileArea = document.getElementById('user-profile');
-  
   if (State.user) {
-    // Show profile badge
-    btnArea.style.display = 'none';
-    profileArea.style.display = 'block';
+    btnArea.style.display    = 'none';
+    profileArea.style.display= 'block';
     document.getElementById('user-img').src = State.user.picture;
     document.getElementById('user-name-display').textContent = State.user.name;
-    
-    // Auto-fill name if empty
     const nameInput = document.getElementById('input-name');
     if (nameInput && !nameInput.value.trim()) {
-      nameInput.value = State.user.name;
-      State.playerName = State.user.name;
+      nameInput.value   = State.user.name;
+      State.playerName  = State.user.name;
     }
   } else {
-    // Show login button
-    btnArea.style.display = 'block';
-    profileArea.style.display = 'none';
-    
+    btnArea.style.display    = 'block';
+    profileArea.style.display= 'none';
     if (window.google) {
-      google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleLogin,
-        auto_select: true
-      });
-      google.accounts.id.renderButton(btnArea, { 
-        theme: 'outline', 
-        size: 'large',
-        shape: 'pill',
-        width: 280
-      });
+      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleLogin, auto_select: true });
+      google.accounts.id.renderButton(btnArea, { theme: 'outline', size: 'large', shape: 'pill', width: 280 });
     }
   }
 }
 
-/** Callback from Google Identity Services after user signs in */
 async function handleGoogleLogin(response) {
   try {
     const user = await API.verifyGoogleToken(response.credential);
-    State.user = user;
-    State.playerName = user.name;
-    
-    // Update UI
+    State.user = user; State.playerName = user.name;
     const nameInput = document.getElementById('input-name');
     if (nameInput) nameInput.value = user.name;
-    
-    Session.save();
-    _initGoogleSignIn();
-    Toast.success(`Signed in as ${user.name}`);
-  } catch (e) {
-    console.error(e);
-    Toast.error('Google Sign-In failed.');
-  }
+    Session.save(); _initGoogleSignIn(); Toast.success(`Signed in as ${user.name}`);
+  } catch (e) { console.error(e); Toast.error('Google Sign-In failed.'); }
 }
 
-/** Clear user session */
 function homeLogout() {
-  State.user = null;
-  Session.save();
-  _initGoogleSignIn();
-  Toast.info('Signed out');
+  State.user = null; Session.save(); _initGoogleSignIn(); Toast.info('Signed out');
 }
 
 async function _homeUpdateStatus() {
@@ -391,84 +326,77 @@ function _setLoading(id, on) {
   if (b) { b.classList.toggle('btn-loading', on); b.disabled = on; }
 }
 
+/* ── CREATE CLASSIC ──────────────────────────────────────── */
 async function homeCreateRoom() {
   Sound.click();
-  const name = _validateName();
-  if (!name) return;
+  const name = _validateName(); if (!name) return;
   _setLoading('btn-create', true);
   try {
     const data = await API.createRoom(name, 'classic');
-    State.playerName = name;
-    State.roomCode   = data.room_code;
-    State.isHost     = true;
-    State.playMode   = 'classic';
-    State.resultStats = null;
-    State.players    = [name];
+    State.playerName = name; State.roomCode = data.room_code;
+    State.isHost = true; State.playMode = 'classic';
+    State.resultStats = null; State.players = [name];
     Session.save();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
-  } catch(e) {
-    console.error(e);
-    Toast.error('Could not create room. Try again.');
-  } finally {
-    _setLoading('btn-create', false);
-  }
+  } catch(e) { console.error(e); Toast.error('Could not create room. Try again.'); }
+  finally { _setLoading('btn-create', false); }
 }
 
-/** Create a private room and open solo setup before the first question. */
+/* ── CREATE TEAM ─────────────────────────────────────────── */
+async function homeCreateTeamRoom() {
+  Sound.click();
+  const name = _validateName(); if (!name) return;
+  _setLoading('btn-team', true);
+  try {
+    const data = await API.createRoom(name, 'team');
+    State.playerName = name; State.roomCode = data.room_code;
+    State.isHost = true; State.playMode = 'team';
+    State.resultStats = null; State.players = [name];
+    State.teams = {}; State.teamNames = { A: 'Red Dragons', B: 'Blue Phoenix' };
+    Session.save();
+    WS.connect(State.roomCode, State.playerName);
+    await goTo('lobby');
+  } catch(e) { console.error(e); Toast.error('Could not create team room. Try again.'); }
+  finally { _setLoading('btn-team', false); }
+}
+
+/* ── SOLO ────────────────────────────────────────────────── */
 async function homeStartSolo() {
   Sound.click();
-  const name = _validateName();
-  if (!name) return;
+  const name = _validateName(); if (!name) return;
   _setLoading('btn-solo', true);
   try {
     const data = await API.createRoom(name, 'solo');
-    State.playerName = name;
-    State.roomCode = data.room_code;
-    State.isHost = true;
-    State.playMode = 'solo';
-    State.resultStats = null;
-    State.players = [name];
+    State.playerName = name; State.roomCode = data.room_code;
+    State.isHost = true; State.playMode = 'solo';
+    State.resultStats = null; State.players = [name];
     Session.save();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
-  } catch(e) {
-    console.error(e);
-    Toast.error('Could not start a solo game. Try again.');
-  } finally {
-    _setLoading('btn-solo', false);
-  }
+  } catch(e) { console.error(e); Toast.error('Could not start a solo game. Try again.'); }
+  finally { _setLoading('btn-solo', false); }
 }
 
+/* ── JOIN ────────────────────────────────────────────────── */
 async function homeJoinRoom() {
   Sound.click();
-  const name = _validateName();
-  if (!name) return;
+  const name = _validateName(); if (!name) return;
   const codeEl = document.getElementById('input-code');
   const code   = codeEl?.value.trim().toUpperCase();
-  if (!code || code.length !== 4) {
-    _shakeEl(codeEl); Toast.error('Enter a 4-digit room code!'); return;
-  }
+  if (!code || code.length !== 4) { _shakeEl(codeEl); Toast.error('Enter a 4-digit room code!'); return; }
   _setLoading('btn-join', true);
   try {
     const room = await API.getRoom(code);
-    if (room.play_mode === 'solo') {
-      Toast.error('Solo rooms are private.');
-      return;
-    }
-    State.playerName = name;
-    State.roomCode   = code;
+    if (room.play_mode === 'solo') { Toast.error('Solo rooms are private.'); return; }
+    State.playerName = name; State.roomCode = code;
     State.isHost     = false;
-    State.playMode   = 'classic';
-    State.resultStats = null;
+    State.playMode   = room.play_mode || 'classic';
+    State.resultStats= null;
     Session.save();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
-  } catch(e) {
-    console.error(e);
-    _shakeEl(codeEl); Toast.error('Room not found. Check the code!');
-  } finally {
-    _setLoading('btn-join', false);
-  }
+  } catch(e) { console.error(e); _shakeEl(codeEl); Toast.error('Room not found. Check the code!'); }
+  finally { _setLoading('btn-join', false); }
 }
 </script>
