@@ -2,14 +2,21 @@
 WebSocket endpoint and authoritative real-time game loop.
 
 The server owns each round phase so all clients see the same sequence:
-question, answer reveal, an optional classic leaderboard intermission, then
-the next question or results. A timeout task resolves unanswered rounds even
-when no client sends a message at the deadline.
+question, answer reveal, an optional classic/team leaderboard intermission,
+then the next question or results. A timeout task resolves unanswered rounds
+even when no client sends a message at the deadline.
+
+Streak/combo multiplier (Milestone 19):
+  base_score = 500–1000 based on speed
+  multiplier = min(1.0 + (streak // 3) * 0.5, 3.0)
+  streak 0-2 → ×1.0 | 3-5 → ×1.5 | 6-8 → ×2.0 | 9-11 → ×2.5 | 12+ → ×3.0
+  Wrong answer or timeout resets streak to 0.
 """
 
 import asyncio
 import json
 import logging
+import random
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -37,11 +44,10 @@ ANSWER_REVEAL_SECONDS = 4
 INTERMISSION_LEADERBOARD_SECONDS = 5
 GENERATION_TIMEOUT_SECONDS = 30
 
-# Multiplier caps at 3x regardless of streak length.
-MAX_MULTIPLIER = 3.0
-
 _round_timeout_tasks: dict[str, asyncio.Task] = {}
 
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 async def broadcast(room_code: str, message: dict[str, Any]) -> None:
     """Send a JSON message to every connected player in a room."""
@@ -92,48 +98,53 @@ def _cancel_round_timeout(room_code: str) -> None:
         task.cancel()
 
 
-def calculate_score(time_ms: int, time_limit_ms: int) -> int:
-    """Calculate a correct-answer base score between 500 and 1000 points."""
+def calculate_score(time_ms: int, time_limit_ms: int, streak: int) -> int:
+    """
+    Calculate a correct-answer score with streak/combo multiplier.
+
+    Base score: 500–1000 based on answer speed.
+    Multiplier: ×1.0 (streak 0-2) → ×1.5 (3-5) → ×2.0 (6-8) → ×2.5 (9-11) → ×3.0 (12+)
+    """
 
     clamped = max(0, min(time_ms, time_limit_ms))
-    return int(BASE_POINTS * (1 - (clamped / time_limit_ms) * 0.5))
+    base = int(BASE_POINTS * (1 - (clamped / time_limit_ms) * 0.5))
+    base = max(500, min(1000, base))
+
+    multiplier = min(1.0 + (streak // 3) * 0.5, 3.0)
+    return int(base * multiplier)
 
 
-def apply_streak_multiplier(base_score: int, streak: int) -> int:
-    """
-    Apply the combo multiplier to a base score.
+def _team_scores(room) -> dict[str, int]:
+    """Aggregate individual player scores into team totals."""
 
-    Formula: multiplier = 1.0 + floor(streak / 3) × 0.5, capped at MAX_MULTIPLIER.
-
-    streak 1–2  → ×1.0  (no bonus yet — building toward combo)
-    streak 3–5  → ×1.5
-    streak 6–8  → ×2.0
-    streak 9–11 → ×2.5
-    streak 12+  → ×3.0  (hard cap)
-    """
-    multiplier = min(1.0 + (streak // 3) * 0.5, MAX_MULTIPLIER)
-    return int(base_score * multiplier)
+    totals: dict[str, int] = {tid: 0 for tid in room.team_names}
+    for player_name, player in room.players.items():
+        team_id = room.teams.get(player_name)
+        if team_id in totals:
+            totals[team_id] += player.score
+    return totals
 
 
 def _round_payload(room) -> dict[str, Any]:
-    """
-    Build shared answer and score data broadcast at reveal/intermission.
-
-    Includes per-player streaks so the frontend can show combo indicators
-    and trigger the correct sounds without an extra round-trip.
-    """
+    """Build shared answer and score data for reveal/intermission screens."""
 
     question = room.questions[room.current_q_index]
-    return {
+    payload: dict[str, Any] = {
         "scores": {name: player.score for name, player in room.players.items()},
         "points_gained": dict(room.points_gained),
         "answers": dict(room.answers_this_round),
         "correct_index": question.correct_index,
         "play_mode": room.play_mode.value,
-        # Current streak per player after this round's scoring is applied.
         "streaks": {name: player.streak for name, player in room.players.items()},
     }
+    if room.play_mode == PlayMode.TEAM:
+        payload["team_scores"] = _team_scores(room)
+        payload["teams"] = dict(room.teams)
+        payload["team_names"] = dict(room.team_names)
+    return payload
 
+
+# ── Round lifecycle ───────────────────────────────────────────────────────────
 
 async def _expire_question(room_code: str, question_index: int) -> None:
     """Resolve a question after its selected difficulty timer expires."""
@@ -159,24 +170,22 @@ async def broadcast_question(room_code: str) -> None:
     for player in room.players.values():
         player.answered = False
         player.last_answer = None
-        # NOTE: streak is intentionally NOT reset here.
-        # It persists across questions and only breaks on wrong answer or timeout.
 
-    await broadcast(
-        room_code,
-        {
-            "type": "QUESTION",
-            "data": {
-                "index": room.current_q_index,
-                "text": question.question,
-                "options": question.options,
-                "mode": room.mode.value,
-                "play_mode": room.play_mode.value,
-                "phase": room.phase.value,
-                "time_limit_ms": room.time_limit_ms,
-            },
-        },
-    )
+    msg_data: dict[str, Any] = {
+        "index": room.current_q_index,
+        "text": question.question,
+        "options": question.options,
+        "mode": room.mode.value,
+        "play_mode": room.play_mode.value,
+        "phase": room.phase.value,
+        "time_limit_ms": room.time_limit_ms,
+    }
+    if room.play_mode == PlayMode.TEAM:
+        msg_data["team_scores"] = _team_scores(room)
+        msg_data["teams"] = dict(room.teams)
+        msg_data["team_names"] = dict(room.team_names)
+
+    await broadcast(room_code, {"type": "QUESTION", "data": msg_data})
 
     _cancel_round_timeout(room_code)
     _round_timeout_tasks[room_code] = asyncio.create_task(
@@ -202,19 +211,20 @@ async def _finish_game(room_code: str) -> None:
         name: round((correct / total_questions) * 100) if total_questions else 0
         for name, correct in correct_answers.items()
     }
-    await broadcast(
-        room_code,
-        {
-            "type": "GAME_OVER",
-            "data": {
-                "final_scores": final_scores,
-                "correct_answers": correct_answers,
-                "accuracy_percentages": accuracy_percentages,
-                "total_questions": total_questions,
-                "play_mode": room.play_mode.value,
-            },
-        },
-    )
+
+    game_over_data: dict[str, Any] = {
+        "final_scores": final_scores,
+        "correct_answers": correct_answers,
+        "accuracy_percentages": accuracy_percentages,
+        "total_questions": total_questions,
+        "play_mode": room.play_mode.value,
+    }
+    if room.play_mode == PlayMode.TEAM:
+        game_over_data["team_scores"] = _team_scores(room)
+        game_over_data["teams"] = dict(room.teams)
+        game_over_data["team_names"] = dict(room.team_names)
+
+    await broadcast(room_code, {"type": "GAME_OVER", "data": game_over_data})
     logger.info("Game finished in room '%s'. Scores: %s", room_code, final_scores)
 
 
@@ -231,15 +241,13 @@ async def resolve_round(room_code: str, question_index: int) -> None:
         return
 
     _cancel_round_timeout(room_code)
-    room.phase = RoundPhase.ANSWER_REVEAL
 
-    # Players who never sent an answer (timed out) lose their streak.
-    # This must happen before _round_payload() reads streaks.
+    # Reset streak for players who did NOT answer (timeout = wrong)
     for name, player in room.players.items():
         if name not in room.answers_this_round:
             player.streak = 0
-            logger.debug("Streak reset for '%s' — timed out in room '%s'", name, room_code)
 
+    room.phase = RoundPhase.ANSWER_REVEAL
     reveal_data = _round_payload(room)
     reveal_data.update(
         {"phase": room.phase.value, "hold_ms": ANSWER_REVEAL_SECONDS * 1000}
@@ -251,7 +259,7 @@ async def resolve_round(room_code: str, question_index: int) -> None:
     if not room or room.status != GameStatus.ACTIVE:
         return
 
-    if room.play_mode == PlayMode.CLASSIC:
+    if room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
         room.phase = RoundPhase.INTERMISSION_LEADERBOARD
         intermission_data = _round_payload(room)
         is_final = room.current_q_index + 1 >= len(room.questions)
@@ -281,6 +289,8 @@ async def resolve_round(room_code: str, question_index: int) -> None:
     await broadcast_question(room_code)
 
 
+# ── WebSocket endpoint ────────────────────────────────────────────────────────
+
 @router.websocket("/ws/{room_code}/{player_name}")
 async def websocket_endpoint(
     websocket: WebSocket, room_code: str, player_name: str
@@ -294,12 +304,15 @@ async def websocket_endpoint(
         await websocket.close()
         return
 
+    # RE-JOIN LOGIC:
+    # If the player was already in the room but their socket is gone, allow re-join.
     existing_player = room.players.get(player_name)
 
     if existing_player:
         if existing_player.websocket is not None:
             await send_to(
-                websocket, {"type": "ERROR", "data": {"message": "Name already taken in this room"}}
+                websocket,
+                {"type": "ERROR", "data": {"message": "Name already taken in this room"}},
             )
             await websocket.close()
             return
@@ -309,14 +322,16 @@ async def websocket_endpoint(
     else:
         if room.status != GameStatus.WAITING:
             await send_to(
-                websocket, {"type": "ERROR", "data": {"message": "Game already in progress"}}
+                websocket,
+                {"type": "ERROR", "data": {"message": "Game already in progress"}},
             )
             await websocket.close()
             return
 
         if room.play_mode == PlayMode.SOLO and player_name != room.host:
             await send_to(
-                websocket, {"type": "ERROR", "data": {"message": "Solo rooms are private"}}
+                websocket,
+                {"type": "ERROR", "data": {"message": "Solo rooms are private"}},
             )
             await websocket.close()
             return
@@ -324,10 +339,14 @@ async def websocket_endpoint(
         room.players[player_name] = Player(name=player_name, websocket=websocket)
         logger.info("Player '%s' joined room '%s'", player_name, room_code)
 
-    await broadcast(
-        room_code,
-        {"type": "PLAYER_JOINED", "data": {"players": list(room.players.keys())}},
-    )
+    # Build PLAYER_JOINED payload (include team state for team rooms)
+    joined_data: dict[str, Any] = {"players": list(room.players.keys())}
+    if room.play_mode == PlayMode.TEAM:
+        joined_data["teams"] = dict(room.teams)
+        joined_data["team_names"] = dict(room.team_names)
+        joined_data["team_topics"] = dict(room.team_topics)
+
+    await broadcast(room_code, {"type": "PLAYER_JOINED", "data": joined_data})
 
     try:
         while True:
@@ -341,7 +360,50 @@ async def websocket_endpoint(
                 continue
 
             action = msg.get("action")
-            if action == "start_game":
+
+            # ── join_team ──────────────────────────────────────────────────────
+            if action == "join_team":
+                if room.play_mode != PlayMode.TEAM:
+                    continue
+                team_id = str(msg.get("team_id", "")).upper()
+                if team_id not in ("A", "B"):
+                    await send_to(
+                        websocket,
+                        {"type": "ERROR", "data": {"message": "Team must be A or B"}},
+                    )
+                    continue
+                room.teams[player_name] = team_id
+                team_update: dict[str, Any] = {
+                    "players": list(room.players.keys()),
+                    "teams": dict(room.teams),
+                    "team_names": dict(room.team_names),
+                    "team_topics": dict(room.team_topics),
+                }
+                await broadcast(room_code, {"type": "PLAYER_JOINED", "data": team_update})
+
+            # ── set_team_info (host only) ──────────────────────────────────────
+            elif action == "set_team_info":
+                if room.play_mode != PlayMode.TEAM or player_name != room.host:
+                    continue
+                name_a = str(msg.get("name_a", "Team A")).strip()[:20] or "Team A"
+                name_b = str(msg.get("name_b", "Team B")).strip()[:20] or "Team B"
+                topic_a = str(msg.get("topic_a", "")).strip()[:60]
+                topic_b = str(msg.get("topic_b", "")).strip()[:60]
+                room.team_names = {"A": name_a, "B": name_b}
+                if topic_a:
+                    room.team_topics["A"] = topic_a
+                if topic_b:
+                    room.team_topics["B"] = topic_b
+                info_update: dict[str, Any] = {
+                    "players": list(room.players.keys()),
+                    "teams": dict(room.teams),
+                    "team_names": dict(room.team_names),
+                    "team_topics": dict(room.team_topics),
+                }
+                await broadcast(room_code, {"type": "PLAYER_JOINED", "data": info_update})
+
+            # ── start_game ────────────────────────────────────────────────────
+            elif action == "start_game":
                 if player_name != room.host:
                     await send_to(
                         websocket,
@@ -355,6 +417,7 @@ async def websocket_endpoint(
                     )
                     continue
 
+                # Rate limit check
                 ip = websocket.client.host
                 forwarded = websocket.headers.get("X-Forwarded-For")
                 if forwarded:
@@ -378,28 +441,50 @@ async def websocket_endpoint(
                     )
                     continue
 
-                topic = str(msg.get("topic", "General Knowledge")).strip() or "General Knowledge"
                 mode_value = str(msg.get("mode", DEFAULT_GAME_MODE.value)).strip().lower()
                 try:
                     room.mode = GameMode(mode_value)
                 except ValueError:
                     room.mode = DEFAULT_GAME_MODE
                 room.time_limit_ms = time_limit_for_mode(room.mode)
+
+                # ── Topic resolution ───────────────────────────────────────────
+                if room.play_mode == PlayMode.TEAM:
+                    # Pick randomly from whichever team topics have been submitted
+                    candidates = [t for t in room.team_topics.values() if t]
+                    if not candidates:
+                        # Fallback: use a generic topic if no one submitted
+                        topic = "General Knowledge"
+                        chosen_team_id = None
+                    else:
+                        topic = random.choice(candidates)
+                        # Figure out which team "won" the randomiser
+                        chosen_team_id = next(
+                            (tid for tid, t in room.team_topics.items() if t == topic),
+                            None,
+                        )
+                    room.topic = topic
+                else:
+                    topic = str(msg.get("topic", "General Knowledge")).strip() or "General Knowledge"
+                    room.topic = topic
+                    chosen_team_id = None
+
                 room.status = GameStatus.STARTING
 
-                await broadcast(
-                    room_code,
-                    {
-                        "type": "GAME_STARTING",
-                        "data": {
-                            "topic": topic,
-                            "mode": room.mode.value,
-                            "play_mode": room.play_mode.value,
-                            "time_limit_ms": room.time_limit_ms,
-                            "total_questions": 10,
-                        },
-                    },
-                )
+                starting_data: dict[str, Any] = {
+                    "topic": topic,
+                    "mode": room.mode.value,
+                    "play_mode": room.play_mode.value,
+                    "time_limit_ms": room.time_limit_ms,
+                    "total_questions": 10,
+                }
+                if room.play_mode == PlayMode.TEAM:
+                    starting_data["chosen_team_id"] = chosen_team_id
+                    starting_data["team_names"] = dict(room.team_names)
+                    starting_data["team_topics"] = dict(room.team_topics)
+                    starting_data["teams"] = dict(room.teams)
+
+                await broadcast(room_code, {"type": "GAME_STARTING", "data": starting_data})
 
                 try:
                     room.questions = await asyncio.wait_for(
@@ -407,9 +492,8 @@ async def websocket_endpoint(
                     )
                 except asyncio.TimeoutError:
                     logger.warning(
-                        "Question generation timed out for room '%s' after %s seconds; using fallback",
+                        "Question generation timed out for room '%s'; using fallback",
                         room_code,
-                        GENERATION_TIMEOUT_SECONDS,
                     )
                     room.questions = [Question(**q) for q in FALLBACK_QUESTIONS]
                 except Exception as exc:
@@ -425,11 +509,12 @@ async def websocket_endpoint(
                 for participant in room.players.values():
                     participant.score = 0
                     participant.correct_answers = 0
-                    participant.streak = 0  # fresh start for every new game
+                    participant.streak = 0
                 room.status = GameStatus.ACTIVE
                 room.current_q_index = 0
                 await broadcast_question(room_code)
 
+            # ── answer ────────────────────────────────────────────────────────
             elif action == "answer":
                 if room.status != GameStatus.ACTIVE or room.phase != RoundPhase.QUESTION:
                     continue
@@ -439,7 +524,8 @@ async def websocket_endpoint(
                 choice = msg.get("choice")
                 if not isinstance(choice, int) or choice not in range(4):
                     await send_to(
-                        websocket, {"type": "ERROR", "data": {"message": "Invalid answer choice"}}
+                        websocket,
+                        {"type": "ERROR", "data": {"message": "Invalid answer choice"}},
                     )
                     continue
                 try:
@@ -451,20 +537,13 @@ async def websocket_endpoint(
                 is_correct = choice == question.correct_index
                 player = room.players[player_name]
 
-                # ── Streak bookkeeping ────────────────────────────────────
-                # Increment on correct, reset to zero on wrong.
-                # The multiplier is applied to the BASE score immediately.
                 if is_correct:
                     player.streak += 1
+                    points = calculate_score(time_ms, room.time_limit_ms, player.streak)
                     player.correct_answers += 1
                 else:
                     player.streak = 0
-
-                # ── Scoring with combo multiplier ─────────────────────────
-                # Base: 500–1000 pts depending on speed.
-                # Multiplier: ×1.5 at streak 3, ×2.0 at 6, ×2.5 at 9, ×3.0 cap.
-                base_score = calculate_score(time_ms, room.time_limit_ms) if is_correct else 0
-                points = apply_streak_multiplier(base_score, player.streak) if is_correct else 0
+                    points = 0
 
                 player.score += points
                 player.answered = True
@@ -472,15 +551,10 @@ async def websocket_endpoint(
                 room.answers_this_round[player_name] = choice
                 room.points_gained[player_name] = points
 
-                logger.debug(
-                    "Player '%s' answered %s | streak=%d | pts=%d",
-                    player_name,
-                    "correctly" if is_correct else "incorrectly",
-                    player.streak,
-                    points,
-                )
-
-                if room.players and len(room.answers_this_round) >= len(room.players):
+                connected_players = [
+                    p for p in room.players.values() if p.websocket is not None
+                ]
+                if len(room.answers_this_round) >= len(connected_players):
                     await resolve_round(room_code, room.current_q_index)
 
             else:
@@ -499,10 +573,13 @@ async def websocket_endpoint(
         any_connected = any(p.websocket is not None for p in room.players.values())
 
         if any_connected:
-            await broadcast(
-                room_code,
-                {"type": "PLAYER_JOINED", "data": {"players": list(room.players.keys())}},
-            )
+            dc_data: dict[str, Any] = {"players": list(room.players.keys())}
+            if room.play_mode == PlayMode.TEAM:
+                dc_data["teams"] = dict(room.teams)
+                dc_data["team_names"] = dict(room.team_names)
+                dc_data["team_topics"] = dict(room.team_topics)
+            await broadcast(room_code, {"type": "PLAYER_JOINED", "data": dc_data})
+
             connected_players = [p for p in room.players.values() if p.websocket is not None]
             if (
                 room.status == GameStatus.ACTIVE
