@@ -380,10 +380,10 @@ async function homeJoinRoom() {
     State.playerName  = name;
     State.roomCode    = code;
     State.isHost      = false;
-    State.playMode    = 'classic';   // will be updated by GAME_STARTING
+    State.playMode    = room.play_mode || 'classic';
     State.resultStats = null;
-    State.teams       = {};
-    State.teamNames   = { A: 'Red Dragons', B: 'Blue Phoenix' };
+    State.teams       = room.teams || {};
+    State.teamNames   = room.team_names || { A: 'Red Dragons', B: 'Blue Phoenix' };
     State.teamScores  = {};
     Session.save();
     WS.connect(State.roomCode, State.playerName);

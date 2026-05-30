@@ -502,11 +502,11 @@ const AVATAR_COLOURS = ['#E63946','#2196F3','#06D6A0','#9B5DE5','#FF9F1C','#4FC3
 const AVATARS        = ['😀','🤩','🧠','🦊','🐼','🦁','🐯','🤖','👾','🎩','🦄','🐸'];
 
 /* Local lobby state — kept in sync with server via PLAYER_JOINED broadcasts */
-let _teams      = {};     // { name → 'A'|'B' }
-let _teamNames  = { A:'Red Dragons', B:'Blue Phoenix' };
+let _teams      = State.teams || {};     // { name → 'A'|'B' }
+let _teamNames  = State.teamNames || { A:'Red Dragons', B:'Blue Phoenix' };
 let _teamTopics = { A:'', B:'' };
-let _myTeamId   = null;   // 'A'|'B'|null — which team THIS player joined
-let _lobbyMode  = 'classic'; // 'classic' | 'team'  (controlled by host toggle)
+let _myTeamId   = (_teams[State.playerName]) || null;
+let _lobbyMode  = State.playMode || 'classic'; // 'classic' | 'team'
 let _pushTimer  = null;   // Debounce for set_team_info
 
 /* ─────────────────────────────────────────────────────────── */
@@ -515,12 +515,12 @@ function onLobbyShow() {
   const starsEl = document.getElementById('lobby-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
 
-  // Reset local state
-  _teams      = {};
-  _teamNames  = { A:'Red Dragons', B:'Blue Phoenix' };
-  _teamTopics = { A:'', B:'' };
-  _myTeamId   = null;
-  _lobbyMode  = 'classic';
+  // Sync from global State (handles late joins correctly)
+  _teams      = State.teams || {};
+  _teamNames  = State.teamNames || { A:'Red Dragons', B:'Blue Phoenix' };
+  _teamTopics = { A:'', B:'' }; //Topics usually only come via WS
+  _myTeamId   = _teams[State.playerName] || null;
+  _lobbyMode  = State.playMode || 'classic';
   if (_pushTimer) { clearTimeout(_pushTimer); _pushTimer = null; }
 
   const isSolo = State.playMode === 'solo';
