@@ -507,6 +507,7 @@ let _teamNames  = { A:'Red Dragons', B:'Blue Phoenix' };
 let _teamTopics = { A:'', B:'' };
 let _myTeamId   = null;   // 'A'|'B'|null — which team THIS player joined
 let _lobbyMode  = 'classic'; // 'classic' | 'team'  (controlled by host toggle)
+let _pushTimer  = null;   // Debounce for set_team_info
 
 /* ─────────────────────────────────────────────────────────── */
 function onLobbyShow() {
@@ -520,6 +521,7 @@ function onLobbyShow() {
   _teamTopics = { A:'', B:'' };
   _myTeamId   = null;
   _lobbyMode  = 'classic';
+  if (_pushTimer) { clearTimeout(_pushTimer); _pushTimer = null; }
 
   const isSolo = State.playMode === 'solo';
 
@@ -557,7 +559,13 @@ function onLobbyShow() {
     State.players = data.players;
 
     // Absorb any team state the server echoes back
-    if (data.teams)       _teams      = data.teams;
+    if (data.teams) {
+      _teams = data.teams;
+      // Sync our local team assignment from the server's truth
+      if (data.teams[State.playerName]) {
+        _myTeamId = data.teams[State.playerName];
+      }
+    }
     if (data.team_names)  _teamNames  = data.team_names;
     if (data.team_topics) _teamTopics = data.team_topics;
     // If server tells us we're now in team mode, update toggle
@@ -737,7 +745,15 @@ function _renderPlayerList(players) {
 function _renderTeamColumns() {
   const container = document.getElementById('team-columns');
   if (!container) return;
-  container.innerHTML = '';
+
+  // 1. Capture focused element state to prevent "typing glitch"
+  const focusedEl = document.activeElement;
+  const focusedId = focusedEl?.id;
+  const selectionStart = focusedEl?.selectionStart;
+  const selectionEnd = focusedEl?.selectionEnd;
+  const valBefore = focusedEl?.value;
+
+  let html = '';
 
   ['A','B'].forEach(tid => {
     const isA       = tid === 'A';
@@ -754,10 +770,12 @@ function _renderTeamColumns() {
     // Topic input: visible to host always; to guests only on their team
     const canEditTopic = State.isHost || myCol;
     const topicVal  = _teamTopics[tid] || '';
+    const inputId   = `team-topic-input-${tid}`;
+
     const topicHtml = canEditTopic ? `
       <div class="team-topic-wrap">
         <span class="team-topic-sublabel">TOPIC SUGGESTION</span>
-        <input class="team-topic-input ${colClass}" type="text"
+        <input id="${inputId}" class="team-topic-input ${colClass}" type="text"
           placeholder="e.g. Bollywood..."
           maxlength="60" value="${_escHtml(topicVal)}"
           oninput="lobbyTeamTopicInput('${tid}',this.value)"
@@ -766,28 +784,37 @@ function _renderTeamColumns() {
         ? `<p style="font-family:var(--font-pixel);font-size:6px;color:rgba(255,255,255,0.3);text-align:center;">${_escHtml(topicVal)}</p>`
         : '');
 
-    // Join button: show if not yet in any team; show "✓ JOINED" if on this team; hide if on other team
+    // Join button: show if not yet in any team; show "✓ JOINED" if on this team
     let joinHtml = '';
-    if (_myTeamId === null && !State.isHost) {
+    if (_myTeamId === null) {
       joinHtml = `<button class="team-join-btn ${btnClass}" onclick="lobbyJoinTeam('${tid}')">JOIN TEAM</button>`;
     } else if (myCol) {
       joinHtml = `<button class="team-join-btn ${btnClass} joined" disabled>✓ JOINED</button>`;
     }
-    // Host doesn't join teams
 
-    const col = document.createElement('div');
-    col.className = `team-col ${colClass}${myCol?' my-team':''}`;
-    col.innerHTML = `
-      <div class="team-col-header">
-        <span class="team-col-emoji">${emoji}</span>
-        <span class="team-col-name">${_escHtml(name)}</span>
-      </div>
-      <div class="team-member-list" id="team-members-${tid}">${memberHtml}</div>
-      ${joinHtml}
-      ${topicHtml}
-    `;
-    container.appendChild(col);
+    html += `
+      <div class="team-col ${colClass}${myCol?' my-team':''}">
+        <div class="team-col-header">
+          <span class="team-col-emoji">${emoji}</span>
+          <span class="team-col-name">${_escHtml(name)}</span>
+        </div>
+        <div class="team-member-list" id="team-members-${tid}">${memberHtml}</div>
+        ${joinHtml}
+        ${topicHtml}
+      </div>`;
   });
+
+  container.innerHTML = html;
+
+  // 2. Restore focus and cursor position
+  if (focusedId && focusedId.startsWith('team-topic-input')) {
+    const el = document.getElementById(focusedId);
+    if (el) {
+      el.focus();
+      el.value = valBefore; // Keep what the user was typing locally
+      if (selectionStart !== null) el.setSelectionRange(selectionStart, selectionEnd);
+    }
+  }
 
   _updateStartBtns();
 }
@@ -796,7 +823,7 @@ function _renderTeamColumns() {
 /* TEAM ACTIONS                                                 */
 /* ─────────────────────────────────────────────────────────── */
 
-/** Guest taps "JOIN TEAM" */
+/** Player (or Host) taps "JOIN TEAM" */
 function lobbyJoinTeam(teamId) {
   if (_myTeamId) return;
   Sound.click();
@@ -813,16 +840,20 @@ function lobbyTeamTopicInput(teamId, value) {
   _updateStartBtns();
 }
 
-/** Push team names + topics to server (debounced is fine — WS is cheap) */
+/** Push team names + topics to server (debounced to avoid typing glitches) */
 function lobbyPushTeamInfo() {
-  const nameA = document.getElementById('team-name-a')?.value.trim() || 'Red Dragons';
-  const nameB = document.getElementById('team-name-b')?.value.trim() || 'Blue Phoenix';
-  _teamNames = { A: nameA, B: nameB };
-  WS.send({
-    action: 'set_team_info',
-    name_a: nameA, name_b: nameB,
-    topic_a: _teamTopics.A, topic_b: _teamTopics.B,
-  });
+  if (_pushTimer) clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(() => {
+    const nameA = document.getElementById('team-name-a')?.value.trim() || 'Red Dragons';
+    const nameB = document.getElementById('team-name-b')?.value.trim() || 'Blue Phoenix';
+    _teamNames = { A: nameA, B: nameB };
+    WS.send({
+      action: 'set_team_info',
+      name_a: nameA, name_b: nameB,
+      topic_a: _teamTopics.A, topic_b: _teamTopics.B,
+    });
+    _pushTimer = null;
+  }, 400); // 400ms debounce
 }
 
 /* ─────────────────────────────────────────────────────────── */
