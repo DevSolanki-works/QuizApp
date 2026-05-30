@@ -568,8 +568,9 @@ function onLobbyShow() {
     }
     if (data.team_names)  _teamNames  = data.team_names;
     if (data.team_topics) _teamTopics = data.team_topics;
-    // If server tells us we're now in team mode, update toggle
-    if (data.lobby_mode && data.lobby_mode !== _lobbyMode) {
+    
+    // Always update mode from server
+    if (data.lobby_mode) {
       _lobbyMode = data.lobby_mode;
       _applyModeUI();
     }
@@ -742,6 +743,16 @@ function _renderPlayerList(players) {
 /* ─────────────────────────────────────────────────────────── */
 /* TEAM COLUMNS                                                 */
 /* ─────────────────────────────────────────────────────────── */
+
+/** Helper to find the first joined player for a team (the 'Team Host') */
+function _getTeamHost(tid) {
+  if (!State.players) return null;
+  for (const name of State.players) {
+    if (_teams[name] === tid) return name;
+  }
+  return null;
+}
+
 function _renderTeamColumns() {
   const container = document.getElementById('team-columns');
   if (!container) return;
@@ -763,12 +774,20 @@ function _renderTeamColumns() {
     const name      = _teamNames[tid] || `Team ${tid}`;
     const btnClass  = isA ? 'btn-a' : 'btn-b';
     const members   = Object.entries(_teams).filter(([,t]) => t === tid).map(([n]) => n);
+    
+    const teamHost  = _getTeamHost(tid);
+    const isTeamHost = (State.playerName === teamHost);
+
     const memberHtml= members.length
-      ? members.map(n => `<div class="team-member-chip ${n===State.playerName?'is-you':''}">${_escHtml(n)}</div>`).join('')
+      ? members.map(n => {
+          const isYou = n === State.playerName;
+          const isTH  = n === teamHost;
+          return `<div class="team-member-chip ${isYou?'is-you':''}">${_escHtml(n)}${isTH?' <span style="font-size:7px;color:var(--yellow);vertical-align:middle;">(HOST)</span>':''}</div>`;
+        }).join('')
       : `<p class="team-empty-note">NO PLAYERS YET</p>`;
 
-    // Topic input: visible to host always; to guests only on their team
-    const canEditTopic = State.isHost || myCol;
+    // Topic input: visible ONLY to that team's host
+    const canEditTopic = isTeamHost;
     const topicVal  = _teamTopics[tid] || '';
     const inputId   = `team-topic-input-${tid}`;
 
@@ -782,14 +801,15 @@ function _renderTeamColumns() {
           autocomplete="off" autocorrect="off"/>
       </div>` : (topicVal
         ? `<p style="font-family:var(--font-pixel);font-size:6px;color:rgba(255,255,255,0.3);text-align:center;">${_escHtml(topicVal)}</p>`
-        : '');
+        : (teamHost ? `<p class="team-empty-note">WAITING FOR ${teamHost.toUpperCase()}<br>TO PICK A TOPIC</p>` : ''));
 
     // Join button: show if not yet in any team; show "✓ JOINED" if on this team
     let joinHtml = '';
     if (_myTeamId === null) {
       joinHtml = `<button class="team-join-btn ${btnClass}" onclick="lobbyJoinTeam('${tid}')">JOIN TEAM</button>`;
     } else if (myCol) {
-      joinHtml = `<button class="team-join-btn ${btnClass} joined" disabled>✓ JOINED</button>`;
+      const label = isTeamHost ? '✓ TEAM HOST' : '✓ JOINED';
+      joinHtml = `<button class="team-join-btn ${btnClass} joined" disabled>${label}</button>`;
     }
 
     html += `
@@ -913,7 +933,9 @@ function _updateStartBtns() {
   if (teamBtn) {
     const hasAny = _teamTopics.A.trim() || _teamTopics.B.trim();
     const hasPlrs= State.players.length >= 1;
-    teamBtn.disabled = !(hasAny && hasPlrs);
+    // Host MUST have joined a team to start
+    const hostJoined = _myTeamId !== null;
+    teamBtn.disabled = !(hasAny && hasPlrs && hostJoined);
   }
 }
 
