@@ -1,6 +1,7 @@
 <!--
   HOME SCREEN
-  Three flows: Solo | Classic (create/join) | Team
+  Two flows: Host (create room) | Guest (join with code) | Solo
+  Team mode is selected INSIDE the lobby after joining, not here.
 -->
 <style>
   .home-wrap {
@@ -13,10 +14,8 @@
       display: grid;
       grid-template-columns: minmax(300px, 400px) minmax(320px, 400px);
       grid-template-rows: auto auto;
-      justify-content: center;
-      align-content: start;
-      gap: 28px 40px;
-      padding: 42px 40px 36px;
+      justify-content: center; align-content: start;
+      gap: 28px 40px; padding: 42px 40px 36px;
     }
   }
   .home-hero {
@@ -24,7 +23,7 @@
     align-items: center; padding: 52px 0 36px; gap: 14px;
   }
   @media (min-width: 1024px) {
-    .home-hero { grid-column: 1; grid-row: 1; padding: 0; max-width: 400px; align-self: center; }
+    .home-hero { grid-column:1; grid-row:1; padding:0; max-width:400px; align-self:center; }
   }
   .home-trophy {
     font-size: 56px; line-height: 1;
@@ -51,7 +50,8 @@
   .home-live-badge {
     display: flex; align-items: center; gap: 8px;
     padding: 6px 14px; border-radius: var(--radius-pill);
-    background: rgba(6,214,160,0.12); border: 1px solid rgba(6,214,160,0.3); margin-top: 4px;
+    background: rgba(6,214,160,0.12); border: 1px solid rgba(6,214,160,0.3);
+    margin-top: 4px;
   }
   .live-dot {
     width: 8px; height: 8px; border-radius: 50%;
@@ -59,7 +59,7 @@
     animation: pulse-dot 1.5s infinite;
   }
   @keyframes pulse-dot {
-    0%,100% { opacity:1; transform:scale(1);    }
+    0%,100% { opacity:1; transform:scale(1); }
     50%      { opacity:0.4; transform:scale(0.75); }
   }
   .live-text {
@@ -74,7 +74,7 @@
     display: flex; flex-direction: column; gap: 18px;
   }
   @media (min-width: 1024px) {
-    .home-card { grid-column: 2; grid-row: 1; max-width: 400px; }
+    .home-card { grid-column:2; grid-row:1; max-width:400px; }
   }
   .card-heading {
     font-family: var(--font-pixel); font-size: 9px;
@@ -116,27 +116,16 @@
     animation: shake 0.3s ease;
   }
   @keyframes shake {
-    0%,100% { transform: translateX(0);  }
+    0%,100% { transform: translateX(0); }
     25%      { transform: translateX(-6px); }
-    75%      { transform: translateX(6px);  }
+    75%      { transform: translateX(6px); }
   }
   .btn-loading { opacity: 0.65 !important; pointer-events: none !important; }
 
-  /* ── TEAM button — purple-ish so it stands out from yellow/secondary ── */
-  .btn-team {
-    background: linear-gradient(135deg, #7B2FBE, #9B5DE5);
-    color: #fff;
-    box-shadow: 0 6px 0 #4a1a82, 0 8px 20px rgba(155,93,229,0.35);
-  }
-  .btn-team:active {
-    box-shadow: 0 2px 0 #4a1a82;
-    transform: translateY(4px);
-  }
-
-  /* ── Google auth ── */
+  /* Google auth */
   .google-auth-container {
-    width: 100%; display: flex; flex-direction: column; align-items: center;
-    gap: 12px; margin-bottom: 8px;
+    width: 100%; display: flex; flex-direction: column;
+    align-items: center; gap: 12px; margin-bottom: 8px;
   }
   .user-profile-badge {
     display: flex; align-items: center; gap: 10px; padding: 8px 16px;
@@ -179,7 +168,7 @@
 
     <div class="google-auth-container" id="google-auth-area">
       <div id="google-signin-btn"></div>
-      <div id="user-profile" style="display: none;">
+      <div id="user-profile" style="display:none;">
         <div class="user-profile-badge">
           <img id="user-img" class="user-avatar" src="" alt="">
           <span id="user-name-display"></span>
@@ -202,17 +191,10 @@
     <p class="mode-description">Play alone and chase your high score.</p>
 
     <div class="divider-text">MULTIPLAYER</div>
-
-    <!-- Classic + Team side by side -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()" style="font-size:8px;">
-        🎮 CLASSIC
-      </button>
-      <button class="btn btn-team" id="btn-team" onclick="homeCreateTeamRoom()" style="font-size:8px;">
-        ⚔️ TEAM
-      </button>
-    </div>
-    <p class="mode-description">Classic = free-for-all · Team = squad battle</p>
+    <button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()">
+      <span class="icon">🎮</span> &nbsp;CREATE ROOM
+    </button>
+    <p class="mode-description">Classic or Team — choose after friends join.</p>
 
     <div class="divider-text">JOIN A ROOM</div>
     <div>
@@ -243,7 +225,7 @@ function onHomeShow() {
   const confettiEl = document.getElementById('home-confetti');
   const starsEl    = document.getElementById('home-stars');
   if (confettiEl) { confettiEl.innerHTML = ''; spawnConfetti(confettiEl); }
-  if (starsEl)    { starsEl.innerHTML    = ''; spawnStars(starsEl);       }
+  if (starsEl)    { starsEl.innerHTML    = ''; spawnStars(starsEl); }
   _homeUpdateStatus();
   _initGoogleSignIn();
 
@@ -255,10 +237,10 @@ function onHomeShow() {
     codeInput.addEventListener('input', () => {
       codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     });
-    codeInput.addEventListener('keydown', e => { if (e.key==='Enter') homeJoinRoom(); });
+    codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') homeJoinRoom(); });
   }
   if (nameInput) {
-    nameInput.addEventListener('keydown', e => { if (e.key==='Enter') homeCreateRoom(); });
+    nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') homeCreateRoom(); });
   }
 }
 
@@ -266,21 +248,27 @@ function _initGoogleSignIn() {
   const btnArea     = document.getElementById('google-signin-btn');
   const profileArea = document.getElementById('user-profile');
   if (State.user) {
-    btnArea.style.display    = 'none';
-    profileArea.style.display= 'block';
+    btnArea.style.display     = 'none';
+    profileArea.style.display = 'block';
     document.getElementById('user-img').src = State.user.picture;
     document.getElementById('user-name-display').textContent = State.user.name;
     const nameInput = document.getElementById('input-name');
     if (nameInput && !nameInput.value.trim()) {
-      nameInput.value   = State.user.name;
-      State.playerName  = State.user.name;
+      nameInput.value  = State.user.name;
+      State.playerName = State.user.name;
     }
   } else {
-    btnArea.style.display    = 'block';
-    profileArea.style.display= 'none';
+    btnArea.style.display     = 'block';
+    profileArea.style.display = 'none';
     if (window.google) {
-      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleLogin, auto_select: true });
-      google.accounts.id.renderButton(btnArea, { theme: 'outline', size: 'large', shape: 'pill', width: 280 });
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleLogin,
+        auto_select: true,
+      });
+      google.accounts.id.renderButton(btnArea, {
+        theme: 'outline', size: 'large', shape: 'pill', width: 280,
+      });
     }
   }
 }
@@ -291,7 +279,8 @@ async function handleGoogleLogin(response) {
     State.user = user; State.playerName = user.name;
     const nameInput = document.getElementById('input-name');
     if (nameInput) nameInput.value = user.name;
-    Session.save(); _initGoogleSignIn(); Toast.success(`Signed in as ${user.name}`);
+    Session.save(); _initGoogleSignIn();
+    Toast.success(`Signed in as ${user.name}`);
   } catch (e) { console.error(e); Toast.error('Google Sign-In failed.'); }
 }
 
@@ -326,77 +315,83 @@ function _setLoading(id, on) {
   if (b) { b.classList.toggle('btn-loading', on); b.disabled = on; }
 }
 
-/* ── CREATE CLASSIC ──────────────────────────────────────── */
+/* ── CREATE ROOM (always classic — host picks mode inside lobby) ── */
 async function homeCreateRoom() {
   Sound.click();
   const name = _validateName(); if (!name) return;
   _setLoading('btn-create', true);
   try {
     const data = await API.createRoom(name, 'classic');
-    State.playerName = name; State.roomCode = data.room_code;
-    State.isHost = true; State.playMode = 'classic';
-    State.resultStats = null; State.players = [name];
+    State.playerName  = name;
+    State.roomCode    = data.room_code;
+    State.isHost      = true;
+    State.playMode    = 'classic';
+    State.resultStats = null;
+    State.players     = [name];
+    State.teams       = {};
+    State.teamNames   = { A: 'Red Dragons', B: 'Blue Phoenix' };
+    State.teamScores  = {};
     Session.save();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
-  } catch(e) { console.error(e); Toast.error('Could not create room. Try again.'); }
-  finally { _setLoading('btn-create', false); }
+  } catch (e) {
+    console.error(e); Toast.error('Could not create room. Try again.');
+  } finally {
+    _setLoading('btn-create', false);
+  }
 }
 
-/* ── CREATE TEAM ─────────────────────────────────────────── */
-async function homeCreateTeamRoom() {
-  Sound.click();
-  const name = _validateName(); if (!name) return;
-  _setLoading('btn-team', true);
-  try {
-    const data = await API.createRoom(name, 'team');
-    State.playerName = name; State.roomCode = data.room_code;
-    State.isHost = true; State.playMode = 'team';
-    State.resultStats = null; State.players = [name];
-    State.teams = {}; State.teamNames = { A: 'Red Dragons', B: 'Blue Phoenix' };
-    Session.save();
-    WS.connect(State.roomCode, State.playerName);
-    await goTo('lobby');
-  } catch(e) { console.error(e); Toast.error('Could not create team room. Try again.'); }
-  finally { _setLoading('btn-team', false); }
-}
-
-/* ── SOLO ────────────────────────────────────────────────── */
+/* ── SOLO ── */
 async function homeStartSolo() {
   Sound.click();
   const name = _validateName(); if (!name) return;
   _setLoading('btn-solo', true);
   try {
     const data = await API.createRoom(name, 'solo');
-    State.playerName = name; State.roomCode = data.room_code;
-    State.isHost = true; State.playMode = 'solo';
-    State.resultStats = null; State.players = [name];
+    State.playerName  = name;
+    State.roomCode    = data.room_code;
+    State.isHost      = true;
+    State.playMode    = 'solo';
+    State.resultStats = null;
+    State.players     = [name];
     Session.save();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
-  } catch(e) { console.error(e); Toast.error('Could not start a solo game. Try again.'); }
-  finally { _setLoading('btn-solo', false); }
+  } catch (e) {
+    console.error(e); Toast.error('Could not start solo game. Try again.');
+  } finally {
+    _setLoading('btn-solo', false);
+  }
 }
 
-/* ── JOIN ────────────────────────────────────────────────── */
+/* ── JOIN ROOM ── */
 async function homeJoinRoom() {
   Sound.click();
-  const name = _validateName(); if (!name) return;
+  const name   = _validateName(); if (!name) return;
   const codeEl = document.getElementById('input-code');
   const code   = codeEl?.value.trim().toUpperCase();
-  if (!code || code.length !== 4) { _shakeEl(codeEl); Toast.error('Enter a 4-digit room code!'); return; }
+  if (!code || code.length !== 4) {
+    _shakeEl(codeEl); Toast.error('Enter a 4-digit room code!'); return;
+  }
   _setLoading('btn-join', true);
   try {
     const room = await API.getRoom(code);
     if (room.play_mode === 'solo') { Toast.error('Solo rooms are private.'); return; }
-    State.playerName = name; State.roomCode = code;
-    State.isHost     = false;
-    State.playMode   = room.play_mode || 'classic';
-    State.resultStats= null;
+    State.playerName  = name;
+    State.roomCode    = code;
+    State.isHost      = false;
+    State.playMode    = 'classic';   // will be updated by GAME_STARTING
+    State.resultStats = null;
+    State.teams       = {};
+    State.teamNames   = { A: 'Red Dragons', B: 'Blue Phoenix' };
+    State.teamScores  = {};
     Session.save();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
-  } catch(e) { console.error(e); _shakeEl(codeEl); Toast.error('Room not found. Check the code!'); }
-  finally { _setLoading('btn-join', false); }
+  } catch (e) {
+    console.error(e); _shakeEl(codeEl); Toast.error('Room not found. Check the code!');
+  } finally {
+    _setLoading('btn-join', false);
+  }
 }
 </script>
