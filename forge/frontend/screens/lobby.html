@@ -716,8 +716,8 @@ function _applyModeUI() {
   const lockBtn = document.getElementById('btn-lock-room');
   if (lockBtn) {
     lockBtn.className = 'btn-lock' + (_isLocked ? ' is-locked' : '');
-    lockBtn.textContent = _isLocked ? '✓ ROOM LOCKED' : '🔒 LOCK ROOM TO ENABLE TEAMS';
-    lockBtn.disabled = _isLocked;
+    lockBtn.textContent = _isLocked ? '🔓 UNLOCK ROOM' : '🔒 LOCK ROOM TO ENABLE TEAMS';
+    lockBtn.disabled = false;
   }
 
   // Toggle button styles
