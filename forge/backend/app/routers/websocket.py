@@ -349,6 +349,35 @@ async def websocket_endpoint(
                     },
                 })
 
+            # ── unlock_room (host only) ────────────────────────────────────
+            elif action == "unlock_room":
+                if player_name != room.host:
+                    continue
+                room.locked = False
+                # If room was in Team Mode, force it back to Classic when unlocking
+                # since Team Mode requires a fixed/locked roster.
+                room.play_mode = PlayMode.CLASSIC
+                await broadcast(room_code, {
+                    "type": "LOBBY_MODE_CHANGED",
+                    "data": {
+                        "mode":       room.play_mode.value,
+                        "locked":     False,
+                        "team_names": dict(room.team_names),
+                        "teams":      dict(room.teams),
+                    },
+                })
+                await broadcast(room_code, {
+                    "type": "PLAYER_JOINED",
+                    "data": {
+                        "players":    list(room.players.keys()),
+                        "lobby_mode": room.play_mode.value,
+                        "locked":     False,
+                        "teams":      dict(room.teams),
+                        "team_names": dict(room.team_names),
+                        "team_topics":dict(room.team_topics),
+                    },
+                })
+
             # ── set_lobby_mode (host only) ─────────────────────────────────
             elif action == "set_lobby_mode":
                 if player_name != room.host:

@@ -677,13 +677,18 @@ function lobbySetMode(mode) {
   _updateStartBtns();
 }
 
-/** Host locks the room — prevents further joins and enables Team Mode */
+/** Host toggles the room lock — prevents/allows further joins */
 function lobbyLockRoom() {
-  if (_isLocked) return;
   Sound.click();
-  WS.send({ action: 'lock_room' });
-  // Local update for immediate feedback
-  _isLocked = true;
+  if (_isLocked) {
+    WS.send({ action: 'unlock_room' });
+    // Local update for immediate feedback
+    _isLocked = false;
+    _lobbyMode = 'classic'; // Backend will force this too
+  } else {
+    WS.send({ action: 'lock_room' });
+    _isLocked = true;
+  }
   _applyModeUI();
 }
 
