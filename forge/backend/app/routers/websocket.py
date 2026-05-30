@@ -298,6 +298,10 @@ async def websocket_endpoint(
             await send_to(websocket, {"type": "ERROR", "data": {"message": "Game already in progress"}})
             await websocket.close()
             return
+        if room.locked:
+            await send_to(websocket, {"type": "ERROR", "data": {"message": "Room is locked by host"}})
+            await websocket.close()
+            return
         if room.play_mode == PlayMode.SOLO and player_name != room.host:
             await send_to(websocket, {"type": "ERROR", "data": {"message": "Solo rooms are private"}})
             await websocket.close()
@@ -309,6 +313,7 @@ async def websocket_endpoint(
     joined_data: dict[str, Any] = {
         "players":    list(room.players.keys()),
         "lobby_mode": room.play_mode.value,
+        "locked":     room.locked,
     }
     if room.play_mode == PlayMode.TEAM:
         joined_data["teams"]       = dict(room.teams)
@@ -327,13 +332,35 @@ async def websocket_endpoint(
 
             action = msg.get("action")
 
+            # ── lock_room (host only) ──────────────────────────────────────
+            if action == "lock_room":
+                if player_name != room.host:
+                    continue
+                room.locked = True
+                await broadcast(room_code, {
+                    "type": "PLAYER_JOINED",
+                    "data": {
+                        "players":    list(room.players.keys()),
+                        "lobby_mode": room.play_mode.value,
+                        "locked":     True,
+                        "teams":      dict(room.teams),
+                        "team_names": dict(room.team_names),
+                        "team_topics":dict(room.team_topics),
+                    },
+                })
+
             # ── set_lobby_mode (host only) ─────────────────────────────────
-            if action == "set_lobby_mode":
+            elif action == "set_lobby_mode":
                 if player_name != room.host:
                     continue
                 if room.status != GameStatus.WAITING:
                     continue
+                # If switching to Team Mode, room MUST be locked
                 requested = str(msg.get("mode", "classic")).lower()
+                if requested == "team" and not room.locked:
+                    await send_to(websocket, {"type": "ERROR", "data": {"message": "Lock room first to enable Team Mode"}})
+                    continue
+
                 try:
                     new_mode = PlayMode(requested)
                 except ValueError:
@@ -348,6 +375,7 @@ async def websocket_endpoint(
                     "type": "LOBBY_MODE_CHANGED",
                     "data": {
                         "mode":       new_mode.value,
+                        "locked":     room.locked,
                         "team_names": dict(room.team_names),
                         "teams":      dict(room.teams),
                     },
@@ -358,6 +386,7 @@ async def websocket_endpoint(
                     "data": {
                         "players":    list(room.players.keys()),
                         "lobby_mode": new_mode.value,
+                        "locked":     room.locked,
                         "teams":      dict(room.teams),
                         "team_names": dict(room.team_names),
                         "team_topics":dict(room.team_topics),

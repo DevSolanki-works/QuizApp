@@ -69,9 +69,22 @@
   .mode-toggle-wrap {
     width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 8px;
   }
+  .mode-toggle-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
   .mode-toggle-label {
     font-family: var(--font-pixel); font-size: 8px;
     color: var(--yellow); letter-spacing: 0.5px;
+  }
+  .lock-status-badge {
+    font-family: var(--font-pixel); font-size: 6px;
+    padding: 4px 8px; border-radius: var(--radius-pill);
+    background: rgba(239,35,60,0.15); border: 1px solid rgba(239,35,60,0.4);
+    color: var(--red);
+  }
+  .lock-status-badge.is-locked {
+    background: rgba(6,214,160,0.15); border: 1px solid rgba(6,214,160,0.4);
+    color: var(--green);
   }
   .mode-toggle {
     display: grid; grid-template-columns: 1fr 1fr;
@@ -94,6 +107,20 @@
   .mode-toggle-btn.active-team {
     background: linear-gradient(135deg, #7B2FBE, #9B5DE5);
     color: #fff; box-shadow: 0 2px 8px rgba(155,93,229,0.4);
+  }
+  .mode-toggle-btn:disabled {
+    opacity: 0.3; cursor: not-allowed;
+  }
+
+  .btn-lock {
+    margin-top: 8px; height: 36px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+    color: var(--white); font-family: var(--font-pixel); font-size: 7px;
+    border-radius: var(--radius-pill); cursor: pointer;
+  }
+  .btn-lock.is-locked {
+    background: rgba(6,214,160,0.12); border-color: var(--green);
+    color: var(--green); pointer-events: none;
   }
 
   /* Guest mode badge */
@@ -362,15 +389,19 @@
 
   <!-- MODE TOGGLE — host only, non-solo -->
   <div class="mode-toggle-wrap z1" id="mode-toggle-wrap" style="display:none;">
-    <p class="mode-toggle-label">GAME MODE</p>
+    <div class="mode-toggle-header">
+      <p class="mode-toggle-label">GAME MODE</p>
+      <div id="lock-status" class="lock-status-badge">🔓 OPEN</div>
+    </div>
     <div class="mode-toggle">
       <button class="mode-toggle-btn active-classic" id="toggle-classic" onclick="lobbySetMode('classic')">
         🎮 CLASSIC
       </button>
-      <button class="mode-toggle-btn" id="toggle-team" onclick="lobbySetMode('team')">
+      <button class="mode-toggle-btn" id="toggle-team" onclick="lobbySetMode('team')" disabled>
         ⚔️ TEAM
       </button>
     </div>
+    <button id="btn-lock-room" class="btn-lock" onclick="lobbyLockRoom()">🔒 LOCK ROOM TO ENABLE TEAMS</button>
   </div>
 
   <!-- Guest mode indicator -->
@@ -507,6 +538,7 @@ let _teamNames  = State.teamNames || { A:'Red Dragons', B:'Blue Phoenix' };
 let _teamTopics = { A:'', B:'' };
 let _myTeamId   = (_teams[State.playerName]) || null;
 let _lobbyMode  = State.playMode || 'classic'; // 'classic' | 'team'
+let _isLocked   = false;  // Room lock state
 let _pushTimer  = null;   // Debounce for set_team_info
 
 /* ─────────────────────────────────────────────────────────── */
@@ -521,6 +553,7 @@ function onLobbyShow() {
   _teamTopics = { A:'', B:'' }; //Topics usually only come via WS
   _myTeamId   = _teams[State.playerName] || null;
   _lobbyMode  = State.playMode || 'classic';
+  _isLocked   = false; // Default to open, will be synced by PLAYER_JOINED
   if (_pushTimer) { clearTimeout(_pushTimer); _pushTimer = null; }
 
   const isSolo = State.playMode === 'solo';
@@ -557,6 +590,7 @@ function onLobbyShow() {
   /* ── WebSocket subscriptions ── */
   WS.on('PLAYER_JOINED', (data) => {
     State.players = data.players;
+    if (data.locked !== undefined) _isLocked = data.locked;
 
     // Absorb any team state the server echoes back
     if (data.teams) {
@@ -572,9 +606,9 @@ function onLobbyShow() {
     // Always update mode from server
     if (data.lobby_mode) {
       _lobbyMode = data.lobby_mode;
-      _applyModeUI();
     }
 
+    _applyModeUI();
     _renderPlayerList(data.players);
     if (_lobbyMode === 'team') _renderTeamColumns();
     _updateStartBtns();
@@ -584,6 +618,7 @@ function onLobbyShow() {
   WS.on('LOBBY_MODE_CHANGED', (data) => {
     // Host switched mode — guests need to react
     _lobbyMode = data.mode;
+    if (data.locked !== undefined) _isLocked = data.locked;
     if (data.teams)      _teams     = data.teams;
     if (data.team_names) _teamNames = data.team_names;
     _applyModeUI();
@@ -642,9 +677,19 @@ function lobbySetMode(mode) {
   _updateStartBtns();
 }
 
+/** Host locks the room — prevents further joins and enables Team Mode */
+function lobbyLockRoom() {
+  if (_isLocked) return;
+  Sound.click();
+  WS.send({ action: 'lock_room' });
+  // Local update for immediate feedback
+  _isLocked = true;
+  _applyModeUI();
+}
+
 /**
  * Show/hide the correct panel (classic vs team) based on _lobbyMode.
- * Also updates toggle button styles.
+ * Also updates toggle button styles and lock state.
  */
 function _applyModeUI() {
   const classicPanel = document.getElementById('classic-panel');
@@ -657,6 +702,19 @@ function _applyModeUI() {
   const teamGuestWait= document.getElementById('team-guest-waiting');
   const isSolo = State.playMode === 'solo';
 
+  // Lock status UI
+  const lockBadge = document.getElementById('lock-status');
+  if (lockBadge) {
+    lockBadge.className = 'lock-status-badge' + (_isLocked ? ' is-locked' : '');
+    lockBadge.textContent = _isLocked ? '🔒 LOCKED' : '🔓 OPEN';
+  }
+  const lockBtn = document.getElementById('btn-lock-room');
+  if (lockBtn) {
+    lockBtn.className = 'btn-lock' + (_isLocked ? ' is-locked' : '');
+    lockBtn.textContent = _isLocked ? '✓ ROOM LOCKED' : '🔒 LOCK ROOM TO ENABLE TEAMS';
+    lockBtn.disabled = _isLocked;
+  }
+
   // Toggle button styles
   const btnClassic = document.getElementById('toggle-classic');
   const btnTeam    = document.getElementById('toggle-team');
@@ -665,6 +723,8 @@ function _applyModeUI() {
   }
   if (btnTeam) {
     btnTeam.className = 'mode-toggle-btn' + (_lobbyMode === 'team' ? ' active-team' : '');
+    // TEAM mode only clickable if room is locked
+    btnTeam.disabled = !_isLocked;
   }
 
   if (_lobbyMode === 'classic') {
