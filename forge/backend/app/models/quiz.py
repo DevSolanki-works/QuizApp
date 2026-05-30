@@ -118,3 +118,4 @@ class Room(BaseModel):
     topic: str = ""
 
     model_config = {"arbitrary_types_allowed": True}
+hhh
