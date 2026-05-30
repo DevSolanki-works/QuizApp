@@ -112,15 +112,25 @@
     opacity: 0.3; cursor: not-allowed;
   }
 
+  .z1 { position: relative; z-index: 10; pointer-events: auto; }
+
   .btn-lock {
     margin-top: 8px; height: 36px;
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
     color: var(--white); font-family: var(--font-pixel); font-size: 7px;
     border-radius: var(--radius-pill); cursor: pointer;
+    pointer-events: auto !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-lock:hover {
+    background: rgba(255,255,255,0.12);
   }
   .btn-lock.is-locked {
     background: rgba(6,214,160,0.12); border-color: var(--green);
-    color: var(--green); pointer-events: none;
+    color: var(--green);
+  }
+  .btn-lock.is-locked:hover {
+    background: rgba(6,214,160,0.2);
   }
 
   /* Guest mode badge */
@@ -679,12 +689,11 @@ function lobbySetMode(mode) {
 
 /** Host toggles the room lock — prevents/allows further joins */
 function lobbyLockRoom() {
-  Sound.click();
+  try { Sound.click(); } catch(e){}
   if (_isLocked) {
     WS.send({ action: 'unlock_room' });
-    // Local update for immediate feedback
     _isLocked = false;
-    _lobbyMode = 'classic'; // Backend will force this too
+    _lobbyMode = 'classic';
   } else {
     WS.send({ action: 'lock_room' });
     _isLocked = true;
