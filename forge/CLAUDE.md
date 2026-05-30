@@ -364,7 +364,41 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 - Streak multiplier applies AFTER the base score calculation. Points shown in `points_gained` already reflect the multiplier so the leaderboard "+1350" is accurate. Timed-out players (no answer sent) have streak reset server-side in `resolve_round` before `_round_payload` reads streaks, ensuring the broadcast is always correct.
 ---
 
-## 📝 Claude's Instructions
+## 🚀 Recent Feature Updates (Milestone 21-22)
+
+### 1. Room Locking System
+- **Mandatory Finalization**: The Host must now click **"LOCK ROOM"** before the **Team Mode** toggle becomes available.
+- **Join Prevention**: Once locked, no new players can enter the room, ensuring a stable player list for team configuration.
+- **Toggleable**: The host can unlock the room at any time. Unlocking while in Team Mode automatically reverts the room to **Classic Mode** for safety.
+
+### 2. Team Host System
+- **Team Leadership**: The first person to join **Team A** becomes the **Host of Team A**. Same for **Team B**.
+- **Topic Restrictions**: Only the Team Host can write or edit the topic suggestion for their team. Other members see a waiting message.
+- **Main Host Enjection**: The Room Creator (Main Host) is now required to join a team before the Team Mode game can be started.
+
+### 3. Team Swapping
+- **Flexibility**: Regular players (non-Team Hosts) can now use the **"SWAP TEAM"** button to switch sides if they joined the wrong team by mistake.
+- **Stability**: Team Hosts cannot swap teams; they must remain to lead their team's topic selection.
+
+### 4. Input Stability (The "Typing Fix")
+- **Focus Preservation**: The lobby UI now preserves input focus and cursor position during real-time re-renders.
+- **Debounced Updates**: Team names and topics are updated via WebSockets with a 400ms debounce to prevent network congestion and UI stutter.
+
+---
+
+## 📋 Technical Guidelines
+- **Real-time Sync**: Use `PLAYER_JOINED` broadcasts to sync all lobby state (Mode, Teams, Locking).
+- **Frontend State**: Initialize `lobby.html` state from global `State` to ensure instant UI sync for late-joiners.
+- **Clean Transitions**: Always ensure `_applyModeUI()` is called when mode or lock status changes.
+- **Security**: Prevent non-hosts from sending privileged actions (`lock_room`, `set_lobby_mode`).
+
+## ✅ Compliance Checklist
+- [x] Room Locking for Team Mode stability.
+- [x] Team Host role for topic selection.
+- [x] Team Swapping for regular players.
+- [x] Input focus preservation & debouncing.
+- [x] Late-join synchronization logic.
+- [x] Privacy/Policy links and mobile responsive UI.
 1. Always write **clean, commented code** with docstrings on every function.
 2. Explain the **"why"** behind async/WebSocket logic.
 3. Provide code in **modular chunks** — one file at a time.
