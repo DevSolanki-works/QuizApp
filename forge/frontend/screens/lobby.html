@@ -878,12 +878,21 @@ function _renderTeamColumns() {
         : (teamHost ? `<p class="team-empty-note">WAITING FOR ${teamHost.toUpperCase()}<br>TO PICK A TOPIC</p>` : ''));
 
     // Join button: show if not yet in any team; show "✓ JOINED" if on this team
+    // SWAP TEAM button: show if joined other team AND NOT that team's host
     let joinHtml = '';
     if (_myTeamId === null) {
       joinHtml = `<button class="team-join-btn ${btnClass}" onclick="lobbyJoinTeam('${tid}')">JOIN TEAM</button>`;
     } else if (myCol) {
       const label = isTeamHost ? '✓ TEAM HOST' : '✓ JOINED';
       joinHtml = `<button class="team-join-btn ${btnClass} joined" disabled>${label}</button>`;
+    } else {
+      // We are in the other team. Can we swap?
+      // Only if we are NOT the host of our CURRENT team.
+      const currentTeamHost = _getTeamHost(_myTeamId);
+      const isHostOfCurrent = (State.playerName === currentTeamHost);
+      if (!isHostOfCurrent) {
+        joinHtml = `<button class="team-join-btn ${btnClass}" onclick="lobbySwapTeam('${tid}')">SWAP TEAM</button>`;
+      }
     }
 
     html += `
@@ -924,6 +933,15 @@ function lobbyJoinTeam(teamId) {
   _myTeamId = teamId;
   _teams[State.playerName] = teamId;
   WS.send({ action: 'join_team', team_id: teamId });
+  _renderTeamColumns();
+}
+
+/** Player (if not Team Host) swaps to the other team */
+function lobbySwapTeam(newTeamId) {
+  Sound.click();
+  _myTeamId = newTeamId;
+  _teams[State.playerName] = newTeamId;
+  WS.send({ action: 'join_team', team_id: newTeamId });
   _renderTeamColumns();
 }
 
