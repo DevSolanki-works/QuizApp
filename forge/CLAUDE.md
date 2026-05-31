@@ -310,8 +310,8 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 | Channel | Status |
 |---------|--------|
 | Google AdSense | ✅ Applied — review pending (1–3 days) |
-| AdSense code | Added to all 7 frontend HTML files |
-| ads.txt | ✅ Live at forgetrivia.online/ads.txt |
+| AdSense code | ✅ Added to all 7 frontend HTML files (including screens) |
+| ads.txt / app-ads.txt | ✅ Both live at forgetrivia.online/ |
 | Identity verify (PAN) | ⏳ Physical PAN arriving in ~15 days — earnings accumulate until then |
 | Play Store | ⏳ On hold until physical ID document available |
 
