@@ -309,10 +309,39 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 
 | Channel | Status |
 |---------|--------|
-| Monetag Ads | ❌ Disabled (Multi Tag removed due to excessive frequency) |
-| sw.js | ✅ Service Worker ready at `frontend/sw.js` |
+| Monetag Ads | ✅ Active (Popunder: Results | In-Page: Home | Banner: Top) |
+| sw.js | ✅ Service Worker at `frontend/sw.js` (Zone: 11086444) |
+| Layout | ✅ Persistent 60px Top Banner Header in `index.html` |
 | Identity verify | ⏳ Physical PAN arriving in ~15 days |
 | Play Store | ⏳ On hold until physical ID document available |
+
+---
+
+## Milestone 19 - Monetag Strategic Integration (June 1, 2026)
+
+Re-integrated Monetag with a focus on user experience and visibility.
+
+### Changes Made
+
+**`frontend/index.html`**
+- Defined `--header-h: 60px` and reserved persistent `<header id="app-header">` at the top.
+- Adjusted `.screen` layout to calculate height minus both header and footer, preventing overlap.
+- Repositioned mute button to avoid conflict with top banner ads.
+- Injected persistent In-Page/Banner script into the new header container.
+
+**`frontend/screens/results.html`**
+- Added `_triggerPopunder()` to the results show hook, ensuring ads only fire after a full game.
+
+**`frontend/screens/home.html`**
+- Added `_triggerInPageAd()` to the home show hook for non-intrusive ad delivery on the main menu.
+
+### Monetization Checklist
+| Requirement | Status |
+|-------------|--------|
+| Popunder Ad | ✅ Results Screen |
+| In-Page Ad | ✅ Home Screen |
+| Top Banner Ad | ✅ Persistent (60px) |
+| Site-wide sw.js | ✅ frontend/sw.js |
 
 ---
 
