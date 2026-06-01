@@ -309,8 +309,8 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 
 | Channel | Status |
 |---------|--------|
-| Monetag Ads | ✅ Switched to Monetag after AdSense denial |
-| sw.js | ✅ Service Worker for Monetag verification at `frontend/sw.js` |
+| Monetag Ads | ❌ Disabled (Multi Tag removed due to excessive frequency) |
+| sw.js | ✅ Service Worker ready at `frontend/sw.js` |
 | Identity verify | ⏳ Physical PAN arriving in ~15 days |
 | Play Store | ⏳ On hold until physical ID document available |
 
