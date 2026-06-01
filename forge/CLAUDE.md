@@ -309,9 +309,10 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 
 | Channel | Status |
 |---------|--------|
-| Monetag Ads | ✅ Active (Popunder: Results | In-Page: Home | Banner: Top) |
+| Monetag Ads | ✅ Active (Vignette: End of Game | Popunder: Navigation | Banner: Top) |
 | sw.js | ✅ Service Worker at `frontend/sw.js` (Zone: 11086444) |
 | Layout | ✅ Persistent 60px Top Banner Header in `index.html` |
+| Frequency | ✅ Once per quiz (Room-based tracking) |
 | Identity verify | ⏳ Physical PAN arriving in ~15 days |
 | Play Store | ⏳ On hold until physical ID document available |
 

@@ -222,7 +222,7 @@ function onResultsShow() {
   _confettiBurst();
 
   const topicEl = document.getElementById('results-topic');
-  if (topicEl) topicEl.textContent = `🎯 ${State.topic || 'Trivia'}`;
+  if (topicEl) topicEl.textContent = "🎯 " + (State.topic || "Trivia");
 
   const isSolo  = State.playMode === 'solo';
   const isTeam  = State.playMode === 'team';
@@ -296,8 +296,8 @@ function onResultsShow() {
   _renderEconomyResult();
   setTimeout(() => Sound.startBgMusic(), 1200);
 
-  // Trigger Popunder ad after game completion
-  _triggerPopunder();
+  // 1. Trigger Vignette ad immediately on results (once per quiz)
+  _triggerVignette();
 }
 
 function _renderEconomyResult() {
@@ -310,15 +310,36 @@ function _renderEconomyResult() {
   }
   const coinDelta = Number(economy.coins_delta || 0);
   const trophyDelta = Number(economy.trophies_delta || 0);
+  
+  // Define helper locally since it's used here
+  const fmt = (n) => Number(n || 0).toLocaleString();
+  
   const coinText = coinDelta === 0
     ? '0 COINS'
-    : `${coinDelta > 0 ? '+' : ''}${formatCoins(coinDelta)} COINS`;
+    : (coinDelta > 0 ? '+' : '') + fmt(coinDelta) + ' COINS';
   const trophyText = trophyDelta === 0
     ? '0 TROPHIES'
-    : `${trophyDelta > 0 ? '+' : ''}${trophyDelta} TROPHIES`;
-  el.textContent = `${coinText} · ${trophyText} · BALANCE ${formatCoins(economy.coins)} COINS / ${Number(economy.trophies || 0).toLocaleString()} TROPHIES`;
+    : (trophyDelta > 0 ? '+' : '') + fmt(trophyDelta) + ' TROPHIES';
+  el.textContent = coinText + ' · ' + trophyText + ' · BALANCE ' + fmt(economy.coins) + ' COINS / ' + fmt(economy.trophies) + ' TROPHIES';
 }
-/* ── AD TRIGGER ─────────────────────────────────────────── */
+
+/* ── AD TRIGGERS ─────────────────────────────────────────── */
+function _triggerVignette() {
+  if (!State.scores || Object.keys(State.scores).length === 0) return;
+  
+  // Only trigger ONCE per room/quiz
+  if (window._lastVignetteRoom === State.roomCode) return;
+  window._lastVignetteRoom = State.roomCode;
+
+  // Execute Monetag Vignette script
+  const s = document.createElement('script');
+  s.id = 'monetag-vignette';
+  s.dataset.zone='11087559';
+  s.src='https://n6wxm.com/vignette.min.js';
+  const container = [document.documentElement, document.body].filter(Boolean).pop();
+  container.appendChild(s);
+}
+
 function _triggerPopunder() {
   // Only trigger if we have scores (indicates a game was actually completed)
   if (!State.scores || Object.keys(State.scores).length === 0) return;
@@ -327,7 +348,7 @@ function _triggerPopunder() {
   if (window._lastPopunderRoom === State.roomCode) return;
   window._lastPopunderRoom = State.roomCode;
 
-  // Execute Monetag Popunder script as provided by user
+  // Execute Monetag Popunder script
   const s = document.createElement('script');
   s.id = 'monetag-popunder';
   s.dataset.zone='11087153';
@@ -337,15 +358,15 @@ function _triggerPopunder() {
   container.appendChild(s);
 }
 
-function _cleanupAd() {
-  const s = document.getElementById('monetag-popunder');
-  if (s) s.remove();
+function _cleanupAds() {
+  ['monetag-popunder', 'monetag-vignette'].forEach(id => {
+    const s = document.getElementById(id);
+    if (s) s.remove();
+  });
 }
 
-/* ── ACTIONS ─────────────────────────────────────────────── */
-async function resultsPlayAgain() {
-  _cleanupAd();
-  if (!State.user?.id) {
+/* ── TEAM WINNER BANNER ─────────────────────────────────── */
+function _renderTeamWinner() {
   const section    = document.getElementById('team-winner-section');
   const teamScores = State.teamScores || {};
   const teamNames  = State.teamNames  || { A: 'Team A', B: 'Team B' };
@@ -355,28 +376,27 @@ async function resultsPlayAgain() {
   const tie    = scoreA === scoreB;
 
   let winTeamId   = tie ? null : (scoreA > scoreB ? 'A' : 'B');
-  let bannerClass = tie ? 'tie' : `team-${winTeamId.toLowerCase()}`;
+  let bannerClass = tie ? 'tie' : "team-" + winTeamId.toLowerCase();
   let emoji       = tie ? '🤝' : (winTeamId === 'A' ? '🔴' : '🔵');
-  let winnerName  = tie ? 'IT\'S A TIE!' : (teamNames[winTeamId] || `Team ${winTeamId}`);
+  let winnerName  = tie ? "IT'S A TIE!" : (teamNames[winTeamId] || ("Team " + winTeamId));
   let label       = tie ? 'BOTH TEAMS MATCHED!' : 'TEAM WINS!';
 
-  section.innerHTML = `
-    <div class="team-winner-banner ${bannerClass}">
-      <span class="team-winner-emoji">${emoji}</span>
-      <p class="team-winner-label">${label}</p>
-      <p class="team-winner-name">${_escHtml(winnerName)}</p>
-      <div class="team-score-row">
-        <div class="team-score-cell team-a">
-          <p class="team-score-cell-name">${_escHtml(teamNames['A'] || 'Team A')}</p>
-          <p class="team-score-cell-pts">${scoreA.toLocaleString()}</p>
-        </div>
-        <span class="team-vs-divider">VS</span>
-        <div class="team-score-cell team-b">
-          <p class="team-score-cell-name">${_escHtml(teamNames['B'] || 'Team B')}</p>
-          <p class="team-score-cell-pts">${scoreB.toLocaleString()}</p>
-        </div>
-      </div>
-    </div>`;
+  section.innerHTML = '<div class="team-winner-banner ' + bannerClass + '">' +
+    '<span class="team-winner-emoji">' + emoji + '</span>' +
+    '<p class="team-winner-label">' + label + '</p>' +
+    '<p class="team-winner-name">' + _escHtml(winnerName) + '</p>' +
+    '<div class="team-score-row">' +
+      '<div class="team-score-cell team-a">' +
+        '<p class="team-score-cell-name">' + _escHtml(teamNames['A'] || 'Team A') + '</p>' +
+        '<p class="team-score-cell-pts">' + scoreA.toLocaleString() + '</p>' +
+      '</div>' +
+      '<span class="team-vs-divider">VS</span>' +
+      '<div class="team-score-cell team-b">' +
+        '<p class="team-score-cell-name">' + _escHtml(teamNames['B'] || 'Team B') + '</p>' +
+        '<p class="team-score-cell-pts">' + scoreB.toLocaleString() + '</p>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
 }
 
 /* ── SOLO ────────────────────────────────────────────────── */
@@ -386,13 +406,13 @@ function _renderSoloResult() {
   const accuracy = (stats.accuracy_percentages && stats.accuracy_percentages[State.playerName]) || 0;
   const correct  = (stats.correct_answers      && stats.correct_answers[State.playerName])      || 0;
   const total    = stats.total_questions || State.totalQ || 10;
-  const storageKey = `forge.solo.highScore.${State.mode || 'medium'}`;
+  const storageKey = "forge.solo.highScore." + (State.mode || 'medium');
   let prev = 0;
   try { prev = Number(localStorage.getItem(storageKey)) || 0; } catch {}
   const highScore = Math.max(prev, score);
   if (highScore > prev) { try { localStorage.setItem(storageKey, String(highScore)); } catch {} }
   document.getElementById('my-result-score').textContent  = score.toLocaleString();
-  document.getElementById('solo-accuracy').textContent    = `${accuracy}% (${correct}/${total})`;
+  document.getElementById('solo-accuracy').textContent    = accuracy + "% (" + correct + "/" + total + ")";
   document.getElementById('solo-high-score').textContent  = highScore.toLocaleString();
   document.getElementById('solo-best-note').textContent   = score > prev ? 'NEW PERSONAL BEST!' : 'KEEP IT UP!';
   document.getElementById('my-result-rank').textContent   = 'SOLO MODE';
@@ -406,20 +426,20 @@ function _renderPodium(sorted, isTeam) {
   const medals = ['🥇','🥈','🥉'];
   const pClass = ['p1','p2','p3'];
   const teams  = State.teams || {};
-  const tNames = State.teamNames || {};
-  wrap.innerHTML = top3.map(([name, score], i) => {
+  wrap.innerHTML = top3.map((entry, i) => {
+    const name = entry[0];
+    const score = entry[1];
     const isYou  = name === State.playerName;
     const teamId = isTeam ? teams[name] : null;
     const teamTag = teamId
-      ? `<small style="font-size:9px;opacity:0.6;">${teamId==='A'?'🔴':'🔵'}</small> `
+      ? '<small style="font-size:9px;opacity:0.6;">' + (teamId==='A'?'🔴':'🔵') + '</small> '
       : '';
-    return `
-      <div class="podium-slot ${pClass[i]}">
-        <span class="podium-medal">${medals[i]}</span>
-        <p class="podium-name ${isYou?'is-you':''}">${teamTag}${_escHtml(name)}</p>
-        <p class="podium-pts">${score.toLocaleString()}</p>
-        <div class="podium-block ${pClass[i]}">${i+1}</div>
-      </div>`;
+    return '<div class="podium-slot ' + pClass[i] + '">' +
+        '<span class="podium-medal">' + medals[i] + '</span>' +
+        '<p class="podium-name ' + (isYou?'is-you':'') + '">' + teamTag + _escHtml(name) + '</p>' +
+        '<p class="podium-pts">' + score.toLocaleString() + '</p>' +
+        '<div class="podium-block ' + pClass[i] + '">' + (i+1) + '</div>' +
+      '</div>';
   }).join('');
 }
 
@@ -429,34 +449,35 @@ function _renderFullLB(sorted, maxScore, isTeam) {
   if (!list) return;
   const medals = ['🥇','🥈','🥉'];
   const teams  = State.teams || {};
-  list.innerHTML = sorted.map(([name, score], i) => {
+  list.innerHTML = sorted.map((entry, i) => {
+    const name = entry[0];
+    const score = entry[1];
     const rank    = i + 1;
     const isYou   = name === State.playerName;
-    const rankStr = rank <= 3 ? medals[i] : `#${rank}`;
+    const rankStr = rank <= 3 ? medals[i] : "#" + rank;
     const barPct  = Math.round((score / maxScore) * 100);
     const teamId  = isTeam ? teams[name] : null;
-    const teamDot = teamId ? `<span class="rlb-team-dot team-${teamId.toLowerCase()}"></span>` : '';
-    return `
-      <div class="results-lb-row ${isYou?'is-you':''}" style="animation-delay:${i*0.05}s;">
-        <div class="rlb-main">
-          <span class="rlb-rank">${rankStr}</span>
-          ${teamDot}
-          <span class="rlb-name ${isYou?'is-you':''}">${_escHtml(name)}${isYou?' ✦':''}</span>
-          <span class="rlb-score">${score.toLocaleString()}</span>
-        </div>
-        <div class="rlb-bar-wrap"><div class="rlb-bar-fill" style="width:${barPct}%"></div></div>
-      </div>`;
+    const teamDot = teamId ? '<span class="rlb-team-dot team-' + teamId.toLowerCase() + '"></span>' : '';
+    return '<div class="results-lb-row ' + (isYou?'is-you':'') + '" style="animation-delay:' + (i*0.05) + 's;">' +
+        '<div class="rlb-main">' +
+          '<span class="rlb-rank">' + rankStr + '</span>' +
+          teamDot +
+          '<span class="rlb-name ' + (isYou?'is-you':'') + '">' + _escHtml(name) + (isYou?' ✦':'') + '</span>' +
+          '<span class="rlb-score">' + score.toLocaleString() + '</span>' +
+        '</div>' +
+        '<div class="rlb-bar-wrap"><div class="rlb-bar-fill" style="width:' + barPct + '%"></div></div>' +
+      '</div>';
   }).join('');
 }
 
 /* ── MY RESULT ───────────────────────────────────────────── */
 function _renderMyResult(sorted) {
-  const myIdx  = sorted.findIndex(([n]) => n === State.playerName);
+  const myIdx  = sorted.findIndex(n => n[0] === State.playerName);
   const myScore= myIdx >= 0 ? sorted[myIdx][1] : 0;
   const myRank = myIdx + 1;
   const total  = sorted.length;
   document.getElementById('my-result-score').textContent = myScore.toLocaleString();
-  const rankLabel = myRank===1 ? '🏆 WINNER!' : myRank===2 ? '🥈 2nd Place' : myRank===3 ? '🥉 3rd Place' : `#${myRank} of ${total} players`;
+  const rankLabel = myRank===1 ? '🏆 WINNER!' : myRank===2 ? '🥈 2nd Place' : myRank===3 ? '🥉 3rd Place' : "#" + myRank + " of " + total + " players";
   document.getElementById('my-result-rank').textContent = rankLabel;
 }
 
@@ -471,7 +492,7 @@ function _confettiBurst() {
     const dist  = 60 + Math.random() * 180;
     const tx = Math.cos(angle) * dist;
     const ty = Math.sin(angle) * dist + 80;
-    el.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;width:8px;height:8px;border-radius:50%;background:${cols[i%cols.length]};pointer-events:none;z-index:9999;animation:confetti-fall 1s ease-out both;--tx:${tx}px;--ty:${ty}px;`;
+    el.style.cssText = "position:fixed;left:" + cx + "px;top:" + cy + "px;width:8px;height:8px;border-radius:50%;background:" + cols[i%cols.length] + ";pointer-events:none;z-index:9999;animation:confetti-fall 1s ease-out both;--tx:" + tx + "px;--ty:" + ty + "px;";
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1500);
   }
@@ -479,6 +500,10 @@ function _confettiBurst() {
 
 /* ── ACTIONS ─────────────────────────────────────────────── */
 async function resultsPlayAgain() {
+  // 2. Trigger Popunder ad on navigation (once per quiz)
+  _triggerPopunder();
+
+  _cleanupAds();
   if (!State.user?.id) {
     Toast.error('Sign in with Google to save coins and trophies.');
     resultsGoHome();
@@ -495,7 +520,12 @@ async function resultsPlayAgain() {
     } catch(e) { Toast.error('Error creating room'); }
   } else { resultsGoHome(); }
 }
+
 function resultsGoHome() {
+  // 2. Trigger Popunder ad on navigation (once per quiz)
+  _triggerPopunder();
+
+  _cleanupAds();
   State.roomCode = ''; State.players = []; State.scores = {};
   State.teams = {}; State.teamScores = {};
   if (State.ws) { State.ws.close(); State.ws = null; }
