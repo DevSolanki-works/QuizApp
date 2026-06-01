@@ -289,6 +289,21 @@ function onResultsShow() {
 
   if (State.ws) { State.ws.close(); State.ws = null; }
   setTimeout(() => Sound.startBgMusic(), 1200);
+
+  // Trigger Popunder ad after game completion
+  _triggerPopunder();
+}
+
+/* ── AD TRIGGER ─────────────────────────────────────────── */
+function _triggerPopunder() {
+  // Only trigger if we have scores (indicates a game was actually completed)
+  if (!State.scores || Object.keys(State.scores).length === 0) return;
+
+  // Execute Monetag Popunder script as provided by user
+  (function(s){
+    s.dataset.zone='11087153';
+    s.src='https://al5sm.com/tag.min.js';
+  })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
 }
 
 /* ── TEAM WINNER BANNER ─────────────────────────────────── */
