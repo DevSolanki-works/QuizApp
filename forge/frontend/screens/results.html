@@ -344,9 +344,20 @@ function _triggerPopunder() {
   // Only trigger if we have scores (indicates a game was actually completed)
   if (!State.scores || Object.keys(State.scores).length === 0) return;
 
-  // Only trigger ONCE per room/quiz
+  // 1. Per-room capping (already exists)
   if (window._lastPopunderRoom === State.roomCode) return;
+
+  // 2. Time-based capping (5 minute cooldown)
+  const now = Date.now();
+  const cooldownMs = 5 * 60 * 1000; // 5 minutes
+  if (window._lastPopunderTime && (now - window._lastPopunderTime < cooldownMs)) {
+    console.log('[Ads] Popunder cooldown active');
+    return;
+  }
+
+  // Update tracking
   window._lastPopunderRoom = State.roomCode;
+  window._lastPopunderTime = now;
 
   // Execute Monetag Popunder script
   const s = document.createElement('script');
