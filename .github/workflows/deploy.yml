@@ -1,0 +1,70 @@
+name: Deploy Forge Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Only trigger when backend files actually change
+      # Frontend changes deploy via Vercel automatically — no need to rebuild Docker
+      - "forge/backend/**"
+      - ".github/workflows/deploy.yml"
+
+jobs:
+  deploy:
+    name: Build & Deploy to Cloud Run
+    runs-on: ubuntu-latest  # Native linux/amd64 — no QEMU, no 10-min builds
+
+    steps:
+      # 1. Check out code
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Authenticate to Google Cloud using the service account key you saved as a secret
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # 3. Set up gcloud CLI
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # 4. Configure Docker to push to Artifact Registry
+      - name: Configure Docker auth
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      # 5. Build the image — runs on native amd64, so no QEMU slowness
+      - name: Build Docker image
+        working-directory: forge/backend
+        run: |
+          docker build \
+            --tag us-central1-docker.pkg.dev/quiz-app-forge/forge/backend:latest \
+            --tag us-central1-docker.pkg.dev/quiz-app-forge/forge/backend:${{ github.sha }} \
+            .
+
+      # 6. Push both tags (latest + commit SHA for rollback)
+      - name: Push Docker image
+        run: |
+          docker push us-central1-docker.pkg.dev/quiz-app-forge/forge/backend:latest
+          docker push us-central1-docker.pkg.dev/quiz-app-forge/forge/backend:${{ github.sha }}
+
+      # 7. Deploy to Cloud Run
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy forge-backend \
+            --image us-central1-docker.pkg.dev/quiz-app-forge/forge/backend:latest \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GEMINI_MODEL=gemini-2.5-flash-lite,GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            --min-instances 0 \
+            --max-instances 3 \
+            --memory 512Mi \
+            --timeout 300 \
+            --quiet
+
+      # 8. Print the live URL so it shows up in the Actions log
+      - name: Show live URL
+        run: |
+          echo "✅ Deployed: https://forge-backend-878124462453.us-central1.run.app"
+          echo "Commit: ${{ github.sha }}"
