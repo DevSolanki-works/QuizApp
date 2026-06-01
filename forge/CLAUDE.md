@@ -642,3 +642,27 @@ economy persistence.
 - WebSocket connections include the signed-in Google profile ID so the server can
   apply authoritative game-end economy deltas.
 - Results and home screens render the synced balances and game-end deltas.
+
+## Milestone 23 — CI/CD Pipeline (GitHub Actions)
+
+Every push to `main` that touches `forge/backend/**` automatically:
+1. Builds a `linux/amd64` Docker image on GitHub's native runners (no QEMU).
+2. Pushes `:latest` + `:<commit-sha>` tags to Artifact Registry.
+3. Deploys to Cloud Run with all env vars injected from GitHub Secrets.
+
+### Required GitHub Secrets
+| Secret | Value |
+|---|---|
+| `GCP_SA_KEY` | Full JSON of `github-actions` service account key |
+| `GEMINI_API_KEY` | Gemini API key |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+
+### Rollback
+```bash
+gcloud run deploy forge-backend \
+  --image us-central1-docker.pkg.dev/quiz-app-forge/forge/backend:<sha> \
+  --region us-central1
+```
+
+### Local deploys (emergency only)
+Still works as before — but prefer pushing to main and letting CI/CD handle it.
