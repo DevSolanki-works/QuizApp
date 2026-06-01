@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # Milestone 17: Google Auth
     GOOGLE_CLIENT_ID: str = ""
 
+    # File-backed profile store. This keeps the $0 infra constraint while
+    # giving Google users durable balances on the running service instance.
+    PROFILE_STORE_PATH: str = "app/data/profiles.json"
+
     class Config:
         # Load from a .env file when present (local dev).
         # In production (Cloud Run), real env vars take precedence automatically.

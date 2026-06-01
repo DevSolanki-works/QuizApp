@@ -586,6 +586,18 @@ const State = {
   teamScores : {},                              // { 'A': pts, 'B': pts }
 };
 
+function formatCoins(value) {
+  const n = Number(value || 0);
+  return Number.isInteger(n) ? n.toLocaleString() : n.toFixed(2);
+}
+
+function applyUserEconomy(economy) {
+  if (!State.user || !economy) return;
+  if (economy.coins !== undefined) State.user.coins = economy.coins;
+  if (economy.trophies !== undefined) State.user.trophies = economy.trophies;
+  Session.save();
+}
+
 // Restore basic state on boot
 const saved = Session.load();
 if (saved) {
@@ -594,6 +606,10 @@ if (saved) {
   State.isHost     = !!saved.isHost;
   State.playMode   = saved.playMode   || 'classic';
   State.user       = saved.user       || null;
+  if (State.user) {
+    if (State.user.coins === undefined) State.user.coins = 200;
+    if (State.user.trophies === undefined) State.user.trophies = 50;
+  }
 }
 
 /* ── ROUTER ─────────────────────────────────────────────── */
@@ -667,7 +683,11 @@ const API = {
     const r = await fetch(`${API_BASE}/rooms/create`, {
       method  : 'POST',
       headers : { 'Content-Type': 'application/json' },
-      body    : JSON.stringify({ host_name: hostName, play_mode: playMode }),
+      body    : JSON.stringify({
+        host_name: hostName,
+        play_mode: playMode,
+        user_id: State.user?.id || null,
+      }),
     });
     if (!r.ok) throw new Error(await r.text());
     return r.json();
@@ -695,7 +715,10 @@ const API = {
 const WS = {
   connect(roomCode, playerName) {
     if (State.ws) { State.ws.close(); State.ws = null; }
-    const url = `${WS_BASE}/ws/${roomCode}/${encodeURIComponent(playerName)}`;
+    const params = State.user?.id
+      ? `?user_id=${encodeURIComponent(State.user.id)}`
+      : '';
+    const url = `${WS_BASE}/ws/${roomCode}/${encodeURIComponent(playerName)}${params}`;
     State.ws = new WebSocket(url);
     State.ws.onopen    = () => console.log('[WS] Connected');
     State.ws.onmessage = (e) => {

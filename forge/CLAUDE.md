@@ -604,3 +604,41 @@ Improved navigation and user transparency.
 | About page | ✅ /about.html |
 | Contact info visible | ✅ Footer nav + privacy page |
 | No prohibited content | ✅ |
+
+---
+
+## Milestone 23 - Solo Isolation + Coins/Trophies Economy (June 1, 2026)
+
+Restored Solo Mode boundaries after the Team Mode rollout and added Google-linked
+economy persistence.
+
+### Solo Mode Isolation
+- Solo lobby now forces the local lobby renderer to the classic setup panel and
+  clears team-only local state (`teams`, `team_topics`, `myTeamId`) on entry and
+  on `PLAYER_JOINED` refreshes.
+- Solo start now sends `play_mode: "solo"` to the server instead of accidentally
+  promoting the game to classic.
+- The backend rejects stale client attempts to override an existing solo room
+  into classic/team mode.
+
+### Economy Rules
+- New Google profiles initialize with exactly **200 coins** and **50 trophies**.
+- Room games require signed-in players and charge **25 coins** per connected
+  player when the game starts.
+- Room winners receive the full entry-fee coin pool; tied winners split the pool
+  equally, including fractional coin splits when needed to preserve the full
+  pool exactly.
+- Solo rewards are based on correct answers:
+  - `>= 5` correct: `+10 coins`
+  - `< 4` correct: `-2 trophies`, clamped at `0`
+  - `4` or `5` correct: `+1 trophy`
+  - `6-10` correct: `+2 trophies` per correct answer above 5
+
+### Persistence Implementation
+- Added `backend/app/services/profiles.py`, a lightweight JSON profile store at
+  `PROFILE_STORE_PATH` (default `app/data/profiles.json`) to preserve balances
+  without paid infrastructure.
+- Google Sign-In now returns saved `coins` and `trophies` to the frontend.
+- WebSocket connections include the signed-in Google profile ID so the server can
+  apply authoritative game-end economy deltas.
+- Results and home screens render the synced balances and game-end deltas.

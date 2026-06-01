@@ -562,7 +562,7 @@ function onLobbyShow() {
   _teamNames  = State.teamNames || { A:'Red Dragons', B:'Blue Phoenix' };
   _teamTopics = { A:'', B:'' }; //Topics usually only come via WS
   _myTeamId   = _teams[State.playerName] || null;
-  _lobbyMode  = State.playMode || 'classic';
+  _lobbyMode  = State.playMode === 'solo' ? 'classic' : (State.playMode || 'classic');
   _isLocked   = false; // Default to open, will be synced by PLAYER_JOINED
   if (_pushTimer) { clearTimeout(_pushTimer); _pushTimer = null; }
 
@@ -600,6 +600,16 @@ function onLobbyShow() {
   /* ── WebSocket subscriptions ── */
   WS.on('PLAYER_JOINED', (data) => {
     State.players = data.players;
+    if (State.playMode === 'solo') {
+      _lobbyMode = 'classic';
+      _teams = {};
+      _teamTopics = { A:'', B:'' };
+      _myTeamId = null;
+      _applyModeUI();
+      _renderPlayerList(data.players);
+      _updateStartBtns();
+      return;
+    }
     if (data.locked !== undefined) _isLocked = data.locked;
 
     // Absorb any team state the server echoes back
@@ -716,6 +726,13 @@ function _applyModeUI() {
   const teamGuestWait= document.getElementById('team-guest-waiting');
   const isSolo = State.playMode === 'solo';
 
+  if (isSolo) {
+    _lobbyMode = 'classic';
+    _teams = {};
+    _teamTopics = { A:'', B:'' };
+    _myTeamId = null;
+  }
+
   // Lock status UI
   const lockBadge = document.getElementById('lock-status');
   if (lockBadge) {
@@ -741,7 +758,7 @@ function _applyModeUI() {
     btnTeam.disabled = !_isLocked;
   }
 
-  if (_lobbyMode === 'classic') {
+  if (isSolo || _lobbyMode === 'classic') {
     classicPanel.style.display = 'block';
     teamPanel.style.display    = 'none';
 
@@ -1042,7 +1059,8 @@ function lobbyStartClassic() {
   const btn = document.getElementById('btn-start-classic');
   if (btn) { btn.textContent = '⏳ GENERATING...'; btn.disabled = true; }
   Sound.gameStart();
-  WS.send({ action:'start_game', topic, mode: State.mode||'medium', play_mode:'classic' });
+  const playMode = State.playMode === 'solo' ? 'solo' : 'classic';
+  WS.send({ action:'start_game', topic, mode: State.mode||'medium', play_mode: playMode });
   Toast.info('Generating your quiz...');
 }
 

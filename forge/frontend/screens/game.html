@@ -1000,6 +1000,9 @@ function _onGameOver(data) {
   State.playMode  = data.play_mode || State.playMode || 'classic';
   State.resultStats = data;
   State.phase     = 'complete';
+  if (data.economy && data.economy[State.playerName]) {
+    applyUserEconomy(data.economy[State.playerName]);
+  }
   if (data.team_scores)  State.teamScores  = data.team_scores;
   if (data.team_names)   State.teamNames   = data.team_names;
   if (data.teams)        State.teams       = data.teams;

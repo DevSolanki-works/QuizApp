@@ -133,6 +133,17 @@
     border-radius: var(--radius-pill); font-family: var(--font-body);
     font-weight: 700; font-size: 14px; color: var(--white);
   }
+  .user-balance-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; flex-wrap: wrap;
+  }
+  .user-balance-pill {
+    font-family: var(--font-pixel); font-size: 7px;
+    padding: 6px 10px; border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.12);
+    border: 1px solid rgba(255,217,61,0.3);
+    color: var(--yellow);
+  }
   .user-avatar {
     width: 32px; height: 32px; border-radius: 50%;
     border: 2px solid var(--yellow); object-fit: cover;
@@ -172,6 +183,10 @@
         <div class="user-profile-badge">
           <img id="user-img" class="user-avatar" src="" alt="">
           <span id="user-name-display"></span>
+        </div>
+        <div class="user-balance-row">
+          <span class="user-balance-pill">COINS <span id="user-coins-display">200</span></span>
+          <span class="user-balance-pill">TROPHIES <span id="user-trophies-display">50</span></span>
         </div>
         <button class="btn-logout" onclick="homeLogout()">LOGOUT</button>
       </div>
@@ -264,6 +279,8 @@ function _initGoogleSignIn() {
     profileArea.style.display = 'block';
     document.getElementById('user-img').src = State.user.picture;
     document.getElementById('user-name-display').textContent = State.user.name;
+    document.getElementById('user-coins-display').textContent = formatCoins(State.user.coins);
+    document.getElementById('user-trophies-display').textContent = Number(State.user.trophies || 0).toLocaleString();
     const nameInput = document.getElementById('input-name');
     if (nameInput && !nameInput.value.trim()) {
       nameInput.value  = State.user.name;
@@ -283,6 +300,12 @@ function _initGoogleSignIn() {
       });
     }
   }
+}
+
+function _requireSignedIn() {
+  if (State.user?.id) return true;
+  Toast.error('Sign in with Google to save coins and trophies.');
+  return false;
 }
 
 async function handleGoogleLogin(response) {
@@ -330,6 +353,7 @@ function _setLoading(id, on) {
 /* ── CREATE ROOM (always classic — host picks mode inside lobby) ── */
 async function homeCreateRoom() {
   Sound.click();
+  if (!_requireSignedIn()) return;
   const name = _validateName(); if (!name) return;
   _setLoading('btn-create', true);
   try {
@@ -356,6 +380,7 @@ async function homeCreateRoom() {
 /* ── SOLO ── */
 async function homeStartSolo() {
   Sound.click();
+  if (!_requireSignedIn()) return;
   const name = _validateName(); if (!name) return;
   _setLoading('btn-solo', true);
   try {
@@ -366,6 +391,9 @@ async function homeStartSolo() {
     State.playMode    = 'solo';
     State.resultStats = null;
     State.players     = [name];
+    State.teams       = {};
+    State.teamNames   = { A: 'Red Dragons', B: 'Blue Phoenix' };
+    State.teamScores  = {};
     Session.save();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
@@ -379,6 +407,7 @@ async function homeStartSolo() {
 /* ── JOIN ROOM ── */
 async function homeJoinRoom() {
   Sound.click();
+  if (!_requireSignedIn()) return;
   const name   = _validateName(); if (!name) return;
   const codeEl = document.getElementById('input-code');
   const code   = codeEl?.value.trim().toUpperCase();

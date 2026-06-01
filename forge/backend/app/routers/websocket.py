@@ -35,6 +35,7 @@ from app.models.quiz import (
     time_limit_for_mode,
 )
 from app.services.ai import generate_questions, FALLBACK_QUESTIONS
+from app.services.profiles import ROOM_ENTRY_FEE, apply_delta, can_afford_entry, solo_rewards
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -138,6 +139,114 @@ def _round_payload(room) -> dict[str, Any]:
         payload["teams"]       = dict(room.teams)
         payload["team_names"]  = dict(room.team_names)
     return payload
+
+
+def _connected_players(room) -> list[Player]:
+    """Return players who are currently attached to an open WebSocket."""
+
+    return [p for p in room.players.values() if p.websocket is not None]
+
+
+def _missing_profile_names(room) -> list[str]:
+    """Return connected players without a Google profile ID."""
+
+    return [p.name for p in _connected_players(room) if not p.user_id]
+
+
+def _insufficient_coin_names(room) -> list[str]:
+    """Return connected players who cannot pay the room entry fee."""
+
+    names: list[str] = []
+    for player in _connected_players(room):
+        if player.user_id and not can_afford_entry(player.user_id):
+            names.append(player.name)
+    return names
+
+
+def _charge_room_entry_fees(room) -> None:
+    """Deduct the multiplayer entry fee once at session start."""
+
+    room.entry_fees = {}
+    for player in _connected_players(room):
+        if not player.user_id:
+            continue
+        apply_delta(player.user_id, coins_delta=-ROOM_ENTRY_FEE)
+        room.entry_fees[player.name] = float(ROOM_ENTRY_FEE)
+
+
+def _refund_room_entry_fees(room) -> None:
+    """Refund all charged entry fees if quiz startup fails."""
+
+    for name, fee in room.entry_fees.items():
+        player = room.players.get(name)
+        if player and player.user_id:
+            apply_delta(player.user_id, coins_delta=fee)
+    room.entry_fees = {}
+
+
+def _finalize_economy(room, final_scores: dict[str, int], correct_answers: dict[str, int]) -> dict[str, Any]:
+    """Apply end-of-game economy rules and return per-player UI payloads."""
+
+    if room.economy_finalized:
+        return {}
+
+    economy: dict[str, Any] = {}
+
+    if room.play_mode == PlayMode.SOLO:
+        for name, player in room.players.items():
+            if not player.user_id:
+                continue
+            correct = int(correct_answers.get(name, 0))
+            coins_delta, trophies_delta = solo_rewards(correct)
+            before = apply_delta(player.user_id, 0, 0)
+            after = apply_delta(player.user_id, coins_delta, trophies_delta)
+            economy[name] = {
+                "coins_delta": coins_delta,
+                "trophies_delta": after["trophies"] - before["trophies"],
+                "coins": after["coins"],
+                "trophies": after["trophies"],
+            }
+    elif room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
+        pool = float(sum(room.entry_fees.values()))
+        paid_scores = {
+            name: final_scores.get(name, 0)
+            for name in room.entry_fees
+            if name in final_scores
+        }
+        if paid_scores and pool > 0:
+            top_score = max(paid_scores.values())
+            winners = [name for name, score in paid_scores.items() if score == top_score]
+            payout = pool / len(winners) if winners else 0
+            for name in winners:
+                player = room.players.get(name)
+                if not player or not player.user_id:
+                    continue
+                entry_fee = room.entry_fees.get(name, 0)
+                after = apply_delta(player.user_id, coins_delta=payout)
+                economy[name] = {
+                    "coins_delta": payout - entry_fee,
+                    "trophies_delta": 0,
+                    "coins": after["coins"],
+                    "trophies": after["trophies"],
+                    "entry_fee": entry_fee,
+                    "payout": payout,
+                }
+            for name, fee in room.entry_fees.items():
+                if name in economy:
+                    continue
+                player = room.players.get(name)
+                if player and player.user_id:
+                    after = apply_delta(player.user_id, 0, 0)
+                    economy[name] = {
+                        "coins_delta": -fee,
+                        "trophies_delta": 0,
+                        "coins": after["coins"],
+                        "trophies": after["trophies"],
+                        "entry_fee": fee,
+                    }
+
+    room.economy_finalized = True
+    return economy
 
 
 # ── Round lifecycle ───────────────────────────────────────────────────────────
@@ -254,12 +363,14 @@ async def _finish_game(room_code: str) -> None:
         n: round((c / total) * 100) if total else 0
         for n, c in correct_answers.items()
     }
+    economy = _finalize_economy(room, final_scores, correct_answers)
     game_over: dict[str, Any] = {
         "final_scores":        final_scores,
         "correct_answers":     correct_answers,
         "accuracy_percentages":accuracy_pct,
         "total_questions":     total,
         "play_mode":           room.play_mode.value,
+        "economy":             economy,
     }
     if room.play_mode == PlayMode.TEAM:
         game_over["team_scores"] = _team_scores(room)
@@ -273,7 +384,7 @@ async def _finish_game(room_code: str) -> None:
 
 @router.websocket("/ws/{room_code}/{player_name}")
 async def websocket_endpoint(
-    websocket: WebSocket, room_code: str, player_name: str
+    websocket: WebSocket, room_code: str, player_name: str, user_id: str | None = None
 ) -> None:
     """Accept a player and process room actions until the socket disconnects."""
 
@@ -292,6 +403,8 @@ async def websocket_endpoint(
             await websocket.close()
             return
         existing.websocket = websocket
+        if user_id:
+            existing.user_id = user_id
         logger.info("Player '%s' re-joined room '%s'", player_name, room_code)
     else:
         if room.status != GameStatus.WAITING:
@@ -306,7 +419,7 @@ async def websocket_endpoint(
             await send_to(websocket, {"type": "ERROR", "data": {"message": "Solo rooms are private"}})
             await websocket.close()
             return
-        room.players[player_name] = Player(name=player_name, websocket=websocket)
+        room.players[player_name] = Player(name=player_name, user_id=user_id, websocket=websocket)
         logger.info("Player '%s' joined room '%s'", player_name, room_code)
 
     # PLAYER_JOINED always includes team state so late joiners are in sync
@@ -485,11 +598,29 @@ async def websocket_endpoint(
                 # ── play_mode: accept message override ───────────────────
                 # Rooms start as 'classic'; host may switch to 'team' in lobby.
                 # The message's play_mode is authoritative here.
-                requested_pm = str(msg.get("play_mode", room.play_mode.value)).lower()
-                try:
-                    room.play_mode = PlayMode(requested_pm)
-                except ValueError:
-                    room.play_mode = PlayMode.CLASSIC
+                if room.play_mode != PlayMode.SOLO:
+                    requested_pm = str(msg.get("play_mode", room.play_mode.value)).lower()
+                    try:
+                        room.play_mode = PlayMode(requested_pm)
+                    except ValueError:
+                        room.play_mode = PlayMode.CLASSIC
+
+                if room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
+                    missing_profiles = _missing_profile_names(room)
+                    if missing_profiles:
+                        await send_to(websocket, {
+                            "type": "ERROR",
+                            "data": {"message": "All players must sign in with Google before room games."},
+                        })
+                        continue
+                    broke_players = _insufficient_coin_names(room)
+                    if broke_players:
+                        await send_to(websocket, {
+                            "type": "ERROR",
+                            "data": {"message": f"Not enough coins: {', '.join(broke_players)}"},
+                        })
+                        continue
+                    _charge_room_entry_fees(room)
 
                 # Difficulty
                 mode_val = str(msg.get("mode", DEFAULT_GAME_MODE.value)).strip().lower()
@@ -542,6 +673,8 @@ async def websocket_endpoint(
                     room.questions = [Question(**q) for q in FALLBACK_QUESTIONS]
                 except Exception as exc:
                     logger.error("Question generation failed for room '%s': %s", room_code, exc)
+                    if room.entry_fees:
+                        _refund_room_entry_fees(room)
                     room.status = GameStatus.WAITING
                     room.phase  = RoundPhase.LOBBY
                     await broadcast(room_code, {"type": "ERROR", "data": {"message": "Failed to generate questions. Try again."}})
@@ -584,7 +717,7 @@ async def websocket_endpoint(
                 room.answers_this_round[player_name] = choice
                 room.points_gained[player_name]      = points
 
-                connected = [p for p in room.players.values() if p.websocket is not None]
+                connected = _connected_players(room)
                 if len(room.answers_this_round) >= len(connected):
                     await resolve_round(room_code, room.current_q_index)
 
@@ -609,7 +742,7 @@ async def websocket_endpoint(
                 dc_data["team_topics"] = dict(room.team_topics)
             await broadcast(room_code, {"type": "PLAYER_JOINED", "data": dc_data})
 
-            connected = [p for p in room.players.values() if p.websocket is not None]
+            connected = _connected_players(room)
             if (
                 room.status == GameStatus.ACTIVE
                 and room.phase == RoundPhase.QUESTION

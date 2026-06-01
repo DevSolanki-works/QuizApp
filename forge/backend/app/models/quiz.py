@@ -78,6 +78,7 @@ class Player(BaseModel):
     """Represents one connected player in a room."""
 
     name: str
+    user_id: Optional[str] = None
     score: int = 0
     correct_answers: int = 0
     streak: int = 0          # consecutive correct answers; resets on wrong/timeout
@@ -104,6 +105,8 @@ class Room(BaseModel):
     answers_this_round: dict[str, int] = Field(default_factory=dict)
     points_gained: dict[str, int] = Field(default_factory=dict)
     locked: bool = False  # If True, no more players can join
+    entry_fees: dict[str, float] = Field(default_factory=dict)
+    economy_finalized: bool = False
 
     # ── Team mode fields ───────────────────────────────────────────────────────
     # teams: { player_name → team_id }  where team_id is "A" or "B"

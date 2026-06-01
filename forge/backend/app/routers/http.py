@@ -20,6 +20,7 @@ class CreateRoomRequest(BaseModel):
 
     host_name: str = "Host"
     play_mode: PlayMode = DEFAULT_PLAY_MODE
+    user_id: str | None = None
 
 
 class CreateRoomResponse(BaseModel):
@@ -99,6 +100,10 @@ async def get_room(code: str):
         "play_mode": room.play_mode,
         "phase": room.phase,
         "players": list(room.players.keys()),
+        "locked": room.locked,
+        "teams": dict(room.teams),
+        "team_names": dict(room.team_names),
+        "team_topics": dict(room.team_topics),
         "current_question": room.current_q_index,
     }
 
