@@ -54,6 +54,8 @@
 
       /* Footer height — screens pad their bottom by this amount */
       --footer-h:     32px;
+      /* Header height — reserved for top banner ads */
+      --header-h:     60px;
     }
 
     @media (min-width: 1024px) {
@@ -100,8 +102,9 @@
     .screen {
       width: 100%;
       max-width: var(--max-w);
-      /* Leave room for the footer bar at the bottom */
-      height: calc(100% - var(--footer-h));
+      /* Leave room for the footer and header */
+      height: calc(100% - var(--footer-h) - var(--header-h));
+      margin-top: var(--header-h);
       display: none;
       flex-direction: column;
       align-items: center;
@@ -117,7 +120,7 @@
 
     @media (min-width: 1024px) {
       .screen {
-        height: calc(100% - var(--footer-h));
+        height: calc(100% - var(--footer-h) - var(--header-h));
         max-height: 900px;
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -471,7 +474,7 @@
     onclick="Sound.toggleMute()"
     aria-label="Toggle sound"
     style="
-      position: fixed; top: 12px; right: 12px; z-index: 500;
+      position: fixed; top: calc(var(--header-h) + 12px); right: 12px; z-index: 500;
       width: 40px; height: 40px; border-radius: 50%;
       background: rgba(255,255,255,0.12);
       border: 1px solid rgba(255,255,255,0.22);
@@ -482,6 +485,18 @@
     ">
     🔊
   </button>
+
+  <header id="app-header" style="
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: var(--max-w); height: var(--header-h);
+    z-index: 1000; display: flex; justify-content: center; align-items: center;
+    background: rgba(0,0,0,0.2); overflow: hidden;
+  ">
+    <!-- BANNER AD CONTAINER -->
+    <div id="ad-banner-container">
+      <script>(function(s){s.dataset.zone='11087172',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    </div>
+  </header>
 
   <section id="screen-home"    class="screen active"></section>
   <section id="screen-lobby"   class="screen"></section>
