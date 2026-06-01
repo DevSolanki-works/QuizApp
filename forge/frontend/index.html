@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
   <meta name="theme-color" content="#1B2EAD" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="google-adsense-account" content="ca-pub-4922314688440658">
+
   <title>FORGE — AI Trivia Showdown</title>
 
   <!-- Press Start 2P = pixel font for UI chrome / titles / labels -->
@@ -17,8 +17,7 @@
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- ✅ FIX 1: AdSense script — required on every page for review -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922314688440658" crossorigin="anonymous"></script>
+
 
   <style>
     /* ══════════════════════════════════════════════════════
@@ -501,18 +500,7 @@
   </nav>
 </div>
 
-<!-- ✅ FIX 3: Cookie consent banner (outside #app so it overlays correctly) -->
-<div id="cookie-banner" role="dialog" aria-label="Cookie consent" aria-live="polite">
-  <p class="cookie-text">
-    We use cookies to serve ads and improve your experience.
-    By clicking <strong>Accept</strong>, you agree to our use of cookies.
-    <a href="/privacy.html" target="_blank" rel="noopener">Learn more</a>
-  </p>
-  <div class="cookie-actions">
-    <button class="cookie-btn cookie-accept" onclick="cookieConsent(true)">ACCEPT</button>
-    <button class="cookie-btn cookie-decline" onclick="cookieConsent(false)">DECLINE</button>
-  </div>
-</div>
+
 
 <script>
 /* ── CONFIG ─────────────────────────────────────────────── */
@@ -914,58 +902,9 @@ function _updateMuteBtn() {
   document.addEventListener(ev, () => Sound.init(), { once: true })
 );
 
-/* ── ✅ FIX 3: COOKIE CONSENT LOGIC ─────────────────────── */
-/**
- * Show the cookie consent banner unless the user has already responded.
- * Stores the decision in localStorage so it only appears once.
- * 'accepted' → AdSense personalised ads run normally.
- * 'declined' → Banner dismissed; non-personalised ads only.
- */
-function _initCookieConsent() {
-  // Don't show inside the native Capacitor app
-  if (IS_NATIVE_APP) return;
-
-  try {
-    const consent = localStorage.getItem('forge_cookie_consent');
-    if (consent) {
-      const banner = document.getElementById('cookie-banner');
-      if (banner) banner.remove();
-      return;
-    }
-  } catch { return; }
-
-  // Delay slightly so the UI loads first
-  setTimeout(() => {
-    const banner = document.getElementById('cookie-banner');
-    if (banner) banner.classList.add('visible');
-  }, 1200);
-}
-
-function cookieConsent(accepted) {
-  try {
-    localStorage.setItem('forge_cookie_consent', accepted ? 'accepted' : 'declined');
-  } catch {}
-
-  const banner = document.getElementById('cookie-banner');
-  if (banner) {
-    banner.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-    banner.style.opacity = '0';
-    banner.style.transform = 'translateX(-50%) translateY(100%)';
-    setTimeout(() => banner.remove(), 350);
-  }
-
-  // If declined, instruct AdSense not to personalise ads for this user
-  if (!accepted && window.adsbygoogle) {
-    try {
-      (adsbygoogle = window.adsbygoogle || []).requestNonPersonalizedAds = 1;
-    } catch {}
-  }
-}
-
 /* ── BOOT ───────────────────────────────────────────────── */
 (async () => {
   API.health().catch(() => {});  // warm up Cloud Run silently
-  _initCookieConsent();           // show cookie banner if needed
 
   const hash = window.location.hash.replace('#', '') || 'home';
   const saved = Session.load();

@@ -74,7 +74,7 @@ forge/
     ├── index.html             ← App shell, router, shared styles/utils ✅
     ├── privacy.html           ← Privacy Policy page ✅
     ├── about.html             ← About page ✅
-    ├── ads.txt                ← AdSense ads.txt ✅
+    ├── sw.js                  ← Monetag Service Worker ✅
     └── screens/
         ├── home.html          ← Home screen ✅
         ├── lobby.html         ← Lobby screen ✅ (updated v2)
@@ -309,10 +309,9 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 
 | Channel | Status |
 |---------|--------|
-| Google AdSense | ✅ Applied — review pending (1–3 days) |
-| AdSense code | ✅ Added to all 7 frontend HTML files (including screens) |
-| ads.txt / app-ads.txt | ✅ Both live at forgetrivia.online/ |
-| Identity verify (PAN) | ⏳ Physical PAN arriving in ~15 days — earnings accumulate until then |
+| Monetag Ads | ✅ Switched to Monetag after AdSense denial |
+| sw.js | ✅ Service Worker for Monetag verification at `frontend/sw.js` |
+| Identity verify | ⏳ Physical PAN arriving in ~15 days |
 | Play Store | ⏳ On hold until physical ID document available |
 
 ---
@@ -551,19 +550,15 @@ Professional Google Login is now integrated into the Forge ecosystem.
 
 ---
 
-## Milestone 18 - AdSense Compliance Fixes (May 28, 2026)
+## Milestone 18 - Regulatory Compliance & Navigation (May 28, 2026)
 
-Fixed critical issues blocking Google AdSense approval.
+Improved navigation and user transparency.
 
 ### Changes Made
 
 **`frontend/index.html`**
-- Added AdSense script tag to `<head>` (was missing entirely — primary rejection risk)
 - Added persistent `<nav id="app-footer">` bar with links to About, Privacy Policy,
   and contact email — visible on all screens except during active gameplay
-- Added cookie consent banner (`#cookie-banner`) that slides up on first visit,
-  stores decision in `localStorage`, and sets `requestNonPersonalizedAds = 1`
-  if the user declines
 - Footer auto-hides during the game screen (`game-active` CSS class) so it
   never overlaps answer buttons
 
@@ -572,14 +567,11 @@ Fixed critical issues blocking Google AdSense approval.
 - Styled the contact email as a prominent call-out card
 - Added mention of `localStorage` usage (mute, high scores) to the cookies section
 
-### AdSense Checklist
+### Compliance Checklist
 | Requirement | Status |
 |-------------|--------|
-| AdSense script on every page | ✅ All pages |
 | Privacy Policy page | ✅ /privacy.html |
 | Privacy Policy link accessible from main app | ✅ Footer nav |
 | About page | ✅ /about.html |
 | Contact info visible | ✅ Footer nav + privacy page |
-| ads.txt | ✅ /ads.txt |
-| Cookie consent banner | ✅ index.html |
 | No prohibited content | ✅ |
