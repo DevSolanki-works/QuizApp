@@ -318,21 +318,34 @@ function _renderEconomyResult() {
     : `${trophyDelta > 0 ? '+' : ''}${trophyDelta} TROPHIES`;
   el.textContent = `${coinText} · ${trophyText} · BALANCE ${formatCoins(economy.coins)} COINS / ${Number(economy.trophies || 0).toLocaleString()} TROPHIES`;
 }
-
 /* ── AD TRIGGER ─────────────────────────────────────────── */
 function _triggerPopunder() {
   // Only trigger if we have scores (indicates a game was actually completed)
   if (!State.scores || Object.keys(State.scores).length === 0) return;
 
+  // Only trigger ONCE per room/quiz
+  if (window._lastPopunderRoom === State.roomCode) return;
+  window._lastPopunderRoom = State.roomCode;
+
   // Execute Monetag Popunder script as provided by user
-  (function(s){
-    s.dataset.zone='11087153';
-    s.src='https://al5sm.com/tag.min.js';
-  })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+  const s = document.createElement('script');
+  s.id = 'monetag-popunder';
+  s.dataset.zone='11087153';
+  s.src='https://al5sm.com/tag.min.js';
+
+  const container = [document.documentElement, document.body].filter(Boolean).pop();
+  container.appendChild(s);
 }
 
-/* ── TEAM WINNER BANNER ─────────────────────────────────── */
-function _renderTeamWinner() {
+function _cleanupAd() {
+  const s = document.getElementById('monetag-popunder');
+  if (s) s.remove();
+}
+
+/* ── ACTIONS ─────────────────────────────────────────────── */
+async function resultsPlayAgain() {
+  _cleanupAd();
+  if (!State.user?.id) {
   const section    = document.getElementById('team-winner-section');
   const teamScores = State.teamScores || {};
   const teamNames  = State.teamNames  || { A: 'Team A', B: 'Team B' };
