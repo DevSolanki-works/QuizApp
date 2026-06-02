@@ -28,9 +28,10 @@
   });
 
   var Fired = Object.freeze({
-    GAME_VIGNETTE: 1 << 0,
-    RESULTS_VIGNETTE: 1 << 1,
-    RESULTS_POPUNDER: 1 << 2,
+    HOME_VIGNETTE: 1 << 0,
+    LOBBY_VIGNETTE: 1 << 1,
+    RESULTS_VIGNETTE: 1 << 2,
+    RESULTS_POPUNDER: 1 << 3,
   });
 
   function nowMs() {
@@ -106,6 +107,12 @@
     this._phase = Phase.IDLE;
     this._firedMask = 0;
     this._locked = false;
+    this._currentScreen = "unknown";
+
+    // Debounce so repeated onShow calls don't spam vignettes
+    this._lastHomeVignetteAt = 0;
+    this._lastLobbyVignetteAt = 0;
+    this._lastResultsVignetteAt = 0;
 
     this._busy = false;
     this._lastInjectAt = 0;
@@ -142,41 +149,48 @@
 
   MonetagAdOps.prototype.onLobbyEnter = function onLobbyEnter() {
     this._ensureInit();
+    this._currentScreen = "lobby";
     if (this._locked) {
       this._phase = Phase.LOCKDOWN;
       return;
     }
     this._phase = Phase.LOBBY;
     this._scrubBannersNow();
-    // Intentionally does NOT fire any ads.
-    // Lobby must stay clean and undisturbed.
+    this._disableOpenGate(); // never allow popunder outside results
+    this._fireLobbyVignette();
   };
 
-  MonetagAdOps.prototype.onGameStart = function onGameStart() {
+  MonetagAdOps.prototype.onHomeEnter = function onHomeEnter() {
     this._ensureInit();
+    this._currentScreen = "home";
     if (this._locked) {
       this._phase = Phase.LOCKDOWN;
       return;
     }
     this._scrubBannersNow();
-    // Fire exactly ONE vignette per match on the game screen, then lock to GAMEPLAY.
-    // This avoids lobby disruption and reduces "mid-quiz" interference.
-    if (!this._hasFired(Fired.GAME_VIGNETTE)) {
-      this._phase = Phase.LOBBY; // allow injection (not GAMEPLAY yet)
-      this._fireVignetteOnce(Fired.GAME_VIGNETTE);
-    }
+    this._disableOpenGate();
+    this._fireHomeVignette();
+  };
+
+  MonetagAdOps.prototype.onGameStart = function onGameStart() {
+    this._ensureInit();
+    this._currentScreen = "game";
+    // Absolutely ad-free gameplay.
+    this._disableOpenGate();
     this._phase = Phase.GAMEPLAY;
+    this._scrubBannersNow();
   };
 
   MonetagAdOps.prototype.onGameEnd = function onGameEnd() {
     this._ensureInit();
+    this._currentScreen = "results";
     if (this._locked) {
       this._phase = Phase.LOCKDOWN;
       return;
     }
     this._phase = Phase.RESULTS;
     this._scrubBannersNow();
-    // Fire results ads atomically (vignette then popunder) so cooldown cannot block #3.
+    // Fire results: 1 vignette + 1 popunder (exactly once each)
     this._fireResultsPair();
 
     this._lockdown();
@@ -196,7 +210,8 @@
       locked: this._locked,
       firedMask: this._firedMask,
       fired: {
-        gameVignette: this._hasFired(Fired.GAME_VIGNETTE),
+        homeVignette: this._hasFired(Fired.HOME_VIGNETTE),
+        lobbyVignette: this._hasFired(Fired.LOBBY_VIGNETTE),
         resultsVignette: this._hasFired(Fired.RESULTS_VIGNETTE),
         resultsPopunder: this._hasFired(Fired.RESULTS_POPUNDER),
       },
@@ -229,7 +244,8 @@
     this._locked = true;
     this._phase = Phase.LOCKDOWN;
     this._scrubBannersNow();
-    this._scrubUnexpectedPopunderTags();
+    // IMPORTANT: do NOT scrub popunder tags here; the popunder needs to remain
+    // registered until the user's first click on the results screen.
   };
 
   MonetagAdOps.prototype._unlockAndResetBudget = function _unlockAndResetBudget() {
@@ -333,6 +349,8 @@
           if (u.indexOf("mailto:") === 0 || u.indexOf("tel:") === 0) {
             return self._origWindowOpen(url, name, specs);
           }
+          // Popunder is ONLY allowed while on results screen.
+          if (self._currentScreen !== "results") return null;
           if (!self._openGate) return null;
           if (nowMs() > self._openGate.expiresAt) return null;
           if (self._openGate.remaining <= 0) return null;
@@ -352,11 +370,31 @@
     this._openGate = null;
   };
 
+  MonetagAdOps.prototype._fireHomeVignette = function _fireHomeVignette() {
+    // Vignette each time user returns to Home (debounced)
+    if (nowMs() - this._lastHomeVignetteAt < 3000) return;
+    this._lastHomeVignetteAt = nowMs();
+    this._fireVignetteOnce(Fired.HOME_VIGNETTE);
+    // Allow it again on next navigation by clearing the fired bit after a moment.
+    var self = this;
+    globalObj.setTimeout(function () { self._firedMask &= ~Fired.HOME_VIGNETTE; }, 1000);
+  };
+
+  MonetagAdOps.prototype._fireLobbyVignette = function _fireLobbyVignette() {
+    if (nowMs() - this._lastLobbyVignetteAt < 3000) return;
+    this._lastLobbyVignetteAt = nowMs();
+    this._fireVignetteOnce(Fired.LOBBY_VIGNETTE);
+    var self = this;
+    globalObj.setTimeout(function () { self._firedMask &= ~Fired.LOBBY_VIGNETTE; }, 1000);
+  };
+
   MonetagAdOps.prototype._fireResultsPair = function _fireResultsPair() {
     var self = this;
     if (this._hasFired(Fired.RESULTS_VIGNETTE) && this._hasFired(Fired.RESULTS_POPUNDER)) return;
     // 1) Fire results vignette now (guarded).
     if (!this._hasFired(Fired.RESULTS_VIGNETTE)) {
+      if (nowMs() - this._lastResultsVignetteAt < 1000) return;
+      this._lastResultsVignetteAt = nowMs();
       this._withInjectLock(function () {
         if (self._locked) return;
         if (self._phase !== Phase.RESULTS) return;
@@ -370,9 +408,10 @@
     // 2) Then allow exactly ONE popunder open attempt, ever (until reset),
     // and inject the popunder tag slightly after vignette.
     if (!this._hasFired(Fired.RESULTS_POPUNDER)) {
-      self._enableOpenGate(1, 10 * 60 * 1000);
+      self._enableOpenGate(2, 2 * 60 * 1000);
       globalObj.setTimeout(function () {
-        if (self._locked) return;
+        // Only while user is on results
+        if (self._currentScreen !== "results") return;
         if (self._phase !== Phase.RESULTS) return;
         if (self._hasFired(Fired.RESULTS_POPUNDER)) return;
         try {
@@ -380,7 +419,7 @@
           self._markFired(Fired.RESULTS_POPUNDER);
           self._scheduleZoneTagCleanup(ZONES.POPUNDER.zone, 15000);
         } catch (_) {}
-      }, 250);
+      }, 50);
     }
   };
 

@@ -237,6 +237,9 @@
 <script>
 function onHomeShow() {
   Sound.startBgMusic();
+  if (window.AdOps && typeof window.AdOps.onHomeEnter === 'function') {
+    window.AdOps.onHomeEnter();
+  }
   const confettiEl = document.getElementById('home-confetti');
   const starsEl    = document.getElementById('home-stars');
   if (confettiEl) { confettiEl.innerHTML = ''; spawnConfetti(confettiEl); }
