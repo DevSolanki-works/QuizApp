@@ -348,6 +348,9 @@ async function homeCreateRoom() {
   const name = _validateName(); if (!name) return;
   _setLoading('btn-create', true);
   try {
+    if (window.AdOps && typeof window.AdOps.armLobbyVignette === 'function') {
+      window.AdOps.armLobbyVignette();
+    }
     const data = await API.createRoom(name, 'classic');
     State.playerName  = name;
     State.roomCode    = data.room_code;
@@ -375,6 +378,9 @@ async function homeStartSolo() {
   const name = _validateName(); if (!name) return;
   _setLoading('btn-solo', true);
   try {
+    if (window.AdOps && typeof window.AdOps.armLobbyVignette === 'function') {
+      window.AdOps.armLobbyVignette();
+    }
     const data = await API.createRoom(name, 'solo');
     State.playerName  = name;
     State.roomCode    = data.room_code;
@@ -407,6 +413,9 @@ async function homeJoinRoom() {
   }
   _setLoading('btn-join', true);
   try {
+    if (window.AdOps && typeof window.AdOps.armLobbyVignette === 'function') {
+      window.AdOps.armLobbyVignette();
+    }
     const room = await API.getRoom(code);
     if (room.play_mode === 'solo') { Toast.error('Solo rooms are private.'); return; }
     State.playerName  = name;

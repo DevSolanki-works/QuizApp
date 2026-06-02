@@ -648,6 +648,10 @@ async function goTo(name, skipHash = false) {
   el.classList.add('active');
   if (!skipHash) window.location.hash = name;
 
+  if (window.AdOps && typeof window.AdOps.onNavigate === 'function') {
+    window.AdOps.onNavigate(name);
+  }
+
   // Hide footer during gameplay
   const footer = document.getElementById('app-footer');
   if (footer) {

@@ -30,8 +30,7 @@
   var Fired = Object.freeze({
     HOME_VIGNETTE: 1 << 0,
     LOBBY_VIGNETTE: 1 << 1,
-    RESULTS_VIGNETTE: 1 << 2,
-    RESULTS_POPUNDER: 1 << 3,
+    RESULTS_POPUNDER: 1 << 2,
   });
 
   function nowMs() {
@@ -109,10 +108,8 @@
     this._locked = false;
     this._currentScreen = "unknown";
 
-    // Debounce so repeated onShow calls don't spam vignettes
-    this._lastHomeVignetteAt = 0;
-    this._lastLobbyVignetteAt = 0;
-    this._lastResultsVignetteAt = 0;
+    // Lobby vignette is only allowed when explicitly armed from a Home CTA
+    this._lobbyVignetteArmed = false;
 
     this._busy = false;
     this._lastInjectAt = 0;
@@ -157,7 +154,17 @@
     this._phase = Phase.LOBBY;
     this._scrubBannersNow();
     this._disableOpenGate(); // never allow popunder outside results
-    this._fireLobbyVignette();
+    if (this._lobbyVignetteArmed) {
+      this._lobbyVignetteArmed = false;
+      this._fireVignetteOnce(Fired.LOBBY_VIGNETTE);
+    }
+  };
+
+  // Call from Home CTAs (Solo / Create / Join) right before navigating to lobby.
+  MonetagAdOps.prototype.armLobbyVignette = function armLobbyVignette() {
+    this._ensureInit();
+    if (this._locked) return;
+    this._lobbyVignetteArmed = true;
   };
 
   MonetagAdOps.prototype.onHomeEnter = function onHomeEnter() {
@@ -169,7 +176,18 @@
     }
     this._scrubBannersNow();
     this._disableOpenGate();
-    this._fireHomeVignette();
+    // Show exactly ONE vignette per browser session (first arrival only).
+    try {
+      var key = "adops.home.vignette.shown.v1";
+      var already = globalObj.sessionStorage && globalObj.sessionStorage.getItem(key) === "1";
+      if (!already) {
+        this._fireVignetteOnce(Fired.HOME_VIGNETTE);
+        globalObj.sessionStorage && globalObj.sessionStorage.setItem(key, "1");
+      }
+    } catch (_) {
+      // If sessionStorage is blocked, fall back to a single in-memory fire.
+      this._fireVignetteOnce(Fired.HOME_VIGNETTE);
+    }
   };
 
   MonetagAdOps.prototype.onGameStart = function onGameStart() {
@@ -190,10 +208,17 @@
     }
     this._phase = Phase.RESULTS;
     this._scrubBannersNow();
-    // Fire results: 1 vignette + 1 popunder (exactly once each)
-    this._fireResultsPair();
+    // Results: ONE popunder only (no vignette here).
+    this._fireResultsPopunderOnce();
 
     this._lockdown();
+  };
+
+  // Call on every navigation so popunder cannot leak out of results.
+  MonetagAdOps.prototype.onNavigate = function onNavigate(screenName) {
+    this._ensureInit();
+    this._currentScreen = String(screenName || "unknown");
+    if (this._currentScreen !== "results") this._disableOpenGate();
   };
 
   MonetagAdOps.prototype.onPlayAgain = function onPlayAgain() {
@@ -212,7 +237,6 @@
       fired: {
         homeVignette: this._hasFired(Fired.HOME_VIGNETTE),
         lobbyVignette: this._hasFired(Fired.LOBBY_VIGNETTE),
-        resultsVignette: this._hasFired(Fired.RESULTS_VIGNETTE),
         resultsPopunder: this._hasFired(Fired.RESULTS_POPUNDER),
       },
     });
@@ -388,39 +412,19 @@
     globalObj.setTimeout(function () { self._firedMask &= ~Fired.LOBBY_VIGNETTE; }, 1000);
   };
 
-  MonetagAdOps.prototype._fireResultsPair = function _fireResultsPair() {
+  MonetagAdOps.prototype._fireResultsPopunderOnce = function _fireResultsPopunderOnce() {
     var self = this;
-    if (this._hasFired(Fired.RESULTS_VIGNETTE) && this._hasFired(Fired.RESULTS_POPUNDER)) return;
-    // 1) Fire results vignette now (guarded).
-    if (!this._hasFired(Fired.RESULTS_VIGNETTE)) {
-      if (nowMs() - this._lastResultsVignetteAt < 1000) return;
-      this._lastResultsVignetteAt = nowMs();
-      this._withInjectLock(function () {
-        if (self._locked) return;
-        if (self._phase !== Phase.RESULTS) return;
-        if (self._hasFired(Fired.RESULTS_VIGNETTE)) return;
-        self._appendZoneScript(ZONES.VIGNETTE);
-        self._markFired(Fired.RESULTS_VIGNETTE);
-        self._scheduleZoneTagCleanup(ZONES.VIGNETTE.zone, 15000);
-      });
-    }
+    if (this._hasFired(Fired.RESULTS_POPUNDER)) return;
 
-    // 2) Then allow exactly ONE popunder open attempt, ever (until reset),
-    // and inject the popunder tag slightly after vignette.
-    if (!this._hasFired(Fired.RESULTS_POPUNDER)) {
-      self._enableOpenGate(2, 2 * 60 * 1000);
-      globalObj.setTimeout(function () {
-        // Only while user is on results
-        if (self._currentScreen !== "results") return;
-        if (self._phase !== Phase.RESULTS) return;
-        if (self._hasFired(Fired.RESULTS_POPUNDER)) return;
-        try {
-          self._appendZoneScript(ZONES.POPUNDER);
-          self._markFired(Fired.RESULTS_POPUNDER);
-          self._scheduleZoneTagCleanup(ZONES.POPUNDER.zone, 15000);
-        } catch (_) {}
-      }, 50);
-    }
+    // Allow exactly ONE open, and ONLY while on results.
+    self._enableOpenGate(1, 5 * 60 * 1000);
+
+    // Inject the popunder tag once. Monetag typically triggers on the next user click.
+    try {
+      self._appendZoneScript(ZONES.POPUNDER);
+      self._markFired(Fired.RESULTS_POPUNDER);
+      self._scheduleZoneTagCleanup(ZONES.POPUNDER.zone, 15000);
+    } catch (_) {}
   };
 
   MonetagAdOps.prototype._removeInjectedScripts = function _removeInjectedScripts() {
