@@ -110,6 +110,16 @@
 
     // Lobby vignette is only allowed when explicitly armed from a Home CTA
     this._lobbyVignetteArmed = false;
+    this._homeVignetteArmed = false;
+    this._resultsPopunderArmed = false;
+
+    // One-shot click listeners to force ads to trigger on the correct screen
+    this._homeClickHandler = null;
+    this._lobbyClickHandler = null;
+    this._resultsClickHandler = null;
+
+    // Gameplay hard guard (block any late vignette/popunder injections)
+    this._gameplayObserver = null;
 
     this._busy = false;
     this._lastInjectAt = 0;
@@ -165,6 +175,7 @@
     this._ensureInit();
     if (this._locked) return;
     this._lobbyVignetteArmed = true;
+    this._installLobbyClickOnce();
   };
 
   MonetagAdOps.prototype.onHomeEnter = function onHomeEnter() {
@@ -176,18 +187,10 @@
     }
     this._scrubBannersNow();
     this._disableOpenGate();
-    // Show exactly ONE vignette per browser session (first arrival only).
-    try {
-      var key = "adops.home.vignette.shown.v1";
-      var already = globalObj.sessionStorage && globalObj.sessionStorage.getItem(key) === "1";
-      if (!already) {
-        this._fireVignetteOnce(Fired.HOME_VIGNETTE);
-        globalObj.sessionStorage && globalObj.sessionStorage.setItem(key, "1");
-      }
-    } catch (_) {
-      // If sessionStorage is blocked, fall back to a single in-memory fire.
-      this._fireVignetteOnce(Fired.HOME_VIGNETTE);
-    }
+    // Home vignette must NOT "wait" and then trigger mid-quiz on a later click.
+    // So: arm it here, and actually fire it on the first user click on Home.
+    this._armHomeVignetteOncePerSession();
+    this._installHomeClickOnce();
   };
 
   MonetagAdOps.prototype.onGameStart = function onGameStart() {
@@ -197,6 +200,10 @@
     this._disableOpenGate();
     this._phase = Phase.GAMEPLAY;
     this._scrubBannersNow();
+    this._uninstallHomeClickOnce();
+    this._uninstallLobbyClickOnce();
+    this._uninstallResultsClickOnce();
+    this._startGameplayGuard();
   };
 
   MonetagAdOps.prototype.onGameEnd = function onGameEnd() {
@@ -209,7 +216,8 @@
     this._phase = Phase.RESULTS;
     this._scrubBannersNow();
     // Results: ONE popunder only (no vignette here).
-    this._fireResultsPopunderOnce();
+    this._resultsPopunderArmed = true;
+    this._installResultsClickOnce();
 
     this._lockdown();
   };
@@ -218,7 +226,13 @@
   MonetagAdOps.prototype.onNavigate = function onNavigate(screenName) {
     this._ensureInit();
     this._currentScreen = String(screenName || "unknown");
-    if (this._currentScreen !== "results") this._disableOpenGate();
+    if (this._currentScreen !== "results") {
+      this._disableOpenGate();
+      this._uninstallResultsClickOnce();
+    }
+    if (this._currentScreen !== "home") this._uninstallHomeClickOnce();
+    if (this._currentScreen !== "lobby") this._uninstallLobbyClickOnce();
+    if (this._currentScreen !== "game") this._stopGameplayGuard();
   };
 
   MonetagAdOps.prototype.onPlayAgain = function onPlayAgain() {
@@ -278,6 +292,13 @@
     this._firedMask = 0;
     this._removeInjectedScripts();
     this._disableOpenGate();
+    this._homeVignetteArmed = false;
+    this._lobbyVignetteArmed = false;
+    this._resultsPopunderArmed = false;
+    this._uninstallHomeClickOnce();
+    this._uninstallLobbyClickOnce();
+    this._uninstallResultsClickOnce();
+    this._stopGameplayGuard();
     this._scrubBannersNow();
   };
 
@@ -443,6 +464,128 @@
     removeAllScriptsWhere(function (s) {
       return matchesZoneScript(s, ZONES.POPUNDER.zone, ZONES.POPUNDER.src);
     });
+  };
+
+  MonetagAdOps.prototype._scrubVignetteTags = function _scrubVignetteTags() {
+    removeAllScriptsWhere(function (s) {
+      return matchesZoneScript(s, ZONES.VIGNETTE.zone, ZONES.VIGNETTE.src);
+    });
+  };
+
+  MonetagAdOps.prototype._startGameplayGuard = function _startGameplayGuard() {
+    var self = this;
+    // During gameplay: remove any vignette/popunder tags and block future injections.
+    self._scrubVignetteTags();
+    self._scrubUnexpectedPopunderTags();
+    try {
+      if (this._gameplayObserver) this._gameplayObserver.disconnect();
+    } catch (_) {}
+    this._gameplayObserver = null;
+
+    try {
+      var obs = new MutationObserver(function (mutations) {
+        for (var mi = 0; mi < mutations.length; mi++) {
+          var m = mutations[mi];
+          if (!m.addedNodes || !m.addedNodes.length) continue;
+          for (var ni = 0; ni < m.addedNodes.length; ni++) {
+            var node = m.addedNodes[ni];
+            if (!node || node.nodeType !== 1) continue;
+            if (isScriptEl(node)) {
+              if (matchesZoneScript(node, ZONES.VIGNETTE.zone, ZONES.VIGNETTE.src) ||
+                  matchesZoneScript(node, ZONES.POPUNDER.zone, ZONES.POPUNDER.src)) {
+                removeNode(node);
+              }
+            }
+          }
+        }
+      });
+      obs.observe(globalObj.document.documentElement || globalObj.document.body, { childList: true, subtree: true });
+      this._gameplayObserver = obs;
+    } catch (_) {}
+  };
+
+  MonetagAdOps.prototype._stopGameplayGuard = function _stopGameplayGuard() {
+    try {
+      if (this._gameplayObserver) this._gameplayObserver.disconnect();
+    } catch (_) {}
+    this._gameplayObserver = null;
+  };
+
+  MonetagAdOps.prototype._armHomeVignetteOncePerSession = function _armHomeVignetteOncePerSession() {
+    try {
+      var key = "adops.home.vignette.shown.v2";
+      var already = globalObj.sessionStorage && globalObj.sessionStorage.getItem(key) === "1";
+      if (already) {
+        this._homeVignetteArmed = false;
+        return;
+      }
+      this._homeVignetteArmed = true;
+    } catch (_) {
+      // Fallback: arm once per page load.
+      this._homeVignetteArmed = !this._hasFired(Fired.HOME_VIGNETTE);
+    }
+  };
+
+  MonetagAdOps.prototype._installHomeClickOnce = function _installHomeClickOnce() {
+    var self = this;
+    if (this._homeClickHandler) return;
+    this._homeClickHandler = function () {
+      if (self._currentScreen !== "home") return;
+      if (!self._homeVignetteArmed) return;
+      self._homeVignetteArmed = false;
+      try { globalObj.sessionStorage && globalObj.sessionStorage.setItem("adops.home.vignette.shown.v2", "1"); } catch (_) {}
+      self._scrubVignetteTags();
+      self._phase = Phase.IDLE;
+      self._fireVignetteOnce(Fired.HOME_VIGNETTE);
+      self._uninstallHomeClickOnce();
+    };
+    globalObj.document.addEventListener("click", this._homeClickHandler, true);
+  };
+
+  MonetagAdOps.prototype._uninstallHomeClickOnce = function _uninstallHomeClickOnce() {
+    if (!this._homeClickHandler) return;
+    try { globalObj.document.removeEventListener("click", this._homeClickHandler, true); } catch (_) {}
+    this._homeClickHandler = null;
+  };
+
+  MonetagAdOps.prototype._installLobbyClickOnce = function _installLobbyClickOnce() {
+    var self = this;
+    if (this._lobbyClickHandler) return;
+    this._lobbyClickHandler = function () {
+      if (self._currentScreen !== "lobby") return;
+      if (!self._lobbyVignetteArmed) return;
+      self._lobbyVignetteArmed = false;
+      self._scrubVignetteTags();
+      self._phase = Phase.LOBBY;
+      self._fireVignetteOnce(Fired.LOBBY_VIGNETTE);
+      self._uninstallLobbyClickOnce();
+    };
+    globalObj.document.addEventListener("click", this._lobbyClickHandler, true);
+  };
+
+  MonetagAdOps.prototype._uninstallLobbyClickOnce = function _uninstallLobbyClickOnce() {
+    if (!this._lobbyClickHandler) return;
+    try { globalObj.document.removeEventListener("click", this._lobbyClickHandler, true); } catch (_) {}
+    this._lobbyClickHandler = null;
+  };
+
+  MonetagAdOps.prototype._installResultsClickOnce = function _installResultsClickOnce() {
+    var self = this;
+    if (this._resultsClickHandler) return;
+    this._resultsClickHandler = function () {
+      if (self._currentScreen !== "results") return;
+      if (!self._resultsPopunderArmed) return;
+      self._resultsPopunderArmed = false;
+      self._fireResultsPopunderOnce();
+      self._uninstallResultsClickOnce();
+    };
+    globalObj.document.addEventListener("click", this._resultsClickHandler, true);
+  };
+
+  MonetagAdOps.prototype._uninstallResultsClickOnce = function _uninstallResultsClickOnce() {
+    if (!this._resultsClickHandler) return;
+    try { globalObj.document.removeEventListener("click", this._resultsClickHandler, true); } catch (_) {}
+    this._resultsClickHandler = null;
   };
 
   MonetagAdOps.prototype._scrubBannersNow = function _scrubBannersNow() {
