@@ -543,6 +543,9 @@ let _streakTimeout  = null;    // used to time the shatter → hide transition
 /** Called by router when screen becomes active */
 function onGameShow() {
   Sound.stopBgMusic();
+  if (window.AdOps && typeof window.AdOps.onGameStart === 'function') {
+    window.AdOps.onGameStart();
+  }
   const starsEl = document.getElementById('game-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
 

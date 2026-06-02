@@ -257,17 +257,6 @@ function onHomeShow() {
   if (nameInput) {
     nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') homeCreateRoom(); });
   }
-  // _triggerInPageAd() removed — PushAds.init() in index.html handles this once at boot
-}
-// _triggerInPageAd function removed entirely
-
-/* ── AD TRIGGER ─────────────────────────────────────────── */
-function _triggerInPageAd() {
-  // Execute Monetag In-Page ad script as provided by user
-  (function(s){
-    s.dataset.zone='11087172';
-    s.src='https://nap5k.com/tag.min.js';
-  })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
 }
 
 function _initGoogleSignIn() {
