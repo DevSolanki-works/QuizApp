@@ -585,9 +585,6 @@ const State = {
 // ── AdOps bootstrap ───────────────────────────────────────
 // `monetag-ads.js` exposes `window.AdOps` singleton.
 // We keep it global so every screen can safely call lifecycle hooks.
-if (window.AdOps && typeof window.AdOps.init === 'function') {
-  window.AdOps.init();
-}
 
 function formatCoins(value) {
   const n = Number(value || 0);
@@ -648,9 +645,6 @@ async function goTo(name, skipHash = false) {
   el.classList.add('active');
   if (!skipHash) window.location.hash = name;
 
-  if (window.AdOps && typeof window.AdOps.onNavigate === 'function') {
-    window.AdOps.onNavigate(name);
-  }
 
   // Hide footer during gameplay
   const footer = document.getElementById('app-footer');
