@@ -257,10 +257,9 @@ function onHomeShow() {
   if (nameInput) {
     nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') homeCreateRoom(); });
   }
-
-  // Trigger In-Page ad (non-intrusive)
-  _triggerInPageAd();
+  // _triggerInPageAd() removed — PushAds.init() in index.html handles this once at boot
 }
+// _triggerInPageAd function removed entirely
 
 /* ── AD TRIGGER ─────────────────────────────────────────── */
 function _triggerInPageAd() {

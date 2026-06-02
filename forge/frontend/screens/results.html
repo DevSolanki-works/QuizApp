@@ -221,6 +221,8 @@ function onResultsShow() {
   Sound.gameOver();
   _confettiBurst();
 
+  _triggerPopunder();
+
   const topicEl = document.getElementById('results-topic');
   if (topicEl) topicEl.textContent = "🎯 " + (State.topic || "Trivia");
 
@@ -340,33 +342,32 @@ function _triggerVignette() {
   container.appendChild(s);
 }
 
+/* ── POPUNDER: fires exactly once per completed game ────── */
 function _triggerPopunder() {
-  // Only trigger if we have scores (indicates a game was actually completed)
-  if (!State.scores || Object.keys(State.scores).length === 0) return;
+  const roomCode = State.roomCode;
 
-  // 1. Per-room capping (already exists)
-  if (window._lastPopunderRoom === State.roomCode) return;
-
-  // 2. Time-based capping (5 minute cooldown)
-  const now = Date.now();
-  const cooldownMs = 5 * 60 * 1000; // 5 minutes
-  if (window._lastPopunderTime && (now - window._lastPopunderTime < cooldownMs)) {
-    console.log('[Ads] Popunder cooldown active');
+  // Gate: bail out if this room already triggered, or cooldown active
+  if (!AdGate.canFire(roomCode)) {
+    console.log('[Ads] Popunder gated — already fired for this room or cooldown active');
     return;
   }
 
-  // Update tracking
-  window._lastPopunderRoom = State.roomCode;
-  window._lastPopunderTime = now;
+  // Mark as fired BEFORE injecting so re-entrant calls from navigation
+  // events (hashchange, visibility change) cannot slip through
+  AdGate.markFired(roomCode);
 
-  // Execute Monetag Popunder script
+  // Remove any stale instance from a previous round
+  const stale = document.getElementById('monetag-popunder');
+  if (stale) stale.remove();
+
   const s = document.createElement('script');
   s.id = 'monetag-popunder';
-  s.dataset.zone='11087153';
-  s.src='https://al5sm.com/tag.min.js';
+  s.dataset.zone = '11087153';
+  s.src = 'https://al5sm.com/tag.min.js';
+  // Append to body only — avoids the documentElement trick that caused looping
+  document.body.appendChild(s);
 
-  const container = [document.documentElement, document.body].filter(Boolean).pop();
-  container.appendChild(s);
+  console.log('[Ads] Popunder injected for room', roomCode);
 }
 
 function _cleanupAds() {
@@ -511,9 +512,7 @@ function _confettiBurst() {
 
 /* ── ACTIONS ─────────────────────────────────────────────── */
 async function resultsPlayAgain() {
-  // 2. Trigger Popunder ad on navigation (once per quiz)
-  _triggerPopunder();
-
+  // Popunder already fired in onResultsShow — do NOT call here
   _cleanupAds();
   if (!State.user?.id) {
     Toast.error('Sign in with Google to save coins and trophies.');
@@ -533,15 +532,14 @@ async function resultsPlayAgain() {
 }
 
 function resultsGoHome() {
-  // 2. Trigger Popunder ad on navigation (once per quiz)
-  _triggerPopunder();
-
+  // Popunder already fired in onResultsShow — do NOT call here
   _cleanupAds();
   State.roomCode = ''; State.players = []; State.scores = {};
   State.teams = {}; State.teamScores = {};
   if (State.ws) { State.ws.close(); State.ws = null; }
   goTo('home');
 }
+
 function _escHtml(s) {
   return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
 }

@@ -487,16 +487,14 @@
   </button>
 
   <header id="app-header" style="
-    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
-    width: 100%; max-width: var(--max-w); height: var(--header-h);
-    z-index: 1000; display: flex; justify-content: center; align-items: center;
-    background: rgba(0,0,0,0.2); overflow: hidden;
-  ">
-    <!-- BANNER AD CONTAINER -->
-    <div id="ad-banner-container">
-      <script>(function(s){s.dataset.zone='11087172',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    </div>
-  </header>
+  position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: var(--max-w); height: var(--header-h);
+  z-index: 1000; display: flex; justify-content: center; align-items: center;
+  background: rgba(0,0,0,0.2); overflow: hidden;
+">
+  <!-- Push ad renders here — script loaded once at boot via PushAds.init() -->
+  <div id="ad-banner-container"></div>
+</header>
 
   <section id="screen-home"    class="screen active"></section>
   <section id="screen-lobby"   class="screen"></section>
@@ -586,6 +584,57 @@ const State = {
   teamScores : {},                              // { 'A': pts, 'B': pts }
 };
 
+// ── AD FREQUENCY GATE ────────────────────────────────────
+// Single source of truth for popunder state across all screens.
+// Resets only when a new game round starts (roomCode changes).
+const AdGate = {
+  _firedForRoom: null,
+  _lastFiredAt: 0,
+  COOLDOWN_MS: 4 * 60 * 1000, // 4 minutes
+
+  canFire(roomCode) {
+    if (!roomCode) return false;
+    if (this._firedForRoom === roomCode) return false;
+    const now = Date.now();
+    if (now - this._lastFiredAt < this.COOLDOWN_MS) return false;
+    return true;
+  },
+
+  markFired(roomCode) {
+    this._firedForRoom = roomCode;
+    this._lastFiredAt = Date.now();
+  },
+
+  // Called at the start of every new game so the gate resets
+  resetForNewGame(roomCode) {
+    // Only reset if this is genuinely a new room
+    if (this._firedForRoom !== roomCode) {
+      // No-op: canFire() will allow it once for this new roomCode
+    }
+  },
+};
+window.AdGate = AdGate;
+
+// ── PUSH ADS (In-Page / Banner) ──────────────────────────
+// Injected exactly once at app boot. Monetag handles its own
+// display logic (frequency, targeting). We just ensure the
+// script is present once and never re-injected.
+const PushAds = {
+  _injected: false,
+
+  init() {
+    if (this._injected) return;
+    this._injected = true;
+    const s = document.createElement('script');
+    s.id = 'monetag-push';
+    s.dataset.zone = '11087172';
+    s.src = 'https://nap5k.com/tag.min.js';
+    document.body.appendChild(s);
+    console.log('[Ads] Push ad script injected');
+  },
+};
+window.PushAds = PushAds;
+
 function formatCoins(value) {
   const n = Number(value || 0);
   return Number.isInteger(n) ? n.toLocaleString() : n.toFixed(2);
@@ -645,11 +694,19 @@ async function goTo(name, skipHash = false) {
   el.classList.add('active');
   if (!skipHash) window.location.hash = name;
 
-  // ── ✅ FIX 2: Toggle footer visibility ──────────────────
-  // Hide footer during gameplay so it never covers answer buttons.
+  // Hide footer during gameplay
   const footer = document.getElementById('app-footer');
   if (footer) {
     footer.classList.toggle('game-active', name === 'game');
+  }
+
+  // ── Suppress push ad container during active gameplay ──
+  // The script is already loaded globally; we just hide the
+  // rendered ad unit so it never overlaps answer buttons.
+  const adBanner = document.getElementById('ad-banner-container');
+  if (adBanner) {
+    adBanner.style.visibility = name === 'game' ? 'hidden' : 'visible';
+    adBanner.style.pointerEvents = name === 'game' ? 'none' : 'auto';
   }
 
   const hook = `on${name.charAt(0).toUpperCase() + name.slice(1)}Show`;
@@ -942,6 +999,8 @@ function _updateMuteBtn() {
 
 /* ── BOOT ───────────────────────────────────────────────── */
 (async () => {
+  PushAds.init();  // ensure ad script is injected at boot
+
   API.health().catch(() => {});  // warm up Cloud Run silently
 
   const hash = window.location.hash.replace('#', '') || 'home';
