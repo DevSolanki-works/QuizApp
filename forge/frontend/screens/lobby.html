@@ -1059,6 +1059,9 @@ function lobbyStartClassic() {
   const btn = document.getElementById('btn-start-classic');
   if (btn) { btn.textContent = '⏳ GENERATING...'; btn.disabled = true; }
   Sound.gameStart();
+  if (window.AdOps && typeof window.AdOps.onGameStart === 'function') {
+    window.AdOps.onGameStart();
+  }
   const playMode = State.playMode === 'solo' ? 'solo' : 'classic';
   WS.send({ action:'start_game', topic, mode: State.mode||'medium', play_mode: playMode });
   Toast.info('Generating your quiz...');
@@ -1076,6 +1079,9 @@ function lobbyStartTeam() {
   if (btn) { btn.textContent='🎲 ROLLING...'; btn.disabled=true; }
 
   Sound.gameStart();
+  if (window.AdOps && typeof window.AdOps.onGameStart === 'function') {
+    window.AdOps.onGameStart();
+  }
 
   // Pick locally for animation (server does its own pick — usually matches)
   const winner = candidates[Math.floor(Math.random() * candidates.length)];

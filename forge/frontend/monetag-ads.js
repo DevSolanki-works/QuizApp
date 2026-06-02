@@ -120,11 +120,20 @@
     this._bannerScrubDurationMs = typeof opts.bannerScrubDurationMs === "number" ? opts.bannerScrubDurationMs : 20000;
 
     this._initialized = false;
+
+    // Popunder kill-switch: stop infinite window.open storms after first popunder.
+    this._origWindowOpen = null;
+    this._openGate = null; // { remaining:number, expiresAt:number }
   }
 
   MonetagAdOps.prototype.init = function init() {
     if (this._initialized) return;
     this._initialized = true;
+
+    // Capture original window.open once (best-effort)
+    try {
+      if (typeof globalObj.open === "function") this._origWindowOpen = globalObj.open.bind(globalObj);
+    } catch (_) {}
 
     this._startBannerDefense();
     this._scrubBannersNow();
@@ -197,6 +206,7 @@
   MonetagAdOps.prototype.destroy = function destroy() {
     this._stopBannerDefense();
     this._removeInjectedScripts();
+    this._disableOpenGate();
     this._initialized = false;
     this._phase = Phase.IDLE;
     this._firedMask = 0;
@@ -227,6 +237,7 @@
     this._phase = Phase.IDLE;
     this._firedMask = 0;
     this._removeInjectedScripts();
+    this._disableOpenGate();
     this._scrubBannersNow();
   };
 
@@ -305,27 +316,72 @@
     });
   };
 
+  MonetagAdOps.prototype._enableOpenGate = function _enableOpenGate(maxOpens, ttlMs) {
+    // Allows exactly `maxOpens` calls to window.open until expiry; then blocks all further opens.
+    // This prevents Monetag popunder from re-triggering on every click/navigation.
+    try {
+      if (!this._origWindowOpen) return;
+      var remaining = typeof maxOpens === "number" ? maxOpens : 1;
+      var expiresAt = nowMs() + (typeof ttlMs === "number" ? ttlMs : 600000); // default 10 min
+      this._openGate = { remaining: remaining, expiresAt: expiresAt };
+
+      var self = this;
+      globalObj.open = function gatedWindowOpen(url, name, specs) {
+        try {
+          var u = url == null ? "" : String(url);
+          // Allow app-safe schemes
+          if (u.indexOf("mailto:") === 0 || u.indexOf("tel:") === 0) {
+            return self._origWindowOpen(url, name, specs);
+          }
+          if (!self._openGate) return null;
+          if (nowMs() > self._openGate.expiresAt) return null;
+          if (self._openGate.remaining <= 0) return null;
+          self._openGate.remaining -= 1;
+          return self._origWindowOpen(url, name, specs);
+        } catch (_) {
+          return null;
+        }
+      };
+    } catch (_) {}
+  };
+
+  MonetagAdOps.prototype._disableOpenGate = function _disableOpenGate() {
+    try {
+      if (this._origWindowOpen) globalObj.open = this._origWindowOpen;
+    } catch (_) {}
+    this._openGate = null;
+  };
+
   MonetagAdOps.prototype._fireResultsPair = function _fireResultsPair() {
     var self = this;
     if (this._hasFired(Fired.RESULTS_VIGNETTE) && this._hasFired(Fired.RESULTS_POPUNDER)) return;
-    // Bypass cooldown by doing both injections within a single lock.
-    this._withInjectLock(function () {
-      if (self._locked) return;
-      if (self._phase !== Phase.RESULTS) return;
-
-      if (!self._hasFired(Fired.RESULTS_VIGNETTE)) {
+    // 1) Fire results vignette now (guarded).
+    if (!this._hasFired(Fired.RESULTS_VIGNETTE)) {
+      this._withInjectLock(function () {
+        if (self._locked) return;
+        if (self._phase !== Phase.RESULTS) return;
+        if (self._hasFired(Fired.RESULTS_VIGNETTE)) return;
         self._appendZoneScript(ZONES.VIGNETTE);
         self._markFired(Fired.RESULTS_VIGNETTE);
         self._scheduleZoneTagCleanup(ZONES.VIGNETTE.zone, 15000);
-      }
+      });
+    }
 
-      // Allow immediate popunder injection (no cooldown check here).
-      if (!self._hasFired(Fired.RESULTS_POPUNDER)) {
-        self._appendZoneScript(ZONES.POPUNDER);
-        self._markFired(Fired.RESULTS_POPUNDER);
-        self._scheduleZoneTagCleanup(ZONES.POPUNDER.zone, 15000);
-      }
-    });
+    // 2) Then allow exactly ONE popunder open attempt, ever (until reset),
+    // and inject the popunder tag slightly after vignette.
+    if (!this._hasFired(Fired.RESULTS_POPUNDER)) {
+      self._enableOpenGate(1, 10 * 60 * 1000);
+      globalObj.setTimeout(function () {
+        if (self._locked) return;
+        if (self._phase !== Phase.RESULTS) return;
+        if (self._hasFired(Fired.RESULTS_POPUNDER)) return;
+        try {
+          self._appendZoneScript(ZONES.POPUNDER);
+          self._markFired(Fired.RESULTS_POPUNDER);
+          self._scheduleZoneTagCleanup(ZONES.POPUNDER.zone, 15000);
+        } catch (_) {}
+      }, 250);
+    }
   };
 
   MonetagAdOps.prototype._removeInjectedScripts = function _removeInjectedScripts() {
