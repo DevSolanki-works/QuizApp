@@ -535,18 +535,6 @@ const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws:/
 
 const GOOGLE_CLIENT_ID = '878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com';
 
-/* ── Service Worker hard-disable (Monetag SW can inject ads) ── */
-// Monetag service workers can persist across sessions and trigger "random"
-// interstitial/popunder behavior outside our lifecycle controls.
-// We explicitly unregister all SWs to keep ad flow deterministic.
-if ('serviceWorker' in navigator) {
-  try {
-    navigator.serviceWorker.getRegistrations()
-      .then(regs => Promise.all(regs.map(r => r.unregister())))
-      .catch(() => {});
-  } catch (e) {}
-}
-
 /* ── SESSION PERSISTENCE ─────────────────────────────────── */
 const Session = {
   KEY: 'forge_session_v1',

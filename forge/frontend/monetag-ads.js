@@ -110,12 +110,7 @@
 
     // Lobby vignette is only allowed when explicitly armed from a Home CTA
     this._lobbyVignetteArmed = false;
-    this._homeVignetteArmed = false;
-    this._resultsPopunderArmed = false;
-
-    // One-shot click listeners to force ads to trigger on the correct screen
-    this._homeClickHandler = null;
-    this._resultsClickHandler = null;
+    this._resultsPopunderInjected = false;
 
     // Gameplay hard guard (block any late vignette/popunder injections)
     this._gameplayObserver = null;
@@ -187,10 +182,9 @@
     }
     this._scrubBannersNow();
     this._disableOpenGate();
-    // Home vignette must NOT "wait" and then trigger mid-quiz on a later click.
-    // So: arm it here, and actually fire it on the first user click on Home.
-    this._armHomeVignetteOncePerSession();
-    this._installHomeClickOnce();
+    // Home vignette is intentionally NOT fired here.
+    // It is fired deterministically inside the Home CTA click (Solo/Create/Join)
+    // so it cannot "spill" into gameplay.
   };
 
   MonetagAdOps.prototype.onGameStart = function onGameStart() {
@@ -200,8 +194,6 @@
     this._disableOpenGate();
     this._phase = Phase.GAMEPLAY;
     this._scrubBannersNow();
-    this._uninstallHomeClickOnce();
-    this._uninstallResultsClickOnce();
     this._startGameplayGuard();
   };
 
@@ -215,8 +207,7 @@
     this._phase = Phase.RESULTS;
     this._scrubBannersNow();
     // Results: ONE popunder only (no vignette here).
-    this._resultsPopunderArmed = true;
-    this._installResultsClickOnce();
+    this._fireResultsPopunderOnce();
 
     this._lockdown();
   };
@@ -227,13 +218,12 @@
     this._currentScreen = String(screenName || "unknown");
     if (this._currentScreen !== "results") {
       this._disableOpenGate();
-      this._uninstallResultsClickOnce();
       // Remove any lingering popunder tag when leaving results
       removeAllScriptsWhere(function (s) {
         return matchesZoneScript(s, ZONES.POPUNDER.zone, ZONES.POPUNDER.src);
       });
+      this._resultsPopunderInjected = false;
     }
-    if (this._currentScreen !== "home") this._uninstallHomeClickOnce();
     if (this._currentScreen !== "game") this._stopGameplayGuard();
   };
 
@@ -294,11 +284,8 @@
     this._firedMask = 0;
     this._removeInjectedScripts();
     this._disableOpenGate();
-    this._homeVignetteArmed = false;
     this._lobbyVignetteArmed = false;
-    this._resultsPopunderArmed = false;
-    this._uninstallHomeClickOnce();
-    this._uninstallResultsClickOnce();
+    this._resultsPopunderInjected = false;
     this._stopGameplayGuard();
     this._scrubBannersNow();
   };
@@ -437,6 +424,7 @@
   MonetagAdOps.prototype._fireResultsPopunderOnce = function _fireResultsPopunderOnce() {
     var self = this;
     if (this._hasFired(Fired.RESULTS_POPUNDER)) return;
+    if (this._resultsPopunderInjected) return;
 
     // Allow exactly ONE open, and ONLY while on results.
     self._enableOpenGate(1, 5 * 60 * 1000);
@@ -445,6 +433,7 @@
     try {
       self._appendZoneScript(ZONES.POPUNDER);
       self._markFired(Fired.RESULTS_POPUNDER);
+      self._resultsPopunderInjected = true;
       // Do NOT auto-remove quickly; it can prevent the first click-triggered popunder.
       // Cleanup happens when leaving results (via onNavigate()) and on reset.
     } catch (_) {}
@@ -513,60 +502,23 @@
     this._gameplayObserver = null;
   };
 
-  MonetagAdOps.prototype._armHomeVignetteOncePerSession = function _armHomeVignetteOncePerSession() {
+  // Fired from Home CTA click to guarantee "first vignette on first arrival"
+  MonetagAdOps.prototype.maybeShowHomeVignette = function maybeShowHomeVignette() {
+    this._ensureInit();
+    if (this._locked) return false;
     try {
-      var key = "adops.home.vignette.shown.v2";
+      var key = "adops.home.vignette.shown.v3";
       var already = globalObj.sessionStorage && globalObj.sessionStorage.getItem(key) === "1";
-      if (already) {
-        this._homeVignetteArmed = false;
-        return;
-      }
-      this._homeVignetteArmed = true;
+      if (already) return false;
+      globalObj.sessionStorage && globalObj.sessionStorage.setItem(key, "1");
     } catch (_) {
-      // Fallback: arm once per page load.
-      this._homeVignetteArmed = !this._hasFired(Fired.HOME_VIGNETTE);
+      if (this._hasFired(Fired.HOME_VIGNETTE)) return false;
     }
-  };
-
-  MonetagAdOps.prototype._installHomeClickOnce = function _installHomeClickOnce() {
-    var self = this;
-    if (this._homeClickHandler) return;
-    this._homeClickHandler = function () {
-      if (self._currentScreen !== "home") return;
-      if (!self._homeVignetteArmed) return;
-      self._homeVignetteArmed = false;
-      try { globalObj.sessionStorage && globalObj.sessionStorage.setItem("adops.home.vignette.shown.v2", "1"); } catch (_) {}
-      self._scrubVignetteTags();
-      self._phase = Phase.IDLE;
-      self._fireVignetteOnce(Fired.HOME_VIGNETTE);
-      self._uninstallHomeClickOnce();
-    };
-    globalObj.document.addEventListener("click", this._homeClickHandler, true);
-  };
-
-  MonetagAdOps.prototype._uninstallHomeClickOnce = function _uninstallHomeClickOnce() {
-    if (!this._homeClickHandler) return;
-    try { globalObj.document.removeEventListener("click", this._homeClickHandler, true); } catch (_) {}
-    this._homeClickHandler = null;
-  };
-
-  MonetagAdOps.prototype._installResultsClickOnce = function _installResultsClickOnce() {
-    var self = this;
-    if (this._resultsClickHandler) return;
-    this._resultsClickHandler = function () {
-      if (self._currentScreen !== "results") return;
-      if (!self._resultsPopunderArmed) return;
-      self._resultsPopunderArmed = false;
-      self._fireResultsPopunderOnce();
-      self._uninstallResultsClickOnce();
-    };
-    globalObj.document.addEventListener("click", this._resultsClickHandler, true);
-  };
-
-  MonetagAdOps.prototype._uninstallResultsClickOnce = function _uninstallResultsClickOnce() {
-    if (!this._resultsClickHandler) return;
-    try { globalObj.document.removeEventListener("click", this._resultsClickHandler, true); } catch (_) {}
-    this._resultsClickHandler = null;
+    this._currentScreen = "home";
+    this._phase = Phase.IDLE;
+    this._scrubVignetteTags();
+    this._fireVignetteOnce(Fired.HOME_VIGNETTE);
+    return true;
   };
 
   MonetagAdOps.prototype._scrubBannersNow = function _scrubBannersNow() {
