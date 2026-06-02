@@ -221,7 +221,7 @@ function onResultsShow() {
   Sound.gameOver();
   _confettiBurst();
 
-  _triggerPopunder();
+  _fireEndOfGameAds();
 
   const topicEl = document.getElementById('results-topic');
   if (topicEl) topicEl.textContent = "🎯 " + (State.topic || "Trivia");
@@ -326,55 +326,52 @@ function _renderEconomyResult() {
 }
 
 /* ── AD TRIGGERS ─────────────────────────────────────────── */
-function _triggerVignette() {
-  if (!State.scores || Object.keys(State.scores).length === 0) return;
-  
-  // Only trigger ONCE per room/quiz
-  if (window._lastVignetteRoom === State.roomCode) return;
-  window._lastVignetteRoom = State.roomCode;
 
-  // Execute Monetag Vignette script
-  const s = document.createElement('script');
-  s.id = 'monetag-vignette';
-  s.dataset.zone='11087559';
-  s.src='https://n6wxm.com/vignette.min.js';
-  const container = [document.documentElement, document.body].filter(Boolean).pop();
-  container.appendChild(s);
-}
-
-/* ── POPUNDER: fires exactly once per completed game ────── */
-function _triggerPopunder() {
+/**
+ * Fire both end-of-game ads exactly once per completed room.
+ * Called once from onResultsShow — never from navigation buttons.
+ */
+function _fireEndOfGameAds() {
   const roomCode = State.roomCode;
 
-  // Gate: bail out if this room already triggered, or cooldown active
   if (!AdGate.canFire(roomCode)) {
-    console.log('[Ads] Popunder gated — already fired for this room or cooldown active');
+    console.log('[Ads] End-of-game ads already fired for room', roomCode);
     return;
   }
 
-  // Mark as fired BEFORE injecting so re-entrant calls from navigation
-  // events (hashchange, visibility change) cannot slip through
+  // Mark BEFORE injecting — prevents any re-entrant calls
   AdGate.markFired(roomCode);
 
-  // Remove any stale instance from a previous round
-  const stale = document.getElementById('monetag-popunder');
-  if (stale) stale.remove();
+  // ── Vignette ──
+  const oldV = document.getElementById('monetag-vignette');
+  if (oldV) oldV.remove();
+  const sv = document.createElement('script');
+  sv.id = 'monetag-vignette';
+  sv.dataset.zone = '11087559';
+  sv.src = 'https://n6wxm.com/vignette.min.js';
+  document.body.appendChild(sv);
 
-  const s = document.createElement('script');
-  s.id = 'monetag-popunder';
-  s.dataset.zone = '11087153';
-  s.src = 'https://al5sm.com/tag.min.js';
-  // Append to body only — avoids the documentElement trick that caused looping
-  document.body.appendChild(s);
+  // ── Popunder ──
+  const oldP = document.getElementById('monetag-popunder');
+  if (oldP) oldP.remove();
+  const sp = document.createElement('script');
+  sp.id = 'monetag-popunder';
+  sp.dataset.zone = '11087153';
+  sp.src = 'https://al5sm.com/tag.min.js';
+  document.body.appendChild(sp);
 
-  console.log('[Ads] Popunder injected for room', roomCode);
-}
+  console.log('[Ads] End-of-game ads fired for room', roomCode);
 
-function _cleanupAds() {
-  ['monetag-popunder', 'monetag-vignette'].forEach(id => {
-    const s = document.getElementById(id);
-    if (s) s.remove();
-  });
+  // Remove scripts from DOM after a short delay — long enough for
+  // Monetag to register and show the ad, short enough that their
+  // internal re-fire timers never get a second cycle
+  setTimeout(() => {
+    ['monetag-popunder', 'monetag-vignette'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
+    console.log('[Ads] Ad scripts removed from DOM');
+  }, 3000);
 }
 
 /* ── TEAM WINNER BANNER ─────────────────────────────────── */
@@ -512,8 +509,6 @@ function _confettiBurst() {
 
 /* ── ACTIONS ─────────────────────────────────────────────── */
 async function resultsPlayAgain() {
-  // Popunder already fired in onResultsShow — do NOT call here
-  _cleanupAds();
   if (!State.user?.id) {
     Toast.error('Sign in with Google to save coins and trophies.');
     resultsGoHome();
@@ -525,15 +520,16 @@ async function resultsPlayAgain() {
       State.roomCode = data.room_code;
       State.players = [State.playerName]; State.scores = {};
       State.teams = {}; State.teamScores = {};
+      // New room assigned — gate will allow ads again after next game
       WS.connect(State.roomCode, State.playerName);
       await goTo('lobby');
     } catch(e) { Toast.error('Error creating room'); }
-  } else { resultsGoHome(); }
+  } else {
+    resultsGoHome();
+  }
 }
 
 function resultsGoHome() {
-  // Popunder already fired in onResultsShow — do NOT call here
-  _cleanupAds();
   State.roomCode = ''; State.players = []; State.scores = {};
   State.teams = {}; State.teamScores = {};
   if (State.ws) { State.ws.close(); State.ws = null; }

@@ -585,32 +585,31 @@ const State = {
 };
 
 // ── AD FREQUENCY GATE ────────────────────────────────────
-// Single source of truth for popunder state across all screens.
-// Resets only when a new game round starts (roomCode changes).
+// Tracks whether the end-of-game ads have already fired this
+// round. Resets only when a brand new room code is assigned.
+// Also physically removes script tags after firing so Monetag's
+// own internal re-fire logic cannot trigger again.
 const AdGate = {
   _firedForRoom: null,
-  _lastFiredAt: 0,
-  COOLDOWN_MS: 4 * 60 * 1000, // 4 minutes
 
   canFire(roomCode) {
     if (!roomCode) return false;
     if (this._firedForRoom === roomCode) return false;
-    const now = Date.now();
-    if (now - this._lastFiredAt < this.COOLDOWN_MS) return false;
     return true;
   },
 
   markFired(roomCode) {
     this._firedForRoom = roomCode;
-    this._lastFiredAt = Date.now();
   },
 
-  // Called at the start of every new game so the gate resets
-  resetForNewGame(roomCode) {
-    // Only reset if this is genuinely a new room
-    if (this._firedForRoom !== roomCode) {
-      // No-op: canFire() will allow it once for this new roomCode
-    }
+  reset() {
+    this._firedForRoom = null;
+    // Physically remove injected ad scripts from DOM so Monetag
+    // cannot re-trigger from its own internal polling/timers
+    ['monetag-popunder', 'monetag-vignette'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
   },
 };
 window.AdGate = AdGate;
