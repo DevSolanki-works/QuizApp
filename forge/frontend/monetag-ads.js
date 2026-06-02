@@ -115,7 +115,6 @@
 
     // One-shot click listeners to force ads to trigger on the correct screen
     this._homeClickHandler = null;
-    this._lobbyClickHandler = null;
     this._resultsClickHandler = null;
 
     // Gameplay hard guard (block any late vignette/popunder injections)
@@ -166,6 +165,8 @@
     this._disableOpenGate(); // never allow popunder outside results
     if (this._lobbyVignetteArmed) {
       this._lobbyVignetteArmed = false;
+      // Fire immediately on lobby enter so it cannot attach to the user's
+      // first gameplay click (e.g. pressing START).
       this._fireVignetteOnce(Fired.LOBBY_VIGNETTE);
     }
   };
@@ -175,7 +176,6 @@
     this._ensureInit();
     if (this._locked) return;
     this._lobbyVignetteArmed = true;
-    this._installLobbyClickOnce();
   };
 
   MonetagAdOps.prototype.onHomeEnter = function onHomeEnter() {
@@ -201,7 +201,6 @@
     this._phase = Phase.GAMEPLAY;
     this._scrubBannersNow();
     this._uninstallHomeClickOnce();
-    this._uninstallLobbyClickOnce();
     this._uninstallResultsClickOnce();
     this._startGameplayGuard();
   };
@@ -229,9 +228,12 @@
     if (this._currentScreen !== "results") {
       this._disableOpenGate();
       this._uninstallResultsClickOnce();
+      // Remove any lingering popunder tag when leaving results
+      removeAllScriptsWhere(function (s) {
+        return matchesZoneScript(s, ZONES.POPUNDER.zone, ZONES.POPUNDER.src);
+      });
     }
     if (this._currentScreen !== "home") this._uninstallHomeClickOnce();
-    if (this._currentScreen !== "lobby") this._uninstallLobbyClickOnce();
     if (this._currentScreen !== "game") this._stopGameplayGuard();
   };
 
@@ -296,7 +298,6 @@
     this._lobbyVignetteArmed = false;
     this._resultsPopunderArmed = false;
     this._uninstallHomeClickOnce();
-    this._uninstallLobbyClickOnce();
     this._uninstallResultsClickOnce();
     this._stopGameplayGuard();
     this._scrubBannersNow();
@@ -444,7 +445,8 @@
     try {
       self._appendZoneScript(ZONES.POPUNDER);
       self._markFired(Fired.RESULTS_POPUNDER);
-      self._scheduleZoneTagCleanup(ZONES.POPUNDER.zone, 15000);
+      // Do NOT auto-remove quickly; it can prevent the first click-triggered popunder.
+      // Cleanup happens when leaving results (via onNavigate()) and on reset.
     } catch (_) {}
   };
 
@@ -546,27 +548,6 @@
     if (!this._homeClickHandler) return;
     try { globalObj.document.removeEventListener("click", this._homeClickHandler, true); } catch (_) {}
     this._homeClickHandler = null;
-  };
-
-  MonetagAdOps.prototype._installLobbyClickOnce = function _installLobbyClickOnce() {
-    var self = this;
-    if (this._lobbyClickHandler) return;
-    this._lobbyClickHandler = function () {
-      if (self._currentScreen !== "lobby") return;
-      if (!self._lobbyVignetteArmed) return;
-      self._lobbyVignetteArmed = false;
-      self._scrubVignetteTags();
-      self._phase = Phase.LOBBY;
-      self._fireVignetteOnce(Fired.LOBBY_VIGNETTE);
-      self._uninstallLobbyClickOnce();
-    };
-    globalObj.document.addEventListener("click", this._lobbyClickHandler, true);
-  };
-
-  MonetagAdOps.prototype._uninstallLobbyClickOnce = function _uninstallLobbyClickOnce() {
-    if (!this._lobbyClickHandler) return;
-    try { globalObj.document.removeEventListener("click", this._lobbyClickHandler, true); } catch (_) {}
-    this._lobbyClickHandler = null;
   };
 
   MonetagAdOps.prototype._installResultsClickOnce = function _installResultsClickOnce() {
