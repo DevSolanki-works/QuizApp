@@ -587,7 +587,9 @@ async def websocket_endpoint(
                     continue
 
                 # Rate limit
-                ip = websocket.client.host
+                ip = "0.0.0.0"
+                if websocket.client:
+                    ip = websocket.client.host
                 fwd = websocket.headers.get("X-Forwarded-For")
                 if fwd:
                     ip = fwd.split(",")[0].strip()

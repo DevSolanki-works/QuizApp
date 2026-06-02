@@ -361,7 +361,9 @@ async function homeCreateRoom() {
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
   } catch (e) {
-    console.error(e); Toast.error('Could not create room. Try again.');
+    console.error(e);
+    const msg = e.message.includes('{') ? JSON.parse(e.message).detail : e.message;
+    Toast.error(msg || 'Could not create room. Try again.');
   } finally {
     _setLoading('btn-create', false);
   }
@@ -389,7 +391,9 @@ async function homeStartSolo() {
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
   } catch (e) {
-    console.error(e); Toast.error('Could not start solo game. Try again.');
+    console.error(e);
+    const msg = e.message.includes('{') ? JSON.parse(e.message).detail : e.message;
+    Toast.error(msg || 'Could not start solo game. Try again.');
   } finally {
     _setLoading('btn-solo', false);
   }

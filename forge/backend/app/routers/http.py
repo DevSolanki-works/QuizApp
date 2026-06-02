@@ -55,8 +55,11 @@ async def health_check():
 async def create_room(body: CreateRoomRequest, request: Request):
     """Create a waiting solo or classic room in process memory."""
 
-    # Rate limit check: max 3 rooms/quizzes per minute per IP
-    ip = request.client.host
+    # Rate limit check: max 5 rooms per minute per IP
+    ip = "0.0.0.0"
+    if request.client:
+        ip = request.client.host
+    
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         ip = forwarded.split(",")[0].strip()
