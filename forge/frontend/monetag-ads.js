@@ -28,7 +28,7 @@
   });
 
   var Fired = Object.freeze({
-    LOBBY_VIGNETTE: 1 << 0,
+    GAME_VIGNETTE: 1 << 0,
     RESULTS_VIGNETTE: 1 << 1,
     RESULTS_POPUNDER: 1 << 2,
   });
@@ -139,8 +139,8 @@
     }
     this._phase = Phase.LOBBY;
     this._scrubBannersNow();
-    if (this._hasFired(Fired.LOBBY_VIGNETTE)) return;
-    this._fireVignetteOnce(Fired.LOBBY_VIGNETTE);
+    // Intentionally does NOT fire any ads.
+    // Lobby must stay clean and undisturbed.
   };
 
   MonetagAdOps.prototype.onGameStart = function onGameStart() {
@@ -149,8 +149,14 @@
       this._phase = Phase.LOCKDOWN;
       return;
     }
-    this._phase = Phase.GAMEPLAY;
     this._scrubBannersNow();
+    // Fire exactly ONE vignette per match on the game screen, then lock to GAMEPLAY.
+    // This avoids lobby disruption and reduces "mid-quiz" interference.
+    if (!this._hasFired(Fired.GAME_VIGNETTE)) {
+      this._phase = Phase.LOBBY; // allow injection (not GAMEPLAY yet)
+      this._fireVignetteOnce(Fired.GAME_VIGNETTE);
+    }
+    this._phase = Phase.GAMEPLAY;
   };
 
   MonetagAdOps.prototype.onGameEnd = function onGameEnd() {
@@ -161,9 +167,8 @@
     }
     this._phase = Phase.RESULTS;
     this._scrubBannersNow();
-
-    if (!this._hasFired(Fired.RESULTS_VIGNETTE)) this._fireVignetteOnce(Fired.RESULTS_VIGNETTE);
-    if (!this._hasFired(Fired.RESULTS_POPUNDER)) this._firePopunderOnce(Fired.RESULTS_POPUNDER);
+    // Fire results ads atomically (vignette then popunder) so cooldown cannot block #3.
+    this._fireResultsPair();
 
     this._lockdown();
   };
@@ -182,7 +187,7 @@
       locked: this._locked,
       firedMask: this._firedMask,
       fired: {
-        lobbyVignette: this._hasFired(Fired.LOBBY_VIGNETTE),
+        gameVignette: this._hasFired(Fired.GAME_VIGNETTE),
         resultsVignette: this._hasFired(Fired.RESULTS_VIGNETTE),
         resultsPopunder: this._hasFired(Fired.RESULTS_POPUNDER),
       },
@@ -297,6 +302,29 @@
       self._appendZoneScript(ZONES.POPUNDER);
       self._markFired(flag);
       self._scheduleZoneTagCleanup(ZONES.POPUNDER.zone, 15000);
+    });
+  };
+
+  MonetagAdOps.prototype._fireResultsPair = function _fireResultsPair() {
+    var self = this;
+    if (this._hasFired(Fired.RESULTS_VIGNETTE) && this._hasFired(Fired.RESULTS_POPUNDER)) return;
+    // Bypass cooldown by doing both injections within a single lock.
+    this._withInjectLock(function () {
+      if (self._locked) return;
+      if (self._phase !== Phase.RESULTS) return;
+
+      if (!self._hasFired(Fired.RESULTS_VIGNETTE)) {
+        self._appendZoneScript(ZONES.VIGNETTE);
+        self._markFired(Fired.RESULTS_VIGNETTE);
+        self._scheduleZoneTagCleanup(ZONES.VIGNETTE.zone, 15000);
+      }
+
+      // Allow immediate popunder injection (no cooldown check here).
+      if (!self._hasFired(Fired.RESULTS_POPUNDER)) {
+        self._appendZoneScript(ZONES.POPUNDER);
+        self._markFired(Fired.RESULTS_POPUNDER);
+        self._scheduleZoneTagCleanup(ZONES.POPUNDER.zone, 15000);
+      }
     });
   };
 
