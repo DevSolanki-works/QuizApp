@@ -24,64 +24,64 @@
   /* ── HERO ─────────────────────────────────────────────────── */
   .lnd-hero {
     width: 100%;
+    min-height: 100%;
     text-align: center;
-    padding: 52px 24px 36px;
+    padding: 40px 24px;
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    justify-content: center;
+    gap: 20px;
   }
   .lnd-hero::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse at 50% 0%, rgba(37,64,204,0.55) 0%, transparent 70%);
+    background: radial-gradient(ellipse at 50% 50%, rgba(37,64,204,0.45) 0%, transparent 80%);
     pointer-events: none;
     z-index: 0;
   }
   .lnd-hero > * { position: relative; z-index: 1; }
 
   .lnd-trophy {
-    font-size: 62px;
+    font-size: 80px;
     line-height: 1;
-    filter: drop-shadow(0 6px 28px rgba(255,217,61,0.6));
+    filter: drop-shadow(0 8px 32px rgba(255,217,61,0.6));
     animation: hero-trophy 3s ease-in-out infinite;
   }
+  @media (min-width: 1024px) { .lnd-trophy { font-size: 110px; } }
+
   @keyframes hero-trophy {
     0%,100% { transform: translateY(0) rotate(-4deg) scale(1); }
-    50%      { transform: translateY(-12px) rotate(4deg) scale(1.06); }
+    50%      { transform: translateY(-15px) rotate(4deg) scale(1.08); }
   }
 
   .lnd-hero-tag {
     font-family: var(--font-pixel);
-    font-size: 7px;
+    font-size: 8px;
     color: var(--green);
-    letter-spacing: 2px;
-    padding: 4px 14px;
+    letter-spacing: 3px;
+    padding: 6px 16px;
     border-radius: var(--radius-pill);
-    background: rgba(6,214,160,0.12);
-    border: 1px solid rgba(6,214,160,0.3);
+    background: rgba(6,214,160,0.1);
+    border: 1px solid rgba(6,214,160,0.25);
+    margin-bottom: 8px;
   }
 
   .lnd-h1 {
     font-family: var(--font-pixel);
-    font-size: clamp(20px, 5vw, 30px);
+    font-size: clamp(24px, 7vw, 42px);
     color: var(--white);
-    line-height: 1.55;
-    letter-spacing: 2px;
-    text-shadow: 0 3px 0 rgba(0,0,0,0.4);
+    line-height: 1.3;
+    letter-spacing: 3px;
+    text-shadow: 0 4px 0 rgba(0,0,0,0.4);
+    max-width: 800px;
   }
   .lnd-h1 span { color: var(--yellow); }
 
   .lnd-hero-body {
-    font-family: var(--font-body);
-    font-size: 16px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.78);
-    line-height: 1.75;
-    max-width: 580px;
-    text-align: center;
+    display: none; /* Hidden on first impression, see SEO section below */
   }
 
   .lnd-cta-row {
@@ -89,14 +89,58 @@
     flex-direction: column;
     gap: 16px;
     width: 100%;
-    max-width: 380px;
-    margin-top: 12px;
+    max-width: 340px;
+    margin-top: 20px;
   }
   @media (min-width: 460px) {
     .lnd-cta-row {
       flex-direction: row;
       max-width: 520px;
     }
+  }
+
+  .lnd-scroll-hint {
+    position: absolute;
+    bottom: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.6;
+    animation: bounce 2s infinite;
+    cursor: pointer;
+  }
+  .lnd-scroll-text {
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    color: var(--white);
+    letter-spacing: 1px;
+  }
+  .lnd-scroll-arrow {
+    font-size: 18px;
+    color: var(--yellow);
+  }
+  @keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+    40% {transform: translateY(-10px);}
+    60% {transform: translateY(-5px);}
+  }
+
+  /* ── SEO CONTENT SECTION ─────────────────────────────────── */
+  .lnd-seo-intro {
+    width: 100%;
+    padding: 48px 24px;
+    text-align: center;
+    background: rgba(255,255,255,0.03);
+  }
+  .lnd-seo-body {
+    font-family: var(--font-body);
+    font-size: 17px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    line-height: 1.8;
+    max-width: 700px;
+    margin: 0 auto;
   }
   .lnd-btn-play {
     flex: 1;
@@ -625,26 +669,39 @@
 
     <div class="lnd-hero-tag">AI-POWERED MULTIPLAYER TRIVIA</div>
 
+    <div class="lnd-trophy" aria-hidden="true">🏆</div>
+
     <h1 class="lnd-h1">FORGE<br><span>AI TRIVIA SHOWDOWN</span></h1>
 
-    <p class="lnd-hero-body">
+    <div class="lnd-cta-row">
+      <button class="lnd-btn-play" onclick="landingPlayNow()">
+        ⚡ &nbsp;PLAY FOR FREE
+      </button>
+      <button class="lnd-btn-about" onclick="landingScrollAbout()">
+        📖 &nbsp;HOW IT WORKS
+      </button>
+    </div>
+
+    <!-- Scroll Indicator -->
+    <div class="lnd-scroll-hint" onclick="landingScrollAbout()">
+      <span class="lnd-scroll-text">SCROLL FOR DETAILS</span>
+      <span class="lnd-scroll-arrow">▼</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SEO INTRO (First thing below the fold)
+  ══════════════════════════════════════════════ -->
+  <section class="lnd-seo-intro z1" id="lnd-about-intro">
+    <p class="lnd-seo-body">
       The trivia game that never runs out of questions. Enter any topic you can
       imagine — from Cricket to Quantum Physics — and watch Google Gemini AI
       generate a fresh, ten-question quiz in under five seconds. Then share
       a four-digit room code and compete live against friends in real time.
     </p>
 
-    <div class="lnd-cta-row">
-      <button class="lnd-btn-play" onclick="landingPlayNow()">
-        ⚡ &nbsp;PLAY FOR FREE
-      </button>
-      <button class="lnd-btn-about" onclick="landingScrollModes()">
-        📖 &nbsp;HOW IT WORKS
-      </button>
-    </div>
-
-    <!-- Stat bar -->
-    <div class="lnd-stat-bar" role="list" aria-label="Game statistics">
+    <!-- Stat bar moved here for better flow -->
+    <div class="lnd-stat-bar" role="list" aria-label="Game statistics" style="margin-top: 32px;">
       <div class="lnd-stat" role="listitem">
         <span class="lnd-stat-value">∞</span>
         <span class="lnd-stat-label">TOPICS<br>SUPPORTED</span>
@@ -1238,12 +1295,23 @@ function landingPlayNow() {
   goTo('home');
 }
 
+/** Smooth-scroll to the about section (below the fold) */
+function landingScrollAbout() {
+  Sound.click();
+  const el = document.getElementById('lnd-about-intro');
+  if (el) {
+    const screen = document.getElementById('screen-landing');
+    if (screen) {
+      screen.scrollTo({ top: el.offsetTop, behavior: 'smooth' });
+    }
+  }
+}
+
 /** Smooth-scroll to the game modes section */
 function landingScrollModes() {
   Sound.click();
   const el = document.getElementById('game-modes');
   if (el) {
-    // The screen container is the scrollable element, not the window
     const screen = document.getElementById('screen-landing');
     if (screen) {
       screen.scrollTo({ top: el.offsetTop - 20, behavior: 'smooth' });
