@@ -87,26 +87,26 @@
   .lnd-cta-row {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     width: 100%;
-    max-width: 340px;
-    margin-top: 8px;
+    max-width: 380px;
+    margin-top: 12px;
   }
   @media (min-width: 460px) {
     .lnd-cta-row {
       flex-direction: row;
-      max-width: 480px;
+      max-width: 520px;
     }
   }
   .lnd-btn-play {
     flex: 1;
-    height: 58px;
+    height: 72px;
     border: none;
     border-radius: var(--radius-pill);
     background: var(--yellow);
     color: var(--text-dark);
     font-family: var(--font-pixel);
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 0.5px;
     cursor: pointer;
     box-shadow: 0 6px 0 var(--yellow-dark), 0 8px 24px rgba(255,217,61,0.4);
@@ -119,18 +119,22 @@
   }
   .lnd-btn-about {
     flex: 1;
-    height: 58px;
+    height: 72px;
     border: 2px solid rgba(255,255,255,0.3);
     border-radius: var(--radius-pill);
     background: rgba(255,255,255,0.1);
     color: var(--white);
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 10px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: border-color 0.15s, background 0.15s;
   }
   .lnd-btn-about:hover { border-color: var(--yellow); background: rgba(255,217,61,0.08); }
+
+  @media (min-width: 1024px) {
+    .lnd-btn-play, .lnd-btn-about { height: 64px; }
+  }
 
   /* ── STAT BAR ─────────────────────────────────────────────── */
   .lnd-stat-bar {
