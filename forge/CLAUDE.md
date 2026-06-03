@@ -17,6 +17,51 @@ quiz → players compete live via WebSockets using a 4-digit room code.
 
 ---
 
+## 💰 Monetization Strategy (Updated — Milestone 25)
+
+### Current Approach
+The project has permanently shifted away from display/programmatic advertising
+toward a cleaner, sustainable monetization model focused on:
+
+1. **Google AdSense** (primary goal) — pending approval. All site architecture
+   decisions are now filtered through AdSense compliance requirements.
+2. **Chai4Me micro-donations** — `https://www.chai4.me/devsolankiworks`
+   A non-intrusive "Buy the Dev a Chai" support button embedded on the home
+   screen and landing page. Chai4Me official embed code used verbatim.
+3. **In-game economy** — Coins and Trophies earned/spent through gameplay.
+   No real-money transactions; economy exists for engagement and retention.
+
+### ⛔ DEPRECATED — Forbidden Ad Technologies
+The following ad integrations have been **permanently removed** and must **never
+be re-added** under any circumstances:
+
+| Network | Why Banned |
+|---------|-----------|
+| **Monetag** (all products) | $0.03 CPM, caused infinite loops that froze the UI, popunders destroyed retention, vignettes violated UX standards |
+| Any **vignette / interstitial** ad | Blocks game access, violates AdSense policies on gameplay interference |
+| Any **popunder / pop-up** ad | Universally rejected by premium ad networks, causes browser security warnings |
+| Any **push notification** ad | Requires invasive browser permissions, flagged as malware-adjacent by ad quality audits |
+| **Instant-approval** ad networks | By definition operate at low CPM and rely on low-quality traffic — incompatible with brand goals |
+
+**Rule:** If an ad network approves a site within 24 hours of submission, it is
+a low-tier network and must not be used. Premium networks (Google AdSense,
+Media.net, Ezoic) take days to weeks to audit manually and pay 10–100× more.
+
+### AdSense Compliance Checklist (Must maintain at all times)
+- [x] AdSense script present on every crawlable HTML page (`index.html`,
+      `about.html`, `privacy.html`)
+- [x] Navigation links to Privacy Policy and About from every screen
+- [x] Cookie consent banner with EEA/UK detection and localStorage persistence
+- [x] `landing.html` — rich semantic content page satisfies "Low Value Content"
+      automated rejection filter
+- [x] No auto-play video, no deceptive ad placements, no ad-adjacent game elements
+- [x] `robots.txt` and `sitemap.xml` present and up to date
+- [x] Privacy Policy covers Google Gemini API data usage and AdSense cookies
+- [ ] AdSense manual review approval — PENDING (payout identity verification
+      pending PAN card arrival)
+
+---
+
 ## 🏗️ Tech Stack (LOCKED — do not suggest changes)
 
 | Layer | Technology | Why |
@@ -72,15 +117,17 @@ forge/
 │           ├── ai.py          ← Gemini AI service ✅
 │           └── profiles.py    ← File-backed economy ✅
 └── frontend/
-    ├── index.html             ← App shell, router, AdCoinReward module ✅
+    ├── index.html             ← App shell, router ✅
     ├── privacy.html           ← Privacy Policy page ✅
     ├── about.html             ← About page ✅
-    ├── sw.js                  ← Monetag Service Worker (zone 11086444) ✅
+    ├── robots.txt             ← SEO crawler permissions ✅
+    ├── sitemap.xml            ← Google Search Console sitemap ✅
     └── screens/
-        ├── home.html          ← Home screen + Watch Ad button ✅
-        ├── lobby.html         ← Lobby screen ✅
-        ├── game.html          ← Game screen ✅
-        └── results.html       ← Results screen ✅
+        ├── landing.html       ← Rich content entry page (AdSense/SEO) ✅ NEW
+        ├── home.html          ← Game lobby (create/join/solo) + Chai4Me ✅
+        ├── lobby.html         ← Waiting room + mode selector ✅
+        ├── game.html          ← Active quiz screen ✅
+        └── results.html       ← Final scoreboard ✅
 ```
 
 ---
@@ -201,7 +248,18 @@ final_score = int(base_score * multiplier)
 ### Routing (SPA pattern)
 - Single `index.html` shell — screens lazy-loaded from `screens/*.html`
 - `goTo(name)` handles navigation + calls `onXxxShow()` hook
+- **Default entry point is now `landing` (not `home`)**
+  - First-time visitors and direct URL hits → `landing`
+  - Returning players with `#home` in the URL → `home` (skip landing)
+  - In-progress room sessions → restored directly to `lobby`/`game`/`results`
 - No framework — pure vanilla JS
+
+### Screen Flow
+```
+landing ──(Play Now)──► home ──(Create/Join)──► lobby ──► game ──► results
+                          ▲                                            │
+                          └────────────────(Play Again / Go Home)─────┘
+```
 
 ### Global Objects
 | Object | Purpose |
@@ -268,7 +326,7 @@ Room        (Model)   → code, host, status, mode, time_limit_ms, players, ques
 | GET | `/rooms/{code}` | Inspect room |
 | DELETE | `/rooms/{code}` | Remove room |
 | POST | `/auth/google` | Verify Google ID token, return profile |
-| POST | `/economy/reward` | Apply coin reward (previously ad-based) |
+| POST | `/economy/reward` | Apply coin reward |
 
 ---
 
@@ -326,6 +384,7 @@ Fix: `localStorage` is the source of truth for coins/trophies on the client.
 | 22 | Input Stability (typing fix, debounced WS updates) | ✅ Done |
 | 23 | Solo Isolation + Coins/Trophies Economy + CI/CD Pipeline | ✅ Done |
 | 24 | Economy persistence fix (localStorage source of truth) + Made App Ad-Free | ✅ Done |
+| 25 | Monetization pivot: Monetag removed, AdSense landing page + Chai4Me support | ✅ Done |
 
 ---
 
@@ -345,9 +404,11 @@ Fix: `localStorage` is the source of truth for coins/trophies on the client.
 - WSL ADB cannot see USB devices — always use Windows PowerShell ADB.
 - After any frontend change: `npx cap sync android` then rebuild APK.
 - Gemini API key was exposed in git history on May 24 2026 — rotated and updated in Cloud Run.
-- **The app is now completely ad-free.** All Monetag and AdOps code has been removed.
+- **The app is completely ad-free** of disruptive ad formats. Monetag and all low-tier ad scripts have been permanently removed.
 - profiles.json is ephemeral on Cloud Run — localStorage is client-side source of truth for economy.
 - All AdOps.* and ADS.* references have been removed from all screen files.
+- **Landing screen (`screens/landing.html`) is the new default entry point.** It is a content-rich, semantic HTML5 page designed to pass Google AdSense's automated "Low Value Content" rejection filter. It contains deep textual descriptions of all game modes, the scoring system, difficulty levels, tech stack, and FAQ. The "Play Now" CTA navigates to the actual game (`home` screen).
+- **Chai4Me support embed** is placed on `screens/home.html` below the feature pills. It uses the official embed code from chai4.me verbatim and opens in a new tab (`target="_blank"`).
 
 ---
 
@@ -364,3 +425,4 @@ Fix: `localStorage` is the source of truth for coins/trophies on the client.
 10. Design language: blue/white quiz-game theme, Press Start 2P for UI chrome, Nunito for body text, yellow #FFD93D accent, Kahoot-style answer buttons. Do NOT revert to hacker/neon/dark theme.
 11. ADB commands must use Windows PowerShell, not WSL terminal.
 12. Website is live at forgetrivia.online — frontend deployed on Vercel, connected via Namecheap DNS.
+13. **Never re-introduce any ad network scripts** without explicit approval. If a monetization option is being considered, it must first be evaluated against AdSense policy compatibility, CPM floor (minimum $0.50 effective CPM to be worth the UX cost), and user retention impact before any code is written.

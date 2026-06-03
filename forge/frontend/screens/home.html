@@ -153,6 +153,24 @@
     background: none; border: none; cursor: pointer;
     text-decoration: underline; opacity: 0.7;
   }
+
+  /* Back-to-landing link */
+  .home-back-link {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,255,255,0.3); text-decoration: none;
+    letter-spacing: 0.4px; margin-top: 8px;
+    transition: color 0.15s;
+    cursor: pointer; background: none; border: none;
+  }
+  .home-back-link:hover { color: rgba(255,255,255,0.55); }
+
+  /* Chai support row */
+  .chai-support-row {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 4px;
+  }
 </style>
 
 <div class="home-wrap">
@@ -171,6 +189,7 @@
       <div class="live-dot"></div>
       <span class="live-text" id="home-status-text">CONNECTING...</span>
     </div>
+    <button class="home-back-link" onclick="goTo('landing')" aria-label="Back to game overview">← ABOUT FORGE</button>
   </div>
 
   <!-- ACTION CARD -->
@@ -223,7 +242,7 @@
     </button>
   </div>
 
-  <!-- FEATURE PILLS -->
+  <!-- FEATURE PILLS + CHAI SUPPORT -->
   <div class="home-features z1">
     <div class="feature-pill"><span class="fi">🤖</span> AI-GENERATED</div>
     <div class="feature-pill"><span class="fi">⚡</span> REAL-TIME</div>
@@ -231,6 +250,24 @@
     <div class="feature-pill"><span class="fi">👥</span> MULTIPLAYER</div>
     <div class="feature-pill"><span class="fi">⚔️</span> TEAM BATTLE</div>
     <div class="feature-pill"><span class="fi">🔥</span> STREAK COMBOS</div>
+
+    <!--
+      CHAI4ME SUPPORT EMBED
+      ─────────────────────
+      Official embed code from chai4.me/devsolankiworks.
+      Placed below feature pills so it sits in the natural
+      scroll flow without interrupting the game actions above.
+      Opens in a new tab; never disrupts an active game session.
+    -->
+    <div class="chai-support-row">
+      <a href="https://chai4.me/devsolankiworks" target="_blank"
+         title="Support devsolankiworks on Chai4Me"
+         rel="noopener noreferrer"
+         style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;background:#ffffff;padding:8px 32px;border-radius:16px;text-decoration:none;border:1px solid #e5e7eb;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);transition:transform 0.2s;">
+        <img src="https://chai4.me/icons/wordmark.png" alt="Chai4Me"
+             style="height:32px;object-fit:contain;" />
+      </a>
+    </div>
   </div>
 </div>
 
@@ -299,13 +336,10 @@ function _requireSignedIn() {
 async function handleGoogleLogin(response) {
   try {
     const user = await API.verifyGoogleToken(response.credential);
-    // Cloud Run is ephemeral — container restarts wipe profiles.json and reset
-    // balances to defaults. localStorage is more durable on the same device.
-    // Take the MAX so the player never loses coins due to a server restart.
     const localKey = `forge_economy_${user.id}`;
     try {
       const saved = JSON.parse(localStorage.getItem(localKey) || '{}');
-      if ((saved.coins ?? 0) > (user.coins ?? 0)) user.coins = saved.coins;
+      if ((saved.coins    ?? 0) > (user.coins    ?? 0)) user.coins    = saved.coins;
       if ((saved.trophies ?? 0) > (user.trophies ?? 0)) user.trophies = saved.trophies;
     } catch (_) {}
     State.user = user; State.playerName = user.name;
@@ -347,7 +381,7 @@ function _setLoading(id, on) {
   if (b) { b.classList.toggle('btn-loading', on); b.disabled = on; }
 }
 
-/* ── CREATE ROOM (always classic — host picks mode inside lobby) ── */
+/* ── CREATE ROOM ── */
 async function homeCreateRoom() {
   Sound.click();
   if (!_requireSignedIn()) return;
@@ -424,7 +458,7 @@ async function homeJoinRoom() {
     State.isHost      = false;
     State.playMode    = room.play_mode || 'classic';
     State.resultStats = null;
-    State.teams       = room.teams || {};
+    State.teams       = room.teams      || {};
     State.teamNames   = room.team_names || { A: 'Red Dragons', B: 'Blue Phoenix' };
     State.teamScores  = {};
     Session.save();
