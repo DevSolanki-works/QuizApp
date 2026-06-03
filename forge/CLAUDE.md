@@ -211,7 +211,6 @@ final_score = int(base_score * multiplier)
 | `WS`    | `connect()`, `send()`, `on(type,fn)`, `off(type)` |
 | `Toast` | `Toast.error()`, `.success()`, `.info()` |
 | `Session` | `save()`, `load()`, `clear()` — persists to localStorage |
-| `AdCoinReward` | Direct-link ad reward module (see Monetization section) |
 | `goTo(name)` | Screen router |
 
 ---
@@ -269,152 +268,11 @@ Room        (Model)   → code, host, status, mode, time_limit_ms, players, ques
 | GET | `/rooms/{code}` | Inspect room |
 | DELETE | `/rooms/{code}` | Remove room |
 | POST | `/auth/google` | Verify Google ID token, return profile |
-| POST | `/economy/reward` | Apply ad-watch coin reward (+20 coins) |
+| POST | `/economy/reward` | Apply coin reward (previously ad-based) |
 
 ---
 
-## 💰 Monetization
-
-### Monetag Ad Cycle (clean, 3 ads per quiz cycle)
-
-```
-HOME loads        → inject Vignette script (fires immediately)
-LOBBY loads       → inject Vignette script (fires immediately)
-GAME loads        → remove all ad scripts, patch window.open → null (hard block)
-RESULTS loads     → inject Popunder script (fires on first user click)
-
-User taps PLAY AGAIN → reset vignette+popunder flags → LOBBY loads → Vignette again
-User taps GO HOME    → full reset → HOME loads → Vignette again
-```
-
-**Implementation — `frontend/index.html` inline `<script>` block (NO separate ads file):**
-
-```js
-// ── AD CYCLE (inline, no external file) ──────────────────────────────────
-// Monetag zone config — update if zones change
-const ADS = {
-  VIGNETTE: { src: 'https://n6wxm.com/vignette.min.js',  zone: '11087559' },
-  POPUNDER: { src: 'https://al5sm.com/tag.min.js',        zone: '11087153' },
-  _vigFired: false,
-  _puFired: false,
-  _origOpen: null,
-  _openBlocked: false,
-
-  _inject(cfg) {
-    if (document.querySelector(`script[data-zone="${cfg.zone}"]`)) return;
-    const s = document.createElement('script');
-    s.src = cfg.src;
-    s.setAttribute('data-zone', cfg.zone);
-    s.async = true;
-    document.body.appendChild(s);
-  },
-  _remove(cfg) {
-    document.querySelectorAll(`script[data-zone="${cfg.zone}"]`)
-      .forEach(s => s.parentNode?.removeChild(s));
-  },
-  _blockOpen() {
-    if (this._openBlocked) return;
-    this._origOpen = window.open.bind(window);
-    window.open = (url, ...rest) => {
-      const u = String(url || '');
-      if (u.startsWith('mailto:') || u.startsWith('tel:')) return this._origOpen(url, ...rest);
-      return null;
-    };
-    this._openBlocked = true;
-  },
-  _unblockOpen() {
-    if (!this._openBlocked) return;
-    try { window.open = this._origOpen; } catch (_) {}
-    this._openBlocked = false;
-  },
-
-  onHome() {
-    this._unblockOpen();
-    this._remove(this.POPUNDER);
-    // Inject vignette on home (fires immediately)
-    if (!this._vigFired) {
-      this._vigFired = true;
-      this._inject(this.VIGNETTE);
-    }
-  },
-  onLobby() {
-    this._unblockOpen();
-    // Reset vignette flag so lobby always gets one fresh vignette
-    this._remove(this.VIGNETTE);
-    this._vigFired = false;
-    this._inject(this.VIGNETTE);
-    this._vigFired = true;
-  },
-  onGame() {
-    this._remove(this.VIGNETTE);
-    this._remove(this.POPUNDER);
-    this._blockOpen();
-  },
-  onResults() {
-    this._unblockOpen();
-    if (!this._puFired) {
-      this._puFired = true;
-      this._inject(this.POPUNDER);
-    }
-  },
-  onPlayAgain() {
-    // Skip home — go straight to lobby — vignette will fire there
-    this._puFired = false;
-    this._remove(this.VIGNETTE);
-    this._remove(this.POPUNDER);
-    this._unblockOpen();
-  },
-  onGoHome() {
-    // Full reset — home vignette will fire
-    this._vigFired = false;
-    this._puFired = false;
-    this._remove(this.VIGNETTE);
-    this._remove(this.POPUNDER);
-    this._unblockOpen();
-  },
-};
-```
-
-**Call sites — one line each, added to screen show hooks:**
-
-| Where | Add this line |
-|-------|--------------|
-| `onHomeShow()` in home.html | `ADS.onHome();` |
-| `onLobbyShow()` in lobby.html | `ADS.onLobby();` |
-| `onGameShow()` in game.html | `ADS.onGame();` |
-| `onResultsShow()` in results.html | `ADS.onResults();` |
-| `resultsPlayAgain()` before `goTo('lobby')` | `ADS.onPlayAgain();` |
-| `resultsGoHome()` before `goTo('home')` | `ADS.onGoHome();` |
-
-**Why inline instead of a separate file:**
-- Eliminates the race condition where `monetag-ads.js` loads after screen hooks fire
-- No `window.AdOps` undefined errors
-- Simpler to debug — one place to look
-
-### Monetag Zones
-
-| Zone | Type | ID | Domain |
-|------|------|----|--------|
-| Service Worker (push) | Background | 11086444 | 3nbf4.com |
-| Vignette | Interstitial | 11087559 | n6wxm.com |
-| Popunder | On-click | 11087153 | al5sm.com |
-
-### Watch Ad → +20 Coins (Direct Link)
-
-A button on the home screen lets signed-in users earn 20 coins by watching an ad.
-
-**How it works:**
-1. User taps "WATCH AD → +20 COINS"
-2. Ad opens in new tab (`window.open` to Monetag Direct Link URL)
-3. 10-second countdown shown to keep user on page
-4. After 10s: +20 coins applied locally to `State.user.coins` + `localStorage`
-5. Best-effort backend sync via `POST /economy/reward`
-6. 30-minute cooldown per device (stored in localStorage)
-
-**Direct Link URL:** Get from Monetag Dashboard → Sites → Add Zone → Direct Link
-Set in `index.html`: `AdCoinReward.DIRECT_LINK_URL = 'https://otieu.com/4/YOUR_ZONE_ID'`
-
-### Economy Rules
+## 💰 Economy Rules
 
 | Situation | Coins | Trophies |
 |-----------|-------|---------|
@@ -425,9 +283,10 @@ Set in `index.html`: `AdCoinReward.DIRECT_LINK_URL = 'https://otieu.com/4/YOUR_Z
 | Solo 4–5 correct | — | +1 |
 | Solo 6–10 correct | — | +2 per above 5 |
 | Solo <4 correct | — | -2 (floor 0) |
-| Watch ad | +20 | — |
 
-### Economy Persistence Fix (Milestone 24)
+---
+
+## 🛠️ Economy Persistence Fix (Milestone 24)
 
 Cloud Run is ephemeral — `profiles.json` is wiped on container restart/scale-zero.
 Fix: `localStorage` is the source of truth for coins/trophies on the client.
@@ -436,10 +295,6 @@ Fix: `localStorage` is the source of truth for coins/trophies on the client.
 - On `handleGoogleLogin`: take `MAX(localStorage_coins, backend_coins)` — never overwrites better local value
 - On `applyUserEconomy`: always write back to both `State.user` and localStorage
 - Backend is still updated for game transactions but client never trusts a lower value from it
-
-### Identity Verification
-- AdSense: payout identity verification (PAN) pending
-- Play Store: on hold until physical ID available
 
 ---
 
@@ -470,7 +325,7 @@ Fix: `localStorage` is the source of truth for coins/trophies on the client.
 | 21 | Room Locking System + Team Host System + Team Swapping | ✅ Done |
 | 22 | Input Stability (typing fix, debounced WS updates) | ✅ Done |
 | 23 | Solo Isolation + Coins/Trophies Economy + CI/CD Pipeline | ✅ Done |
-| 24 | Economy persistence fix (localStorage source of truth) + Watch Ad +20 coins + Ad cycle cleanup | ✅ Done |
+| 24 | Economy persistence fix (localStorage source of truth) + Made App Ad-Free | ✅ Done |
 
 ---
 
@@ -490,11 +345,9 @@ Fix: `localStorage` is the source of truth for coins/trophies on the client.
 - WSL ADB cannot see USB devices — always use Windows PowerShell ADB.
 - After any frontend change: `npx cap sync android` then rebuild APK.
 - Gemini API key was exposed in git history on May 24 2026 — rotated and updated in Cloud Run.
-- AdSense identity verification (PAN) pending — earnings accumulate, payouts unlock when verified.
+- **The app is now completely ad-free.** All Monetag and AdOps code has been removed.
 - profiles.json is ephemeral on Cloud Run — localStorage is client-side source of truth for economy.
-- monetag-ads.js has been DELETED. Ad cycle is now inline in index.html as the `ADS` object.
-- All AdOps.* references have been removed from all screen files.
-- Direct Link ad zone URL must be set in AdCoinReward.DIRECT_LINK_URL in index.html.
+- All AdOps.* and ADS.* references have been removed from all screen files.
 
 ---
 

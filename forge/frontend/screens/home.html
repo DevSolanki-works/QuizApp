@@ -224,37 +224,7 @@
   </div>
 
   <!-- FEATURE PILLS -->
-  <!-- AD COIN REWARD -->
-<div class="home-ad-reward z1" id="ad-reward-wrap" style="
-  width:100%; max-width:400px; margin-top:8px;
-  display:none;
-">
-  <button id="ad-reward-btn" onclick="homeWatchAd()" style="
-    width:100%; height:56px; border-radius:999px; border:none; cursor:pointer;
-    background:linear-gradient(135deg,#06D6A0,#0aab80);
-    box-shadow:0 6px 0 #038a67;
-    font-family:var(--font-pixel); font-size:9px; color:#fff;
-    display:flex; align-items:center; justify-content:center; gap:10px;
-    -webkit-tap-highlight-color:transparent; transition:transform 0.1s;
-  ">
-    <span id="ad-reward-btn-text">🎬 &nbsp;WATCH AD → +20 COINS</span>
-  </button>
-  <div id="ad-reward-timer" style="display:none; text-align:center; margin-top:10px;">
-    <p style="font-family:var(--font-pixel);font-size:8px;color:rgba(255,255,255,0.5);">
-      AD OPENED IN NEW TAB — KEEP THIS PAGE OPEN
-    </p>
-    <p style="font-family:var(--font-pixel);font-size:20px;color:var(--yellow);margin-top:6px;">
-      <span id="ad-reward-countdown">10</span>s
-    </p>
-    <p style="font-family:var(--font-pixel);font-size:7px;color:var(--green);margin-top:4px;">
-      +20 COINS COMING YOUR WAY...
-    </p>
-  </div>
-  <p id="ad-reward-cooldown" style="display:none;text-align:center;
-    font-family:var(--font-pixel);font-size:7px;
-    color:rgba(255,255,255,0.35);margin-top:8px;">
-  </p>
-</div>
+  <div class="home-features z1">
     <div class="feature-pill"><span class="fi">🤖</span> AI-GENERATED</div>
     <div class="feature-pill"><span class="fi">⚡</span> REAL-TIME</div>
     <div class="feature-pill"><span class="fi">🌐</span> ANY TOPIC</div>
@@ -266,7 +236,6 @@
 
 <script>
 function onHomeShow() {
-  ADS.onHome();
   Sound.startBgMusic();
   const confettiEl = document.getElementById('home-confetti');
   const starsEl    = document.getElementById('home-stars');
@@ -288,10 +257,6 @@ function onHomeShow() {
   if (nameInput) {
     nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') homeCreateRoom(); });
   }
-  // Show ad reward button only when signed in
-  const adWrap = document.getElementById('ad-reward-wrap');
-  if (adWrap) adWrap.style.display = State.user ? 'block' : 'none';
-  _updateAdRewardBtn();
 }
 
 function _initGoogleSignIn() {
@@ -349,57 +314,6 @@ async function handleGoogleLogin(response) {
     Session.save(); _initGoogleSignIn();
     Toast.success(`Signed in as ${user.name}`);
   } catch (e) { console.error(e); Toast.error('Google Sign-In failed.'); }
-}
-
-function _updateAdRewardBtn() {
-  const btn = document.getElementById('ad-reward-btn');
-  const cooldownEl = document.getElementById('ad-reward-cooldown');
-  if (!btn) return;
-  const remaining = AdCoinReward.cooldownRemaining();
-  if (remaining > 0) {
-    const mins = Math.ceil(remaining / 60000);
-    btn.disabled = true;
-    btn.style.opacity = '0.45';
-    document.getElementById('ad-reward-btn-text').textContent = `⏳  NEXT AD IN ${mins}m`;
-    if (cooldownEl) { cooldownEl.style.display = 'block'; cooldownEl.textContent = `Resets in ${mins} min`; }
-  } else {
-    btn.disabled = false;
-    btn.style.opacity = '1';
-    document.getElementById('ad-reward-btn-text').textContent = '🎬  WATCH AD → +20 COINS';
-    if (cooldownEl) cooldownEl.style.display = 'none';
-  }
-}
-
-function homeWatchAd() {
-  if (!State.user) { Toast.error('Sign in first!'); return; }
-  Sound.click();
-
-  const timerEl   = document.getElementById('ad-reward-timer');
-  const countEl   = document.getElementById('ad-reward-countdown');
-  const btn       = document.getElementById('ad-reward-btn');
-
-  AdCoinReward.trigger(
-    // onCountdownTick
-    (secs) => {
-      if (timerEl)  timerEl.style.display  = 'block';
-      if (btn)      btn.style.display      = 'none';
-      if (countEl)  countEl.textContent    = secs;
-    },
-    // onRewarded
-    (delta) => {
-      if (timerEl) timerEl.style.display = 'none';
-      if (btn)     btn.style.display     = 'flex';
-      Toast.success(`+${delta.coins} COINS REWARDED! 🎉`);
-      // Refresh the coins display
-      const coinsEl = document.getElementById('user-coins-display');
-      if (coinsEl && State.user) coinsEl.textContent = formatCoins(State.user.coins);
-      _updateAdRewardBtn();
-    },
-    // onCooldown
-    (mins) => {
-      Toast.info(`Come back in ${mins} min for more coins!`);
-    }
-  );
 }
 
 function homeLogout() {

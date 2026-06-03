@@ -553,7 +553,6 @@ let _pushTimer  = null;   // Debounce for set_team_info
 
 /* ─────────────────────────────────────────────────────────── */
 function onLobbyShow() {
-  ADS.onLobby();
   Sound.startBgMusic();
   const starsEl = document.getElementById('lobby-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
