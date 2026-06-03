@@ -24,7 +24,7 @@ quiz → players compete live via WebSockets using a 4-digit room code.
 | Frontend | HTML5 + Tailwind CSS + Vanilla JS | Stays portable for CapacitorJS wrapping |
 | Mobile Wrapper | CapacitorJS → Android .aab | $0 — no React Native licenses |
 | Backend | Python + FastAPI | Student knows Python well |
-| AI | Gemini Flash 1.5 8B (`google-generativeai`) | $0 free tier, with local fallback if unavailable |
+| AI | Gemini 2.5 Flash Lite (`google-generativeai`) | $0 free tier, with local fallback if unavailable |
 | Real-time | FastAPI WebSockets | Built-in, no extra infra |
 | State | In-memory Python dicts | $0 — NO Redis, NO database |
 | Deployment | Docker → Google Cloud Run | $0 free tier, scale-to-zero |
@@ -64,20 +64,21 @@ forge/
 │       │   ├── config.py      ← Env vars, GEMINI_API_KEY ✅
 │       │   └── state.py       ← In-memory rooms dict ✅
 │       ├── models/
-│       │   └── quiz.py        ← Pydantic models ✅ (updated v2)
+│       │   └── quiz.py        ← Pydantic models ✅
 │       ├── routers/
-│       │   ├── http.py        ← REST endpoints ✅
-│       │   └── websocket.py   ← WS game loop ✅ (updated v2)
+│       │   ├── http.py        ← REST endpoints ✅ (includes /economy/reward)
+│       │   └── websocket.py   ← WS game loop ✅
 │       └── services/
-│           └── ai.py          ← Gemini AI service ✅ (updated v2)
+│           ├── ai.py          ← Gemini AI service ✅
+│           └── profiles.py    ← File-backed economy ✅
 └── frontend/
-    ├── index.html             ← App shell, router, shared styles/utils ✅
+    ├── index.html             ← App shell, router, AdCoinReward module ✅
     ├── privacy.html           ← Privacy Policy page ✅
     ├── about.html             ← About page ✅
-    ├── sw.js                  ← Monetag Service Worker ✅
+    ├── sw.js                  ← Monetag Service Worker (zone 11086444) ✅
     └── screens/
-        ├── home.html          ← Home screen ✅
-        ├── lobby.html         ← Lobby screen ✅ (updated v2)
+        ├── home.html          ← Home screen + Watch Ad button ✅
+        ├── lobby.html         ← Lobby screen ✅
         ├── game.html          ← Game screen ✅
         └── results.html       ← Results screen ✅
 ```
@@ -142,10 +143,6 @@ python3 -m http.server 8080
 # Open http://127.0.0.1:8080
 ```
 
-Current frontend behavior:
-- When opened from `localhost`, `127.0.0.1`, or `file:`, the app points to local backend `http://127.0.0.1:8000`.
-- In production, it uses the Cloud Run backend URL.
-
 ### ADB install via PowerShell (Windows)
 ```powershell
 & "C:\Users\$env:USERNAME\AppData\Local\Android\Sdk\platform-tools\adb.exe" devices
@@ -158,30 +155,10 @@ Current frontend behavior:
 
 ```
 1. POST /rooms/create        ✅
-   → Server generates 4-digit alphanumeric code
-   → Creates Room object in state.rooms dict
-   → Returns { room_code, host_name, ws_url }
-
 2. WS /ws/{room_code}/{player_name}   ✅
-   → Player joins, server broadcasts PLAYER_JOINED to all in room
-
-3. Host sends: { "action": "start_game", "topic": "Marvel Movies",
-                 "mode": "hard" }   ✅
-   → Server sets timer from mode: Easy 30s, Medium 20s, Hard 10s
-   → Server calls Gemini (or local fallback) → gets 10 questions
-   → Stores in room.questions
-   → Broadcasts: GAME_STARTING + first QUESTION
-
+3. Host sends: { "action": "start_game", "topic": "...", "mode": "hard" }   ✅
 4. Player sends: { "action": "answer", "choice": 2, "time_ms": 3400 }   ✅
-   → Server validates answer
-   → Calculates score: speed-based 500–1000 pts using current mode timer
-   → Updates room.scores
-   → When ALL players answered:
-     - broadcast ANSWER_REVEAL first
-     - then broadcast LEADERBOARD
-     - then next QUESTION after a short delay
-
-5. After final question → broadcast GAME_OVER with final scores   ✅
+5. After final question → broadcast GAME_OVER   ✅
 ```
 
 ---
@@ -190,17 +167,15 @@ Current frontend behavior:
 ```python
 BASE_POINTS = 1000
 score = int(BASE_POINTS * (1 - (time_ms / time_limit_ms) * 0.5))
-score = max(500, min(1000, score))   # Clamped 500–1000
-# Streak/combo multiplier (streak resets on wrong answer or timeout)
+score = max(500, min(1000, score))
 multiplier = min(1.0 + (streak // 3) * 0.5, 3.0)
 # streak 1–2 → ×1.0 | streak 3–5 → ×1.5 | streak 6–8 → ×2.0 | streak 9–11 → ×2.5 | streak 12+ → ×3.0
 final_score = int(base_score * multiplier)
-# Wrong answer or timeout = 0 pts, streak resets to 0.
 ```
 
 ---
 
-## 🎮 Game Configuration Options (current)
+## 🎮 Game Configuration Options
 
 | Option | Values | Default |
 |--------|--------|---------|
@@ -215,11 +190,8 @@ final_score = int(base_score * multiplier)
 - **Primary accent**: Yellow `#FFD93D` — buttons, highlights, scores
 - **Answer options**: Kahoot-style 4-colour grid — Red `#E63946` / Blue `#2196F3` / Green `#06D6A0` / Purple `#9B5DE5`
 - **Difficulty colours**: Easy `#06D6A0` / Medium `#FFD93D` / Hard `#E63946`
-- **Correct answer**: `#06D6A0` green glow
-- **Wrong answer**: greyed out / dimmed
 - **Pixel font**: `"Press Start 2P"` — ALL UI chrome
 - **Body font**: `"Nunito"` (weight 700–900) — questions, answers, player names
-- **Buttons**: Chunky 3D with thick bottom shadow that "presses" on tap
 - **Mobile-first**: All tap targets ≥ 56px, max-width 430px centred
 
 ---
@@ -234,20 +206,13 @@ final_score = int(base_score * multiplier)
 ### Global Objects
 | Object | Purpose |
 |--------|---------|
-| `State` | `playerName, roomCode, isHost, topic, mode, timeLimitMs, ws, players, scores, totalQ` |
-| `API`   | `createRoom()`, `getRoom()`, `health()` |
+| `State` | `playerName, roomCode, isHost, topic, mode, timeLimitMs, ws, players, scores, totalQ, user, teams, teamNames, teamScores` |
+| `API`   | `createRoom()`, `getRoom()`, `health()`, `verifyGoogleToken()` |
 | `WS`    | `connect()`, `send()`, `on(type,fn)`, `off(type)` |
 | `Toast` | `Toast.error()`, `.success()`, `.info()` |
+| `Session` | `save()`, `load()`, `clear()` — persists to localStorage |
+| `AdCoinReward` | Direct-link ad reward module (see Monetization section) |
 | `goTo(name)` | Screen router |
-
-### Screen Flow
-```
-home.html → lobby.html → game.html → results.html
-               ↑                           ↓
-               └─────── Play Again ────────┘
-```
-
-Lobby now only asks for topic + mode. Question count is fixed at 10.
 
 ---
 
@@ -255,28 +220,27 @@ Lobby now only asks for topic + mode. Question count is fixed at 10.
 
 ### Server → Client
 ```json
-{ "type": "PLAYER_JOINED",  "data": { "players": ["Alice", "Bob"] } }
-{ "type": "GAME_STARTING",  "data": { "topic": "Marvel Movies", "mode": "hard", "total_questions": 10, "time_limit_ms": 10000 } }
+{ "type": "PLAYER_JOINED",  "data": { "players": [], "lobby_mode": "classic", "locked": false } }
+{ "type": "GAME_STARTING",  "data": { "topic": "...", "mode": "hard", "play_mode": "classic", "total_questions": 10, "time_limit_ms": 10000 } }
 { "type": "QUESTION",       "data": { "index": 0, "text": "...", "options": ["A","B","C","D"], "time_limit_ms": 10000, "mode": "hard" } }
-{ "type": "ANSWER_REVEAL",  "data": { "phase": "answer_reveal", "hold_ms": 4000, "correct_index": 2, "scores": {}, "points_gained": {}, "answers": {}, "streaks": {"Alice": 3, "Bob": 0}, "play_mode": "classic" } }
-{ "type": "LEADERBOARD",    "data": { "scores": {"Alice": 2300, "Bob": 1800}, "correct_index": 2 } }
-{ "type": "GAME_OVER",      "data": { "final_scores": {"Alice": 9100, "Bob": 7200} } }
+{ "type": "ANSWER_REVEAL",  "data": { "phase": "answer_reveal", "hold_ms": 4000, "correct_index": 2, "scores": {}, "points_gained": {}, "answers": {}, "streaks": {} } }
+{ "type": "LEADERBOARD",    "data": { "scores": {}, "correct_index": 2 } }
+{ "type": "GAME_OVER",      "data": { "final_scores": {}, "economy": {} } }
 { "type": "ERROR",          "data": { "message": "Room not found" } }
 ```
 
 ### Client → Server
 ```json
-{ "action": "start_game", "topic": "Quantum Physics", "mode": "hard" }
+{ "action": "start_game", "topic": "Quantum Physics", "mode": "hard", "play_mode": "classic" }
 { "action": "answer",     "choice": 2, "time_ms": 3400 }
 ```
 
 ---
 
 ## 🤖 Gemini Config
-- Model: `GEMINI_MODEL` env var, default currently `gemini-2.5-flash-lite`
-- max_output_tokens: 2048 in current service
-- temperature: 0.8
-- AI service falls back to local questions if Gemini cannot be imported or is not configured
+- Model: `GEMINI_MODEL` env var, default `gemini-2.5-flash-lite`
+- max_output_tokens: 1024, temperature: 0.8
+- Falls back to local hardcoded questions if Gemini unavailable
 
 ---
 
@@ -285,11 +249,13 @@ Lobby now only asks for topic + mode. Question count is fixed at 10.
 ```
 GameStatus  (Enum)    → WAITING | STARTING | ACTIVE | FINISHED
 GameMode    (Enum)    → easy | medium | hard
+PlayMode    (Enum)    → solo | classic | team
+RoundPhase  (Enum)    → lobby | question | answer_reveal | intermission_leaderboard | complete
 Question    (Model)   → question, options x4, correct_index
 Player      (Model)   → name, score, correct_answers, streak, answered, last_answer, websocket(excluded)
-Room        (Model)   → code, host, status, mode, time_limit_ms,
-                         players, questions, current_q_index,
-                         answers_this_round
+Room        (Model)   → code, host, status, mode, time_limit_ms, players, questions,
+                        current_q_index, answers_this_round, teams, team_names, team_topics,
+                        topic, locked, entry_fees, economy_finalized
 ```
 
 ---
@@ -302,47 +268,178 @@ Room        (Model)   → code, host, status, mode, time_limit_ms,
 | POST | `/rooms/create` | Create room |
 | GET | `/rooms/{code}` | Inspect room |
 | DELETE | `/rooms/{code}` | Remove room |
+| POST | `/auth/google` | Verify Google ID token, return profile |
+| POST | `/economy/reward` | Apply ad-watch coin reward (+20 coins) |
 
 ---
 
 ## 💰 Monetization
 
-| Channel | Status |
-|---------|--------|
-| Monetag Ads | ✅ Active (Vignette: End of Game | Popunder: Navigation | Banner: Top) |
-| sw.js | ✅ Service Worker at `frontend/sw.js` (Zone: 11086444) |
-| Layout | ✅ Persistent 60px Top Banner Header in `index.html` |
-| Frequency | ✅ Once per quiz (Room-based tracking) |
-| Identity verify | ⏳ Physical PAN arriving in ~15 days |
-| Play Store | ⏳ On hold until physical ID document available |
+### Monetag Ad Cycle (clean, 3 ads per quiz cycle)
 
----
+```
+HOME loads        → inject Vignette script (fires immediately)
+LOBBY loads       → inject Vignette script (fires immediately)
+GAME loads        → remove all ad scripts, patch window.open → null (hard block)
+RESULTS loads     → inject Popunder script (fires on first user click)
 
-## Milestone 19 - Monetag Strategic Integration (June 1, 2026)
+User taps PLAY AGAIN → reset vignette+popunder flags → LOBBY loads → Vignette again
+User taps GO HOME    → full reset → HOME loads → Vignette again
+```
 
-Re-integrated Monetag with a focus on user experience and visibility.
+**Implementation — `frontend/index.html` inline `<script>` block (NO separate ads file):**
 
-### Changes Made
+```js
+// ── AD CYCLE (inline, no external file) ──────────────────────────────────
+// Monetag zone config — update if zones change
+const ADS = {
+  VIGNETTE: { src: 'https://n6wxm.com/vignette.min.js',  zone: '11087559' },
+  POPUNDER: { src: 'https://al5sm.com/tag.min.js',        zone: '11087153' },
+  _vigFired: false,
+  _puFired: false,
+  _origOpen: null,
+  _openBlocked: false,
 
-**`frontend/index.html`**
-- Defined `--header-h: 60px` and reserved persistent `<header id="app-header">` at the top.
-- Adjusted `.screen` layout to calculate height minus both header and footer, preventing overlap.
-- Repositioned mute button to avoid conflict with top banner ads.
-- Injected persistent In-Page/Banner script into the new header container.
+  _inject(cfg) {
+    if (document.querySelector(`script[data-zone="${cfg.zone}"]`)) return;
+    const s = document.createElement('script');
+    s.src = cfg.src;
+    s.setAttribute('data-zone', cfg.zone);
+    s.async = true;
+    document.body.appendChild(s);
+  },
+  _remove(cfg) {
+    document.querySelectorAll(`script[data-zone="${cfg.zone}"]`)
+      .forEach(s => s.parentNode?.removeChild(s));
+  },
+  _blockOpen() {
+    if (this._openBlocked) return;
+    this._origOpen = window.open.bind(window);
+    window.open = (url, ...rest) => {
+      const u = String(url || '');
+      if (u.startsWith('mailto:') || u.startsWith('tel:')) return this._origOpen(url, ...rest);
+      return null;
+    };
+    this._openBlocked = true;
+  },
+  _unblockOpen() {
+    if (!this._openBlocked) return;
+    try { window.open = this._origOpen; } catch (_) {}
+    this._openBlocked = false;
+  },
 
-**`frontend/screens/results.html`**
-- Added `_triggerPopunder()` to the results show hook, ensuring ads only fire after a full game.
+  onHome() {
+    this._unblockOpen();
+    this._remove(this.POPUNDER);
+    // Inject vignette on home (fires immediately)
+    if (!this._vigFired) {
+      this._vigFired = true;
+      this._inject(this.VIGNETTE);
+    }
+  },
+  onLobby() {
+    this._unblockOpen();
+    // Reset vignette flag so lobby always gets one fresh vignette
+    this._remove(this.VIGNETTE);
+    this._vigFired = false;
+    this._inject(this.VIGNETTE);
+    this._vigFired = true;
+  },
+  onGame() {
+    this._remove(this.VIGNETTE);
+    this._remove(this.POPUNDER);
+    this._blockOpen();
+  },
+  onResults() {
+    this._unblockOpen();
+    if (!this._puFired) {
+      this._puFired = true;
+      this._inject(this.POPUNDER);
+    }
+  },
+  onPlayAgain() {
+    // Skip home — go straight to lobby — vignette will fire there
+    this._puFired = false;
+    this._remove(this.VIGNETTE);
+    this._remove(this.POPUNDER);
+    this._unblockOpen();
+  },
+  onGoHome() {
+    // Full reset — home vignette will fire
+    this._vigFired = false;
+    this._puFired = false;
+    this._remove(this.VIGNETTE);
+    this._remove(this.POPUNDER);
+    this._unblockOpen();
+  },
+};
+```
 
-**`frontend/screens/home.html`**
-- Added `_triggerInPageAd()` to the home show hook for non-intrusive ad delivery on the main menu.
+**Call sites — one line each, added to screen show hooks:**
 
-### Monetization Checklist
-| Requirement | Status |
-|-------------|--------|
-| Popunder Ad | ✅ Results Screen |
-| In-Page Ad | ✅ Home Screen |
-| Top Banner Ad | ✅ Persistent (60px) |
-| Site-wide sw.js | ✅ frontend/sw.js |
+| Where | Add this line |
+|-------|--------------|
+| `onHomeShow()` in home.html | `ADS.onHome();` |
+| `onLobbyShow()` in lobby.html | `ADS.onLobby();` |
+| `onGameShow()` in game.html | `ADS.onGame();` |
+| `onResultsShow()` in results.html | `ADS.onResults();` |
+| `resultsPlayAgain()` before `goTo('lobby')` | `ADS.onPlayAgain();` |
+| `resultsGoHome()` before `goTo('home')` | `ADS.onGoHome();` |
+
+**Why inline instead of a separate file:**
+- Eliminates the race condition where `monetag-ads.js` loads after screen hooks fire
+- No `window.AdOps` undefined errors
+- Simpler to debug — one place to look
+
+### Monetag Zones
+
+| Zone | Type | ID | Domain |
+|------|------|----|--------|
+| Service Worker (push) | Background | 11086444 | 3nbf4.com |
+| Vignette | Interstitial | 11087559 | n6wxm.com |
+| Popunder | On-click | 11087153 | al5sm.com |
+
+### Watch Ad → +20 Coins (Direct Link)
+
+A button on the home screen lets signed-in users earn 20 coins by watching an ad.
+
+**How it works:**
+1. User taps "WATCH AD → +20 COINS"
+2. Ad opens in new tab (`window.open` to Monetag Direct Link URL)
+3. 10-second countdown shown to keep user on page
+4. After 10s: +20 coins applied locally to `State.user.coins` + `localStorage`
+5. Best-effort backend sync via `POST /economy/reward`
+6. 30-minute cooldown per device (stored in localStorage)
+
+**Direct Link URL:** Get from Monetag Dashboard → Sites → Add Zone → Direct Link
+Set in `index.html`: `AdCoinReward.DIRECT_LINK_URL = 'https://otieu.com/4/YOUR_ZONE_ID'`
+
+### Economy Rules
+
+| Situation | Coins | Trophies |
+|-----------|-------|---------|
+| New account | +200 | +50 |
+| Room entry fee | -25 | — |
+| Room winner | +pool | — |
+| Solo ≥5 correct | +10 | — |
+| Solo 4–5 correct | — | +1 |
+| Solo 6–10 correct | — | +2 per above 5 |
+| Solo <4 correct | — | -2 (floor 0) |
+| Watch ad | +20 | — |
+
+### Economy Persistence Fix (Milestone 24)
+
+Cloud Run is ephemeral — `profiles.json` is wiped on container restart/scale-zero.
+Fix: `localStorage` is the source of truth for coins/trophies on the client.
+
+- Key: `forge_economy_{user_id}`
+- On `handleGoogleLogin`: take `MAX(localStorage_coins, backend_coins)` — never overwrites better local value
+- On `applyUserEconomy`: always write back to both `State.user` and localStorage
+- Backend is still updated for game transactions but client never trusts a lower value from it
+
+### Identity Verification
+- AdSense: payout identity verification (PAN) pending
+- Play Store: on hold until physical ID available
 
 ---
 
@@ -364,10 +461,17 @@ Re-integrated Monetag with a focus on user experience and visibility.
 | 12 | Local dev / production routing cleanup | ✅ Done |
 | 13 | Play Store submission | 🔲 Blocked (needs ID) |
 | 14 | Solo/Classic modes + Authoritative Round Phases | ✅ Done |
-| 15 | In-memory Rate Limiting (3 quizes/min) | ✅ Done |
+| 15 | In-memory Rate Limiting (3 quizzes/min) | ✅ Done |
 | 16 | Session Persistence & Hash Routing | ✅ Done |
 | 17 | Google Authentication | ✅ Done |
-| 19 | Streak/Combo Multiplier (×1.5 at 3, ×2.0 at 6, cap ×3.0) + combo sound | ✅ Done |
+| 18 | Regulatory Compliance & Navigation | ✅ Done |
+| 19 | Streak/Combo Multiplier + combo sound | ✅ Done |
+| 20 | Team Mode (lock/unlock, team hosts, topic randomizer) | ✅ Done |
+| 21 | Room Locking System + Team Host System + Team Swapping | ✅ Done |
+| 22 | Input Stability (typing fix, debounced WS updates) | ✅ Done |
+| 23 | Solo Isolation + Coins/Trophies Economy + CI/CD Pipeline | ✅ Done |
+| 24 | Economy persistence fix (localStorage source of truth) + Watch Ad +20 coins + Ad cycle cleanup | ✅ Done |
+
 ---
 
 ## 🐛 Known Issues / Decisions Log
@@ -376,10 +480,9 @@ Re-integrated Monetag with a focus on user experience and visibility.
 - ARM64 dev machine: always `docker buildx --platform linux/amd64 --push`.
 - `Player.websocket` uses `exclude=True` — never leaks into JSON.
 - Room codes: 4-char UPPERCASE alphanumeric (36^4 = ~1.6M possibilities).
-- Gemini is optional at runtime right now; if missing or misconfigured, local fallback questions keep the backend running.
-- Current game flow is 10 fixed questions, no question-count picker.
+- Gemini is optional at runtime; if missing or misconfigured, local fallback questions keep backend running.
+- Current game flow is 10 fixed questions.
 - Mode only affects timer length; it does not change question difficulty.
-- Correct answer is shown first, then leaderboard, then next question.
 - Cloud Run timeout must be 300s — default 60s kills WS sessions.
 - `--workers 1` is intentional — multiple workers split in-memory state.
 - Frontend local dev: serve from frontend/ dir, open http://localhost:8080.
@@ -388,46 +491,14 @@ Re-integrated Monetag with a focus on user experience and visibility.
 - After any frontend change: `npx cap sync android` then rebuild APK.
 - Gemini API key was exposed in git history on May 24 2026 — rotated and updated in Cloud Run.
 - AdSense identity verification (PAN) pending — earnings accumulate, payouts unlock when verified.
-- Timer now depends on mode: Easy 30s / Medium 20s / Hard 10s.
-- Difficulty colors still map to mode in UI: Easy (green) / Medium (yellow) / Hard (red).
-- Streak multiplier applies AFTER the base score calculation. Points shown in `points_gained` already reflect the multiplier so the leaderboard "+1350" is accurate. Timed-out players (no answer sent) have streak reset server-side in `resolve_round` before `_round_payload` reads streaks, ensuring the broadcast is always correct.
----
-
-## 🚀 Recent Feature Updates (Milestone 21-22)
-
-### 1. Room Locking System
-- **Mandatory Finalization**: The Host must now click **"LOCK ROOM"** before the **Team Mode** toggle becomes available.
-- **Join Prevention**: Once locked, no new players can enter the room, ensuring a stable player list for team configuration.
-- **Toggleable**: The host can unlock the room at any time. Unlocking while in Team Mode automatically reverts the room to **Classic Mode** for safety.
-
-### 2. Team Host System
-- **Team Leadership**: The first person to join **Team A** becomes the **Host of Team A**. Same for **Team B**.
-- **Topic Restrictions**: Only the Team Host can write or edit the topic suggestion for their team. Other members see a waiting message.
-- **Main Host Enjection**: The Room Creator (Main Host) is now required to join a team before the Team Mode game can be started.
-
-### 3. Team Swapping
-- **Flexibility**: Regular players (non-Team Hosts) can now use the **"SWAP TEAM"** button to switch sides if they joined the wrong team by mistake.
-- **Stability**: Team Hosts cannot swap teams; they must remain to lead their team's topic selection.
-
-### 4. Input Stability (The "Typing Fix")
-- **Focus Preservation**: The lobby UI now preserves input focus and cursor position during real-time re-renders.
-- **Debounced Updates**: Team names and topics are updated via WebSockets with a 400ms debounce to prevent network congestion and UI stutter.
+- profiles.json is ephemeral on Cloud Run — localStorage is client-side source of truth for economy.
+- monetag-ads.js has been DELETED. Ad cycle is now inline in index.html as the `ADS` object.
+- All AdOps.* references have been removed from all screen files.
+- Direct Link ad zone URL must be set in AdCoinReward.DIRECT_LINK_URL in index.html.
 
 ---
 
 ## 📋 Technical Guidelines
-- **Real-time Sync**: Use `PLAYER_JOINED` broadcasts to sync all lobby state (Mode, Teams, Locking).
-- **Frontend State**: Initialize `lobby.html` state from global `State` to ensure instant UI sync for late-joiners.
-- **Clean Transitions**: Always ensure `_applyModeUI()` is called when mode or lock status changes.
-- **Security**: Prevent non-hosts from sending privileged actions (`lock_room`, `set_lobby_mode`).
-
-## ✅ Compliance Checklist
-- [x] Room Locking for Team Mode stability.
-- [x] Team Host role for topic selection.
-- [x] Team Swapping for regular players.
-- [x] Input focus preservation & debouncing.
-- [x] Late-join synchronization logic.
-- [x] Privacy/Policy links and mobile responsive UI.
 1. Always write **clean, commented code** with docstrings on every function.
 2. Explain the **"why"** behind async/WebSocket logic.
 3. Provide code in **modular chunks** — one file at a time.
@@ -436,234 +507,7 @@ Re-integrated Monetag with a focus on user experience and visibility.
 6. ARM64 context: flag any ARM64 compat issues proactively.
 7. When user pastes error output, fix root cause — don't patch symptoms.
 8. Always assume existing files are correct unless user pastes them.
-9. Frontend production build must point to live Cloud Run URL; local dev auto-switches to `http://127.0.0.1:8000` when opened from `localhost` or `file:`.
-10. Design language: blue/white quiz-game theme, Press Start 2P for UI chrome,
-    Nunito for body text, yellow #FFD93D accent, Kahoot-style answer buttons.
-    Do NOT revert to hacker/neon/dark theme.
+9. Frontend production build must point to live Cloud Run URL; local dev auto-switches to `http://127.0.0.1:8000`.
+10. Design language: blue/white quiz-game theme, Press Start 2P for UI chrome, Nunito for body text, yellow #FFD93D accent, Kahoot-style answer buttons. Do NOT revert to hacker/neon/dark theme.
 11. ADB commands must use Windows PowerShell, not WSL terminal.
-12. Website is live at forgetrivia.online — frontend deployed on Vercel,
-    connected via Namecheap DNS (A record + CNAME to Vercel).
-
----
-
-## Milestone 14 - Solo/Classic Modes and Authoritative Round Phases (May 26, 2026)
-
-This section supersedes earlier game-loop and WebSocket flow notes where they
-conflict.
-
-### Current Game Setup
-- Main menu exposes `solo` and `classic` play modes.
-- Solo creates a private one-player room through the existing in-memory
-  WebSocket pipeline; it does not expose a room code or intermission standings.
-- Classic creates or joins a sharable room and shows competitive standings.
-- Difficulty is selected before starting: `easy` = 30000 ms, `medium` =
-  20000 ms, and `hard` = 10000 ms.
-- The timer ring, number, duration label, warning styling, and server deadline
-  all use the selected difficulty limit.
-
-### Authoritative Phase Flow
-```
-classic: QUESTION -> ANSWER_REVEAL (4000 ms)
-                  -> INTERMISSION_LEADERBOARD (5000 ms)
-                  -> next QUESTION or GAME_OVER
-
-solo:    QUESTION -> ANSWER_REVEAL (4000 ms)
-                  -> next QUESTION or GAME_OVER
-```
-
-- The server enters reveal when every connected player answers or when the
-  selected question timer expires.
-- `RoundPhase` values are `lobby`, `question`, `answer_reveal`,
-  `intermission_leaderboard`, and `complete`.
-- The game partial stays mounted while phase visuals change, preserving the
-  selected answer and correct/wrong highlights.
-- The question phase contains no standings list. Classic standings are only
-  populated in the full-screen intermission view, including per-round gains.
-
-### State and Models
-- `PlayMode` values are `solo` and `classic`.
-- `Room` additionally stores `play_mode`, `phase`, and `points_gained`.
-- `Player` additionally stores `correct_answers` for final accuracy.
-- Solo results display final score, accuracy, and a per-difficulty personal
-  best stored locally on the device; classic results retain final standings.
-
-### Current WebSocket Protocol
-```json
-{ "action": "start_game", "topic": "Space", "mode": "hard", "play_mode": "classic" }
-{ "type": "GAME_STARTING", "data": { "topic": "Space", "mode": "hard", "play_mode": "classic", "time_limit_ms": 10000, "total_questions": 10 } }
-{ "type": "QUESTION", "data": { "index": 0, "text": "...", "options": ["A", "B", "C", "D"], "phase": "question", "mode": "hard", "play_mode": "classic", "time_limit_ms": 10000 } }
-{ "type": "ANSWER_REVEAL", "data": { "phase": "answer_reveal", "hold_ms": 4000, "correct_index": 2, "scores": {}, "points_gained": {}, "answers": {}, "play_mode": "classic" } }
-{ "type": "INTERMISSION_LEADERBOARD", "data": { "phase": "intermission_leaderboard", "hold_ms": 5000, "is_final": false, "scores": {}, "points_gained": {}, "play_mode": "classic" } }
-{ "type": "GAME_OVER", "data": { "final_scores": {}, "correct_answers": {}, "accuracy_percentages": {}, "total_questions": 10, "play_mode": "classic" } }
-```
-
-### Implementation Notes
-- `frontend/index.html` queues messages received before a lazy-loaded screen
-  registers its handler, preventing loss of the first question.
-- `backend/app/routers/websocket.py` owns deadline tasks and phase guards so
-  late or duplicate answers cannot advance a resolved round twice.
-- Milestone 14: game mode menu, difficulty-aware timer, fixed reveal and
-  intermission timing, solo results, and server timeout resolution are done.
-- Desktop home layout uses a grid at widths of 1024 px and above so the
-  expanded mode menu cannot overlap the feature strip.
-- Capacitor's `https://localhost` asset origin is treated as native app
-  routing; only desktop `http://localhost` or file-based development targets
-  the local FastAPI server at `127.0.0.1:8000`.
-
----
-
-## Milestone 15 - In-memory Rate Limiting (May 27, 2026)
-
-To prevent resource abuse and Gemini API spam, the backend now enforces simple
-sliding-window rate limits based on client IP.
-
-### Limits
-- **Room Creation**: 5 per minute per IP (`POST /rooms/create`)
-- **Quiz Generation**: 3 per minute per IP (`WS start_game`)
-
-### Implementation Details
-- `app/core/state.py` tracks timestamps in a `quiz_rate_limits` dictionary.
-- `app/core/limiter.py` provides the `is_rate_limited` utility.
-- Both HTTP and WebSocket routers extract the real client IP from the
-  `X-Forwarded-For` header (if present via proxy) or the direct connection.
-- Rate limit hits return a `429 Too Many Requests` for HTTP or an `ERROR`
-  WebSocket message.
-
----
-
-## Milestone 16 - Session Persistence & Hash Routing (May 27, 2026)
-
-The web app now survives refreshes and supports browser navigation (back/forward).
-
-### Frontend Routing
-- `goTo(name)` updates `window.location.hash` (e.g. `/#lobby`).
-- `hashchange` listener handles manual URL edits or browser navigation.
-- App boot sequence restores the last known screen from the URL hash.
-
-### Session Persistence
-- `Session` utility saves/loads `playerName`, `roomCode`, `isHost`, and `playMode` to `localStorage`.
-- On boot, if a session exists, the app automatically attempts to re-validate the
-  room and reconnect to the WebSocket if the user is on a game-related screen.
-
-### Backend Re-join Support
-- Players are no longer immediately removed from rooms on `WebSocketDisconnect`.
-- Disconnected players can re-join `ACTIVE` rooms if their name matches an
-  existing player with a `None` websocket.
-- Empty rooms (no connected players) are deleted after a **60-second grace period**.
-
----
-
-## Milestone 17 - Google Authentication (May 27, 2026)
-
-Professional Google Login is now integrated into the Forge ecosystem.
-
-### Frontend Integration
-- **Google Identity Services**: Loaded via script in `index.html`.
-- **UI Components**: Standard "Sign in with Google" button and a professional user
-  profile badge (avatar + name) on the home screen.
-- **Auto-fill**: Successfully logging in automatically pre-fills the "YOUR NAME"
-  field for faster room entry.
-- **Persistence**: User profile is saved to `localStorage` alongside the session.
-
-### Backend Verification
-- **Token Verification**: New `/auth/google` POST endpoint in `app/routers/auth.py`.
-- **Security**: Uses the `google-auth` library to verify the integrity and audience
-  of Google ID tokens received from the frontend.
-- **Configuration**: Added `GOOGLE_CLIENT_ID` to `app/core/config.py` and
-  `.env.example`.
-
-### How to Configure
-1. Create a project in the [Google Cloud Console](https://console.cloud.google.com/).
-2. Create an **OAuth 2.0 Client ID** for a "Web application".
-3. Add `http://localhost:8080` (dev) and your production domain to the **Authorized JavaScript origins**.
-4. Update `GOOGLE_CLIENT_ID` in `frontend/index.html` and your backend `.env` file.
-
----
-
-## Milestone 18 - Regulatory Compliance & Navigation (May 28, 2026)
-
-Improved navigation and user transparency.
-
-### Changes Made
-
-**`frontend/index.html`**
-- Added persistent `<nav id="app-footer">` bar with links to About, Privacy Policy,
-  and contact email — visible on all screens except during active gameplay
-- Footer auto-hides during the game screen (`game-active` CSS class) so it
-  never overlaps answer buttons
-
-**`frontend/privacy.html`**
-- Added `rel="noopener noreferrer"` to all external links (Google, Vercel)
-- Styled the contact email as a prominent call-out card
-- Added mention of `localStorage` usage (mute, high scores) to the cookies section
-
-### Compliance Checklist
-| Requirement | Status |
-|-------------|--------|
-| Privacy Policy page | ✅ /privacy.html |
-| Privacy Policy link accessible from main app | ✅ Footer nav |
-| About page | ✅ /about.html |
-| Contact info visible | ✅ Footer nav + privacy page |
-| No prohibited content | ✅ |
-
----
-
-## Milestone 23 - Solo Isolation + Coins/Trophies Economy (June 1, 2026)
-
-Restored Solo Mode boundaries after the Team Mode rollout and added Google-linked
-economy persistence.
-
-### Solo Mode Isolation
-- Solo lobby now forces the local lobby renderer to the classic setup panel and
-  clears team-only local state (`teams`, `team_topics`, `myTeamId`) on entry and
-  on `PLAYER_JOINED` refreshes.
-- Solo start now sends `play_mode: "solo"` to the server instead of accidentally
-  promoting the game to classic.
-- The backend rejects stale client attempts to override an existing solo room
-  into classic/team mode.
-
-### Economy Rules
-- New Google profiles initialize with exactly **200 coins** and **50 trophies**.
-- Room games require signed-in players and charge **25 coins** per connected
-  player when the game starts.
-- Room winners receive the full entry-fee coin pool; tied winners split the pool
-  equally, including fractional coin splits when needed to preserve the full
-  pool exactly.
-- Solo rewards are based on correct answers:
-  - `>= 5` correct: `+10 coins`
-  - `< 4` correct: `-2 trophies`, clamped at `0`
-  - `4` or `5` correct: `+1 trophy`
-  - `6-10` correct: `+2 trophies` per correct answer above 5
-
-### Persistence Implementation
-- Added `backend/app/services/profiles.py`, a lightweight JSON profile store at
-  `PROFILE_STORE_PATH` (default `app/data/profiles.json`) to preserve balances
-  without paid infrastructure.
-- Google Sign-In now returns saved `coins` and `trophies` to the frontend.
-- WebSocket connections include the signed-in Google profile ID so the server can
-  apply authoritative game-end economy deltas.
-- Results and home screens render the synced balances and game-end deltas.
-
-## Milestone 23 — CI/CD Pipeline (GitHub Actions)
-
-Every push to `main` that touches `forge/backend/**` automatically:
-1. Builds a `linux/amd64` Docker image on GitHub's native runners (no QEMU).
-2. Pushes `:latest` + `:<commit-sha>` tags to Artifact Registry.
-3. Deploys to Cloud Run with all env vars injected from GitHub Secrets.
-
-### Required GitHub Secrets
-| Secret | Value |
-|---|---|
-| `GCP_SA_KEY` | Full JSON of `github-actions` service account key |
-| `GEMINI_API_KEY` | Gemini API key |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-
-### Rollback
-```bash
-gcloud run deploy forge-backend \
-  --image us-central1-docker.pkg.dev/quiz-app-forge/forge/backend:<sha> \
-  --region us-central1
-```
-
-### Local deploys (emergency only)
-Still works as before — but prefer pushing to main and letting CI/CD handle it.
+12. Website is live at forgetrivia.online — frontend deployed on Vercel, connected via Namecheap DNS.

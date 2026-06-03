@@ -216,6 +216,7 @@
 
 <script>
 function onResultsShow() {
+  ADS.onResults();
   const conf = document.getElementById('results-confetti');
   if (conf) { conf.innerHTML = ''; spawnConfetti(conf); }
   Sound.gameOver();
@@ -455,6 +456,7 @@ function _confettiBurst() {
 
 /* ── ACTIONS ─────────────────────────────────────────────── */
 async function resultsPlayAgain() {
+  ADS.onPlayAgain();
   if (!State.user?.id) {
     Toast.error('Sign in with Google to save coins and trophies.');
     resultsGoHome();
@@ -476,6 +478,7 @@ async function resultsPlayAgain() {
 }
 
 function resultsGoHome() {
+  ADS.onGoHome();
   State.roomCode = ''; State.players = []; State.scores = {};
   State.teams = {}; State.teamScores = {};
   if (State.ws) { State.ws.close(); State.ws = null; }

@@ -1025,6 +1025,111 @@ function _updateMuteBtn() {
 ['click', 'touchstart'].forEach(ev =>
   document.addEventListener(ev, () => Sound.init(), { once: true })
 );
+/* ══════════════════════════════════════════════════════════════
+   AD CYCLE — paste this block into index.html's main <script>,
+   right after the Toast object and before the API object.
+
+   Cycle per quiz loop:
+     HOME loads    → 1× Vignette (fires immediately)
+     LOBBY loads   → 1× Vignette (fires immediately, always fresh)
+     GAME loads    → hard block (all scripts removed, window.open → null)
+     RESULTS loads → 1× Popunder (fires on first user click)
+
+     Play Again  → remove scripts → LOBBY → fresh Vignette
+     Go Home     → remove scripts → HOME  → fresh Vignette
+   ══════════════════════════════════════════════════════════════ */
+const ADS = {
+  // ── Zone config — update if Monetag gives you new URLs ──────
+  VIGNETTE: { src: 'https://n6wxm.com/vignette.min.js',  zone: '11087559' },
+  POPUNDER: { src: 'https://al5sm.com/tag.min.js',        zone: '11087153' },
+
+  _puFired:      false,  // popunder already registered this cycle
+  _origOpen:     null,   // saved window.open for restore after game
+  _openBlocked:  false,
+
+  // ── Helpers ─────────────────────────────────────────────────
+  _inject(cfg) {
+    // data-zone is mandatory — without it Monetag loads but serves nothing
+    if (document.querySelector(`script[data-zone="${cfg.zone}"]`)) return;
+    const s = document.createElement('script');
+    s.src = cfg.src;
+    s.setAttribute('data-zone', cfg.zone);
+    s.async = true;
+    document.body.appendChild(s);
+  },
+  _remove(cfg) {
+    document.querySelectorAll(`script[data-zone="${cfg.zone}"]`)
+      .forEach(s => s.parentNode?.removeChild(s));
+  },
+  _blockOpen() {
+    if (this._openBlocked) return;
+    this._origOpen = window.open.bind(window);
+    window.open = (url, ...rest) => {
+      const u = String(url || '');
+      // Always allow mailto/tel so contact links still work
+      if (u.startsWith('mailto:') || u.startsWith('tel:')) {
+        return this._origOpen(url, ...rest);
+      }
+      return null; // block all popups/tabs during game
+    };
+    this._openBlocked = true;
+  },
+  _unblockOpen() {
+    if (!this._openBlocked) return;
+    try { window.open = this._origOpen; } catch (_) {}
+    this._openBlocked = false;
+  },
+
+  // ── Screen hooks (call once per screen show) ─────────────────
+
+  /** HOME — always shows a fresh vignette, cleans up popunder residue */
+  onHome() {
+    this._unblockOpen();
+    this._remove(this.POPUNDER);  // clean stray popunder from results
+    this._remove(this.VIGNETTE);  // remove previous so a fresh one fires
+    this._inject(this.VIGNETTE);  // fires immediately on home load
+  },
+
+  /** LOBBY — always shows a fresh vignette regardless of how we got here */
+  onLobby() {
+    this._unblockOpen();
+    this._remove(this.VIGNETTE);  // ensure no duplicate from home
+    this._inject(this.VIGNETTE);  // fresh vignette every lobby visit
+  },
+
+  /** GAME — hard block: remove everything, kill window.open */
+  onGame() {
+    this._remove(this.VIGNETTE);
+    this._remove(this.POPUNDER);
+    this._blockOpen();
+  },
+
+  /** RESULTS — register popunder once; fires on user's next click */
+  onResults() {
+    this._unblockOpen(); // MUST restore before injecting so click can open tab
+    if (this._puFired) return;
+    this._puFired = true;
+    this._inject(this.POPUNDER);
+  },
+
+  /** PLAY AGAIN — user skips Home, goes straight to Lobby */
+  onPlayAgain() {
+    this._puFired = false;        // allow popunder again after next game
+    this._remove(this.VIGNETTE);
+    this._remove(this.POPUNDER);
+    this._unblockOpen();
+    // onLobby() will fire next and inject a fresh vignette
+  },
+
+  /** GO HOME — full reset, home vignette will fire on next onHome() */
+  onGoHome() {
+    this._puFired = false;
+    this._remove(this.VIGNETTE);
+    this._remove(this.POPUNDER);
+    this._unblockOpen();
+    // onHome() will fire next and inject a fresh vignette
+  },
+};
 
 /* ── BOOT ───────────────────────────────────────────────── */
 (async () => {
