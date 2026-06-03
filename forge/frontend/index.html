@@ -510,9 +510,6 @@
   </nav>
 </div>
 
-
-
-<script src="monetag-ads.js"></script>
 <script>
 /* ── CONFIG ─────────────────────────────────────────────── */
 // Capacitor serves Android assets from https://localhost. It must use Cloud
@@ -582,10 +579,6 @@ const State = {
   teamScores : {},                              // { 'A': pts, 'B': pts }
 };
 
-// ── AdOps bootstrap ───────────────────────────────────────
-// `monetag-ads.js` exposes `window.AdOps` singleton.
-// We keep it global so every screen can safely call lifecycle hooks.
-
 function formatCoins(value) {
   const n = Number(value || 0);
   return Number.isInteger(n) ? n.toLocaleString() : n.toFixed(2);
@@ -596,6 +589,14 @@ function applyUserEconomy(economy) {
   if (economy.coins !== undefined) State.user.coins = economy.coins;
   if (economy.trophies !== undefined) State.user.trophies = economy.trophies;
   Session.save();
+  // Also persist to per-user localStorage key so balances survive container restarts
+  try {
+    const localKey = `forge_economy_${State.user.id}`;
+    localStorage.setItem(localKey, JSON.stringify({
+      coins: State.user.coins,
+      trophies: State.user.trophies,
+    }));
+  } catch (_) {}
 }
 
 // Restore basic state on boot
@@ -930,6 +931,89 @@ const Sound = {
     try { localStorage.setItem('forge_muted', String(this.muted)); } catch {}
     _updateMuteBtn();
     return this.muted;
+  },
+};
+
+/* ── AD COIN REWARD ─────────────────────────────────────────
+ * Handles the "Watch Ad → +20 coins" direct link feature.
+ * Paste your Monetag Direct Link URL below.
+ * Get it from: Monetag Dashboard → Sites → Add Zone → Direct Link
+ */
+const AdCoinReward = {
+  DIRECT_LINK_URL: 'https://omg10.com/4/11094138', // ← replace with your URL
+  REWARD_COINS: 20,
+  COOLDOWN_MS: 30 * 60 * 1000, // 30 minutes between rewards
+  COOLDOWN_KEY: 'forge_ad_reward_ts',
+  TIMER_SECONDS: 10,
+
+  _timerInterval: null,
+
+  /** Returns ms remaining on cooldown, 0 if ready */
+  cooldownRemaining() {
+    try {
+      const last = Number(localStorage.getItem(this.COOLDOWN_KEY) || 0);
+      const remaining = this.COOLDOWN_MS - (Date.now() - last);
+      return Math.max(0, remaining);
+    } catch (_) { return 0; }
+  },
+
+  /** User tapped the button — open ad tab, start countdown */
+  trigger(onCountdownTick, onRewarded, onCooldown) {
+    const remaining = this.cooldownRemaining();
+    if (remaining > 0) {
+      const mins = Math.ceil(remaining / 60000);
+      onCooldown && onCooldown(mins);
+      return;
+    }
+
+    // Open the ad in a new tab
+    window.open(this.DIRECT_LINK_URL, '_blank', 'noopener');
+
+    // Count down 10 seconds then reward
+    let secs = this.TIMER_SECONDS;
+    onCountdownTick && onCountdownTick(secs);
+    clearInterval(this._timerInterval);
+    this._timerInterval = setInterval(() => {
+      secs--;
+      onCountdownTick && onCountdownTick(secs);
+      if (secs <= 0) {
+        clearInterval(this._timerInterval);
+        this._reward(onRewarded);
+      }
+    }, 1000);
+  },
+
+  async _reward(onRewarded) {
+    // Mark cooldown
+    try { localStorage.setItem(this.COOLDOWN_KEY, String(Date.now())); } catch (_) {}
+
+    const delta = { coins: this.REWARD_COINS, trophies: 0 };
+
+    // Update local state immediately — don't wait for backend
+    if (State.user) {
+      State.user.coins = (State.user.coins || 0) + this.REWARD_COINS;
+      Session.save();
+      try {
+        const localKey = `forge_economy_${State.user.id}`;
+        localStorage.setItem(localKey, JSON.stringify({
+          coins: State.user.coins,
+          trophies: State.user.trophies,
+        }));
+      } catch (_) {}
+    }
+
+    // Best-effort backend sync (silent fail if container is cold)
+    if (State.user?.id) {
+      try {
+        await fetch(`${API_BASE}/economy/reward`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: State.user.id, coins_delta: this.REWARD_COINS }),
+        });
+      } catch (_) {}
+    }
+
+    onRewarded && onRewarded(delta);
   },
 };
 

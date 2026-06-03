@@ -220,7 +220,6 @@ function onResultsShow() {
   if (conf) { conf.innerHTML = ''; spawnConfetti(conf); }
   Sound.gameOver();
   _confettiBurst();
-  if (window.AdOps) AdOps.onResults();
 
   const topicEl = document.getElementById('results-topic');
   if (topicEl) topicEl.textContent = "🎯 " + (State.topic || "Trivia");
@@ -467,7 +466,6 @@ async function resultsPlayAgain() {
       State.roomCode = data.room_code;
       State.players = [State.playerName]; State.scores = {};
       State.teams = {}; State.teamScores = {};
-      if (window.AdOps) AdOps.onPlayAgain();
       // New room assigned — gate will allow ads again after next game
       WS.connect(State.roomCode, State.playerName);
       await goTo('lobby');
@@ -478,7 +476,6 @@ async function resultsPlayAgain() {
 }
 
 function resultsGoHome() {
-  if (window.AdOps) AdOps.onGoHome(); 
   State.roomCode = ''; State.players = []; State.scores = {};
   State.teams = {}; State.teamScores = {};
   if (State.ws) { State.ws.close(); State.ws = null; }

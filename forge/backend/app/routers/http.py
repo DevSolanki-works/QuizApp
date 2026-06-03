@@ -121,3 +121,17 @@ async def delete_room(code: str):
 
     del state.rooms[code]
     return {"deleted": code}
+class RewardRequest(BaseModel):
+    user_id: str
+    coins_delta: float = 20
+
+@router.post("/economy/reward")
+async def ad_coin_reward(body: RewardRequest):
+    """Apply ad-watch coin reward. Frontend is source of truth; this just syncs."""
+    try:
+        from app.services.profiles import apply_delta
+        profile = apply_delta(body.user_id, coins_delta=body.coins_delta)
+        return {"coins": profile["coins"], "trophies": profile["trophies"]}
+    except Exception:
+        # Silent fail — frontend already applied the reward locally
+        return {"ok": True}
