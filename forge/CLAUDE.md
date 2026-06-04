@@ -51,7 +51,7 @@ Media.net, Ezoic) take days to weeks to audit manually and pay 10–100× more.
 - [x] AdSense script present on every crawlable HTML page (`index.html`,
       `about.html`, `privacy.html`)
 - [x] Navigation links to Privacy Policy and About from every screen
-- [x] Cookie consent banner with EEA/UK detection and localStorage persistence
+- [x] Cookie consent banner with localStorage persistence and AdSense NPA (Non-Personalized Ads) support
 - [x] `landing.html` — rich semantic content page satisfies "Low Value Content"
       automated rejection filter
 - [x] No auto-play video, no deceptive ad placements, no ad-adjacent game elements
@@ -117,7 +117,7 @@ forge/
 │           ├── ai.py          ← Gemini AI service ✅
 │           └── profiles.py    ← File-backed economy ✅
 └── frontend/
-    ├── index.html             ← App shell, router ✅
+    ├── index.html             ← App shell, router + Cookie Banner Logic ✅
     ├── privacy.html           ← Privacy Policy page ✅
     ├── about.html             ← About page ✅
     ├── robots.txt             ← SEO crawler permissions ✅
@@ -254,6 +254,12 @@ final_score = int(base_score * multiplier)
   - In-progress room sessions → restored directly to `lobby`/`game`/`results`
 - No framework — pure vanilla JS
 
+### Cookie Consent (AdSense Compliance)
+- `CookieConsent` object in `index.html` manages banner visibility and persistence.
+- Choice stored in `localStorage` under `forge_cookie_consent`.
+- Supports Personalised vs Non-Personalised ads toggle (`window.__adsenseNPA`).
+- 1.8s delayed appearance to minimize layout shift.
+
 ### Screen Flow
 ```
 landing ──(Play Now)──► home ──(Create/Join)──► lobby ──► game ──► results
@@ -385,6 +391,7 @@ Fix: `localStorage` is the source of truth for coins/trophies on the client.
 | 23 | Solo Isolation + Coins/Trophies Economy + CI/CD Pipeline | ✅ Done |
 | 24 | Economy persistence fix (localStorage source of truth) + Made App Ad-Free | ✅ Done |
 | 25 | Monetization pivot: Monetag removed, AdSense landing page + Chai4Me support | ✅ Done |
+| 26 | AdSense Compliance: Cookie Consent Banner + NPA logic | ✅ Done |
 
 ---
 
@@ -409,6 +416,7 @@ Fix: `localStorage` is the source of truth for coins/trophies on the client.
 - All AdOps.* and ADS.* references have been removed from all screen files.
 - **Landing screen (`screens/landing.html`) is the new default entry point.** It is a content-rich, semantic HTML5 page designed to pass Google AdSense's automated "Low Value Content" rejection filter. It contains deep textual descriptions of all game modes, the scoring system, difficulty levels, tech stack, and FAQ. The "Play Now" CTA navigates to the actual game (`home` screen).
 - **Chai4Me support embed** is placed on `screens/home.html` below the feature pills. It uses the official embed code from chai4.me verbatim and opens in a new tab (`target="_blank"`).
+- **Cookie Consent Banner (`index.html`)**: Implemented Task 4 of the AdSense compliance audit. The banner sits just above the footer, uses the pixel font theme, and persists choices in `localStorage`. It explicitly signals `__adsenseNPA` to respect user choice regarding personalized ads.
 
 ---
 
