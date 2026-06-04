@@ -2,17 +2,27 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://forgetrivia.online/</loc>
-    <lastmod>2026-05-31</lastmod>
+    <lastmod>2026-06-04</lastmod>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://forgetrivia.online/about.html</loc>
-    <lastmod>2026-05-31</lastmod>
+    <lastmod>2026-06-04</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://forgetrivia.online/privacy.html</loc>
-    <lastmod>2026-05-31</lastmod>
+    <lastmod>2026-06-04</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://forgetrivia.online/terms.html</loc>
+    <lastmod>2026-06-04</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://forgetrivia.online/contact.html</loc>
+    <lastmod>2026-06-04</lastmod>
     <priority>0.5</priority>
   </url>
 </urlset>
