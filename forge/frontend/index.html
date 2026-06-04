@@ -366,53 +366,89 @@
     /* Hide footer during active gameplay so it doesn't cover answer buttons */
     #app-footer.game-active { opacity: 0; pointer-events: none; }
 
-    /* ── COOKIE CONSENT BANNER ───────────────────────────── */
+    /* ── BLOCK B: Cookie Consent Banner CSS ───────────────────── */
     #cookie-banner {
       position: fixed;
-      bottom: var(--footer-h);
+      bottom: var(--footer-h, 32px);   /* sits just above the persistent footer nav */
       left: 50%;
-      transform: translateX(-50%) translateY(100%);
+      transform: translateX(-50%) translateY(110%); /* hidden offscreen by default */
       width: 100%;
-      max-width: var(--max-w);
-      z-index: 500;
-      background: rgba(13, 27, 120, 0.98);
-      border: 1px solid rgba(255, 217, 61, 0.25);
+      max-width: var(--max-w, 430px);
+      z-index: 9990;
+
+      background: rgba(9, 19, 100, 0.97);
+      border: 1px solid rgba(255, 217, 61, 0.28);
       border-bottom: none;
-      border-radius: var(--radius-md) var(--radius-md) 0 0;
-      padding: 14px 18px 12px;
+      border-radius: 16px 16px 0 0;
+      padding: 16px 18px 14px;
+
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      backdrop-filter: blur(12px);
-      transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.4s;
-      pointer-events: none;
+      gap: 12px;
+
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.35);
+
+      /* Slide-up animation — triggered by adding .visible */
+      transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.45s;
       visibility: hidden;
+      pointer-events: none;
     }
+
     #cookie-banner.visible {
       transform: translateX(-50%) translateY(0);
-      pointer-events: auto;
       visibility: visible;
+      pointer-events: auto;
     }
+
     .cookie-text {
-      font-family: var(--font-body);
-      font-size: 12px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 13px;
       font-weight: 700;
-      color: rgba(255,255,255,0.78);
-      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.65;
     }
-    .cookie-text a { color: var(--yellow); text-decoration: underline; }
-    .cookie-actions { display: flex; gap: 8px; }
+    .cookie-text a {
+      color: #FFD93D;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .cookie-actions {
+      display: flex;
+      gap: 9px;
+    }
+
     .cookie-btn {
-      flex: 1; height: 36px; border: none;
-      border-radius: var(--radius-pill);
-      font-family: var(--font-pixel); font-size: 7px;
-      cursor: pointer; letter-spacing: 0.3px;
+      flex: 1;
+      height: 38px;
+      border: none;
+      border-radius: 999px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6.5px;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.1s;
       -webkit-tap-highlight-color: transparent;
-      transition: transform 0.1s;
     }
     .cookie-btn:active { transform: scale(0.97); }
-    .cookie-accept  { background: var(--yellow); color: var(--text-dark); }
-    .cookie-decline { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.2) !important; }
+
+    .cookie-accept {
+      background: #FFD93D;
+      color: #1A1A2E;
+      box-shadow: 0 3px 0 #b89a00;
+    }
+    .cookie-accept:hover { opacity: 0.92; }
+
+    .cookie-decline {
+      background: rgba(255, 255, 255, 0.09);
+      color: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.18) !important;
+      font-size: 5.5px;   /* slightly smaller — secondary action */
+    }
+    .cookie-decline:hover { background: rgba(255,255,255,0.14); }
+    /* ── END BLOCK B ──────────────────────────────────────────── */
   </style>
 </head>
 <body>
@@ -860,6 +896,70 @@ function _updateMuteBtn() {
   document.addEventListener(ev, () => Sound.init(), { once: true })
 );
 
+/* ── BLOCK C: Cookie Consent Logic ───────────────────────── */
+const CookieConsent = {
+  STORAGE_KEY : 'forge_cookie_consent',   // 'accepted' | 'declined'
+  BANNER_ID   : 'cookie-banner',
+
+  /** Read stored decision */
+  getDecision() {
+    try { return localStorage.getItem(this.STORAGE_KEY); } catch { return null; }
+  },
+
+  /** Persist decision */
+  setDecision(value) {
+    try { localStorage.setItem(this.STORAGE_KEY, value); } catch {}
+  },
+
+  /**
+   * Show the banner with a small delay so it doesn't flash
+   * on screen before the game UI has painted.
+   */
+  init() {
+    if (this.getDecision()) return;   // already answered — never show again
+    setTimeout(() => {
+      const el = document.getElementById(this.BANNER_ID);
+      if (el) el.classList.add('visible');
+    }, 1800);   // 1.8 s delay feels natural; avoids layout-shift on initial paint
+  },
+
+  /** User tapped "Got It" — accept all cookies */
+  accept() {
+    this.setDecision('accepted');
+    this._dismiss();
+    // Flip AdSense to personalised mode if it was held back
+    if (typeof window.__adsenseNPA !== 'undefined') window.__adsenseNPA = false;
+  },
+
+  /** User tapped "Non-Personalised Ads" — respect the choice */
+  decline() {
+    this.setDecision('declined');
+    this._dismiss();
+    // Signal to AdSense to serve non-personalised ads only
+    if (typeof window.__adsenseNPA !== 'undefined') window.__adsenseNPA = true;
+  },
+
+  _dismiss() {
+    const el = document.getElementById(this.BANNER_ID);
+    if (!el) return;
+    el.classList.remove('visible');
+    // Remove from DOM after animation completes
+    setTimeout(() => el.remove(), 500);
+  },
+};
+
+/** Called from HTML onclick — keeps global scope tidy */
+function cookieAccept()  { CookieConsent.accept();  }
+function cookieDecline() { CookieConsent.decline(); }
+
+// Kick off on DOMContentLoaded (safe even if script is in <head>)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => CookieConsent.init());
+} else {
+  CookieConsent.init();   // DOM already ready (script at end of body)
+}
+/* ── END BLOCK C ──────────────────────────────────────────── */
+
 /* ── BOOT ────────────────────────────────────────────────── */
 /*
  * Boot priority:
@@ -900,5 +1000,21 @@ function _updateMuteBtn() {
   await goTo('landing', true);
 })();
 </script>
+<!-- ── BLOCK A: Cookie Consent Banner HTML ─────────────────── -->
+<div id="cookie-banner" role="dialog" aria-modal="false" aria-label="Cookie consent">
+  <p class="cookie-text">
+    We use cookies and browser storage to save your high scores, mute settings,
+    and game preferences, and to serve contextual ads via
+    <a href="/privacy.html" target="_blank" rel="noopener">Google AdSense</a>.
+    By continuing to play you agree to our
+    <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.
+  </p>
+  <div class="cookie-actions">
+    <button class="cookie-btn cookie-accept"  onclick="cookieAccept()">✓ &nbsp;GOT IT</button>
+    <button class="cookie-btn cookie-decline" onclick="cookieDecline()">NON-PERSONALISED ADS</button>
+  </div>
+</div>
+<!-- ── END BLOCK A ─────────────────────────────────────────── -->
+
 </body>
 </html>

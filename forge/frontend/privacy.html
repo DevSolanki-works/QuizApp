@@ -88,6 +88,18 @@
     .contact-block .icon { font-size: 28px; flex-shrink: 0; }
     .contact-block p { font-size: 14px; opacity: 0.9; }
     .contact-block a { font-weight: 900; }
+
+    /* Opt-out block — styled to stand out for legal discoverability */
+    .optout-block {
+      margin-top: 12px;
+      padding: 16px 20px;
+      background: rgba(79,195,247,0.07);
+      border: 1px solid rgba(79,195,247,0.2);
+      border-radius: 12px;
+    }
+    .optout-block p { font-size: 14px; opacity: 0.9; }
+    .optout-block a { font-weight: 900; }
+
     footer {
       text-align: center;
       margin-top: 48px;
@@ -106,7 +118,7 @@
 
   <div class="card">
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: May 28, 2026</p>
+    <p class="updated">Last updated: June 4, 2026</p>
 
     <p>Welcome to Forge: AI Trivia Showdown ("Forge", "we", "us", or "our"). We are committed to protecting your privacy. This Privacy Policy explains how we handle information when you use our website at <a href="https://forgetrivia.online">forgetrivia.online</a>.</p>
 
@@ -122,7 +134,7 @@
 
     <h2>2. Information We Do NOT Collect</h2>
     <ul>
-      <li>We do not require account registration or email addresses.</li>
+      <li>We do not require account registration or email addresses for guest play.</li>
       <li>We do not store any personal information on our servers after your game session ends.</li>
       <li>We do not collect payment information.</li>
       <li>We do not track your location.</li>
@@ -141,24 +153,47 @@
     <ul>
       <li><strong>Google Gemini API:</strong> Used to generate trivia questions. Topic text you enter is sent to Google's servers. See <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google's Privacy Policy</a>.</li>
       <li><strong>Vercel:</strong> Our website is hosted on Vercel, which may collect standard server logs. See <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">Vercel's Privacy Policy</a>.</li>
+      <li><strong>Google AdSense:</strong> We use Google AdSense to display advertisements. Google, as a third-party vendor, uses cookies to serve ads based on your prior visits to this website or other websites. See <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer">Google's Advertising Policies</a>.</li>
     </ul>
 
-    <h2>5. Cookies</h2>
-    <p>Forge itself uses a small number of cookies and browser storage to remember your preferences (such as mute settings and high scores). These are stored locally on your device and are not sent to our servers.</p>
+    <h2>5. Cookies and Browser Storage</h2>
+    <p>Forge itself uses a small number of cookies and browser storage entries to remember your preferences (such as mute settings, high scores, and cookie consent). These are stored locally on your device and are not sent to our servers.</p>
+    <p>In addition, <strong>third-party vendors including Google use cookies to serve ads</strong> on our website based on your prior visits to this site or other sites on the internet. The use of advertising cookies enables Google and its partners to serve ads to you based on your visit to our site and/or other sites on the internet.</p>
 
-    <h2>6. Children's Privacy</h2>
+    <div class="optout-block">
+      <p>
+        <strong>Opt out of personalized advertising:</strong> You may opt out of personalized advertising by visiting
+        <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer">Google Ads Settings</a>.
+        Alternatively, you can opt out of third-party vendor advertising cookies by visiting
+        <a href="https://www.aboutads.info" target="_blank" rel="noopener noreferrer">AboutAds.info</a>.
+        If you opt out, you will still see ads — they will simply not be personalized to your interests.
+      </p>
+    </div>
+
+    <h2>6. AI Question Generation &amp; Data Handling</h2>
+    <p>When you or the game host types a trivia topic into Forge, that topic string is transmitted securely to the <strong>Google Gemini API</strong> (a third-party Large Language Model service operated by Google DeepMind) for the sole purpose of generating quiz questions in real time.</p>
+    <p>We want to be transparent about what this means:</p>
+    <ul>
+      <li>Only the <strong>topic text</strong> is sent — never your Google account details, display name, coin balance, trophy count, or any other personal identifier.</li>
+      <li>Your Google account credentials and profile data are <strong>never bound to or included in</strong> any prompt payload sent to the Gemini API.</li>
+      <li>Topic data is processed transiently by Google's infrastructure and is subject to <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">Google's Gemini API Terms of Service</a> and their associated data usage policies.</li>
+      <li>Forge does not store or log your topic entries on our own servers after the game session ends.</li>
+    </ul>
+    <p>We recommend avoiding entering any personally identifiable information as a quiz topic.</p>
+
+    <h2>7. Children's Privacy</h2>
     <p>Forge is a general-audience game and is not directed at children under 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, please contact us so we can delete it.</p>
 
-    <h2>7. Data Retention</h2>
+    <h2>8. Data Retention</h2>
     <p>Active room data (player names, answers, and live scores) is stored in memory only for the duration of the active game session. For users who sign in with Google, Forge stores lightweight progression data tied to the Google account ID, including coin and trophy balances.</p>
 
-    <h2>8. Your Rights</h2>
+    <h2>9. Your Rights</h2>
     <p>If you sign in with Google, you may request deletion or correction of your saved progression data by contacting us. Guest-only active room data is not retained after the session ends or the server restarts.</p>
 
-    <h2>9. Changes to This Policy</h2>
+    <h2>10. Changes to This Policy</h2>
     <p>We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated date. Continued use of Forge after changes constitutes acceptance of the revised policy.</p>
 
-    <h2>10. Contact Us</h2>
+    <h2>11. Contact Us</h2>
     <p>If you have any questions about this Privacy Policy or our data practices, please reach out:</p>
     <div class="contact-block">
       <span class="icon">✉️</span>

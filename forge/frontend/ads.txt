@@ -1,0 +1,10 @@
+# ads.txt — Authorized Digital Sellers
+# Domain: forgetrivia.online
+# Publisher: Forge: AI Trivia Showdown
+#
+# This file authorizes Google AdSense to serve ads on this domain.
+# Format: <SSP/Exchange Domain>, <Publisher/Seller ID>, <Account Type>, <TAGID>
+#
+# DO NOT remove or modify this entry — AdSense verification depends on it.
+
+google.com, pub-4922314688440658, DIRECT, f08c47fec0942fa0
