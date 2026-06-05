@@ -308,15 +308,15 @@ def _finalize_economy(room, final_scores: dict[str, int], correct_answers: dict[
 async def _expire_question(room_code: str, question_index: int) -> None:
     """Resolve a round when the timer runs out server-side.
     
-    Includes a 5-second grace period to account for network latency
-    and client-side animation delays (like the Team Mode randomizer).
+    Includes a 3-second grace period to account for network latency
+    and client-side animation delays.
     """
     try:
         room = rooms.get(room_code)
         if not room:
             return
         # Wait for the mode limit + a buffer for network roundtrip/latency
-        await asyncio.sleep((room.time_limit_ms / 1000) + 5)
+        await asyncio.sleep((room.time_limit_ms / 1000) + 3)
         await resolve_round(room_code, question_index)
     except asyncio.CancelledError:
         return
