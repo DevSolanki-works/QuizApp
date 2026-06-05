@@ -16,6 +16,9 @@
 
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-client.js" defer></script>
 
   <style>
     /* ══════════════════════════════════════════════════════
@@ -455,6 +458,24 @@
 <div id="app">
   <div id="toast-container"></div>
 
+<!-- Leaderboard button — opens public leaderboard in new tab -->
+  <a href="/leaderboard.html" target="_blank" rel="noopener"
+     id="lb-btn"
+     aria-label="View leaderboard"
+     style="
+       position: fixed; top: calc(var(--header-h) + 12px); left: 12px; z-index: 500;
+       width: 40px; height: 40px; border-radius: 50%;
+       background: rgba(255,255,255,0.12);
+       border: 1px solid rgba(255,255,255,0.22);
+       font-size: 18px; display: flex;
+       align-items: center; justify-content: center;
+       text-decoration: none;
+       -webkit-tap-highlight-color: transparent;
+       transition: background 0.15s;
+     ">
+    🏆
+  </a>
+
   <!-- Persistent mute toggle — visible across all screens -->
   <button id="mute-btn"
     onclick="Sound.toggleMute()"
@@ -604,6 +625,16 @@ function applyUserEconomy(economy) {
       trophies: State.user.trophies,
     }));
   } catch (_) {}
+
+  // Sync to Supabase leaderboard (fire-and-forget — never blocks the UI)
+  if (typeof lbUpsertPlayer === 'function') {
+    lbUpsertPlayer(
+      State.user.id,
+      State.user.name,
+      State.user.coins,
+      State.user.trophies,
+    ).catch(e => console.warn('[LB] Upsert failed silently:', e));
+  }
 }
 
 // Restore basic state on boot
@@ -662,8 +693,12 @@ async function goTo(name, skipHash = false) {
   if (!skipHash) window.location.hash = name;
 
   // Hide footer during gameplay only
+  // Hide footer and leaderboard button during gameplay only
   const footer = document.getElementById('app-footer');
   if (footer) footer.classList.toggle('game-active', name === 'game');
+  const lbBtn = document.getElementById('lb-btn');
+  if (lbBtn) lbBtn.style.opacity = name === 'game' ? '0' : '1';
+  if (lbBtn) lbBtn.style.pointerEvents = name === 'game' ? 'none' : 'auto';
 
   const hook = `on${name.charAt(0).toUpperCase() + name.slice(1)}Show`;
   if (typeof window[hook] === 'function') window[hook]();
