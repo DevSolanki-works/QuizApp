@@ -12,7 +12,9 @@ on:
 jobs:
   deploy:
     name: Build & Deploy to Cloud Run
-    runs-on: ubuntu-latest  # Native linux/amd64 — no QEMU, no 10-min builds
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       # 1. Check out code
