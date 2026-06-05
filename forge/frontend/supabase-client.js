@@ -50,6 +50,29 @@ async function lbUpsertPlayer(googleId, name, coins, trophies) {
 }
 
 /**
+ * Fetch a single player's profile from the leaderboard.
+ * Used on page load to sync coins/trophies across devices.
+ *
+ * @param {string} googleId - The player's unique Google ID
+ */
+async function lbFetchProfile(googleId) {
+  const db = _initSupabase();
+  if (!db) return null;
+  const { data, error } = await db
+    .from('leaderboard')
+    .select('coins, trophies, display_name')
+    .eq('google_id', googleId)
+    .single();
+  if (error) {
+    if (error.code !== 'PGRST116') { // PGRST116 is "no rows found"
+      console.error('[Supabase] Profile fetch failed:', error.message);
+    }
+    return null;
+  }
+  return data;
+}
+
+/**
  * Fetch the top N players sorted by a given column.
  * Returns an array of row objects, or [] on error.
  *
@@ -110,6 +133,7 @@ async function donationSubmit(displayName, googleId, amountInr, upiTxnId) {
 
 // Expose globally so all screen files can call them without imports
 window.lbUpsertPlayer  = lbUpsertPlayer;
+window.lbFetchProfile  = lbFetchProfile;
 window.lbFetch         = lbFetch;
 window.lbFetchDonors   = lbFetchDonors;
 window.donationSubmit  = donationSubmit;

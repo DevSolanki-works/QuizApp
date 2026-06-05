@@ -100,6 +100,19 @@ def get_profile(user_id: str) -> dict[str, Any]:
     return get_or_create_profile(user_id)
 
 
+def sync_profile(user_id: str, coins: float, trophies: int) -> dict[str, Any]:
+    """Force-update a profile to match external state (e.g. Supabase sync)."""
+
+    with _lock:
+        profiles = _load_profiles()
+        profile = profiles.get(user_id) or _new_profile(user_id)
+        profile["coins"] = float(coins)
+        profile["trophies"] = int(trophies)
+        profiles[user_id] = profile
+        _save_profiles(profiles)
+        return dict(profile)
+
+
 def can_afford_entry(user_id: str) -> bool:
     """Return whether a profile has enough coins for a room entry fee."""
 

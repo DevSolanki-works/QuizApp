@@ -757,6 +757,13 @@ const API = {
     if (!r.ok) throw new Error('Auth failed');
     return r.json();
   },
+  async syncProfile(userId, coins, trophies) {
+    return fetch(`${API_BASE}/economy/sync`, {
+      method  : 'POST',
+      headers : { 'Content-Type': 'application/json' },
+      body    : JSON.stringify({ user_id: userId, coins, trophies }),
+    }).catch(e => console.warn('[API] Sync failed:', e));
+  },
 };
 
 /* ── WEBSOCKET ──────────────────────────────────────────── */
@@ -1031,6 +1038,27 @@ if (document.readyState === 'loading') {
 
   const hash  = window.location.hash.replace('#', '');
   const saved = Session.load();
+
+  // FORCE SYNC: If we have a logged-in user, fetch fresh data from Supabase
+  // leaderboard to ensure coins/trophies match across devices on page load.
+  if (State.user && State.user.id) {
+    try {
+      const fresh = await lbFetchProfile(State.user.id);
+      if (fresh) {
+        State.user.coins    = fresh.coins;
+        State.user.trophies = fresh.trophies;
+        if (fresh.display_name) State.user.name = fresh.display_name;
+        Session.save();
+        
+        // Notify backend so the authoritarian JSON store matches Supabase immediately
+        API.syncProfile(State.user.id, fresh.coins, fresh.trophies);
+        
+        console.log('[Boot] Profile synced from Supabase');
+      }
+    } catch (e) {
+      console.warn('[Boot] Profile sync failed:', e);
+    }
+  }
 
   // Case 1: active session with a room — try to restore it
   if (saved?.roomCode && hash && hash !== 'landing' && hash !== 'home') {

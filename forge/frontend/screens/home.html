@@ -361,6 +361,18 @@ function _requireSignedIn() {
 async function handleGoogleLogin(response) {
   try {
     const user = await API.verifyGoogleToken(response.credential);
+    
+    // SYNC: Fetch fresh data from Supabase on first login to this device
+    try {
+      const fresh = await lbFetchProfile(user.id);
+      if (fresh) {
+        user.coins    = fresh.coins;
+        user.trophies = fresh.trophies;
+        // Notify backend so the authoritarian JSON store matches Supabase
+        API.syncProfile(user.id, fresh.coins, fresh.trophies);
+      }
+    } catch (e) { console.warn('[Login] Sync failed:', e); }
+
     const localKey = `forge_economy_${user.id}`;
     try {
       const saved = JSON.parse(localStorage.getItem(localKey) || '{}');

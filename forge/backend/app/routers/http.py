@@ -135,3 +135,19 @@ async def ad_coin_reward(body: RewardRequest):
     except Exception:
         # Silent fail — frontend already applied the reward locally
         return {"ok": True}
+
+class SyncRequest(BaseModel):
+    user_id: str
+    coins: float
+    trophies: int
+
+@router.post("/economy/sync")
+async def sync_profile_endpoint(body: SyncRequest):
+    """Force the backend to match the external Supabase state."""
+    try:
+        from app.services.profiles import sync_profile
+        profile = sync_profile(body.user_id, body.coins, body.trophies)
+        return {"coins": profile["coins"], "trophies": profile["trophies"]}
+    except Exception as e:
+        logger.error("Economy sync failed: %s", e)
+        raise HTTPException(status_code=500, detail="Sync failed")
