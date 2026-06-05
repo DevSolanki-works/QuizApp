@@ -57,7 +57,7 @@ _round_timeout_tasks: dict[str, asyncio.Task] = {}
 # ── Broadcast helpers ─────────────────────────────────────────────────────────
 
 async def broadcast(room_code: str, message: dict[str, Any]) -> None:
-    \"\"\"Send a JSON message to every connected player in a room in parallel.\"\"\"
+    """Send a JSON message to every connected player in a room in parallel."""
     room = rooms.get(room_code)
     if not room:
         return
@@ -82,13 +82,13 @@ async def broadcast(room_code: str, message: dict[str, Any]) -> None:
         if isinstance(result, Exception):
             name = player_names[i]
             dead.append(name)
-            logger.warning(\"Failed to send message to '%s' in room '%s': %s\", name, room_code, result)
+            logger.warning("Failed to send message to '%s' in room '%s': %s", name, room_code, result)
 
     for name in dead:
         player = room.players.get(name)
         if player:
             player.websocket = None # Mark as disconnected rather than removing from dict immediately
-        logger.warning(\"Marked player '%s' as disconnected in room '%s' due to send failure\", name, room_code)
+        logger.warning("Marked player '%s' as disconnected in room '%s' due to send failure", name, room_code)
 
 
 
@@ -224,9 +224,9 @@ def _finalize_economy(room, final_scores: dict[str, int], correct_answers: dict[
             correct = int(correct_answers.get(name, 0))
             coins_delta, trophies_delta = solo_rewards(correct)
             deltas_to_apply[player.user_id] = {
-                \"coins_delta\": coins_delta,
-                \"trophies_delta\": trophies_delta,
-                \"player_name\": name
+                "coins_delta": coins_delta,
+                "trophies_delta": trophies_delta,
+                "player_name": name
             }
     elif room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
         pool = float(sum(room.entry_fees.values()))
@@ -245,23 +245,23 @@ def _finalize_economy(room, final_scores: dict[str, int], correct_answers: dict[
                     continue
                 entry_fee = room.entry_fees.get(name, 0)
                 deltas_to_apply[player.user_id] = {
-                    \"coins_delta\": payout,
-                    \"trophies_delta\": 0,
-                    \"player_name\": name,
-                    \"is_winner\": True,
-                    \"payout\": payout,
-                    \"entry_fee\": entry_fee
+                    "coins_delta": payout,
+                    "trophies_delta": 0,
+                    "player_name": name,
+                    "is_winner": True,
+                    "payout": payout,
+                    "entry_fee": entry_fee
                 }
             for name, fee in room.entry_fees.items():
                 player = room.players.get(name)
                 if not player or not player.user_id or player.user_id in deltas_to_apply:
                     continue
                 deltas_to_apply[player.user_id] = {
-                    \"coins_delta\": 0,
-                    \"trophies_delta\": 0,
-                    \"player_name\": name,
-                    \"is_winner\": False,
-                    \"entry_fee\": fee
+                    "coins_delta": 0,
+                    "trophies_delta": 0,
+                    "player_name": name,
+                    "is_winner": False,
+                    "entry_fee": fee
                 }
 
     if deltas_to_apply:
@@ -271,32 +271,32 @@ def _finalize_economy(room, final_scores: dict[str, int], correct_answers: dict[
 
         for user_id, profile_after in updated_profiles.items():
             info = deltas_to_apply[user_id]
-            name = info[\"player_name\"]
+            name = info["player_name"]
             profile_before = profiles_before[user_id]
             if room.play_mode == PlayMode.SOLO:
                 economy[name] = {
-                    \"coins_delta\": info[\"coins_delta\"],
-                    \"trophies_delta\": profile_after[\"trophies\"] - profile_before[\"trophies\"],
-                    \"coins\": profile_after[\"coins\"],
-                    \"trophies\": profile_after[\"trophies\"],
+                    "coins_delta": info["coins_delta"],
+                    "trophies_delta": profile_after["trophies"] - profile_before["trophies"],
+                    "coins": profile_after["coins"],
+                    "trophies": profile_after["trophies"],
                 }
             else:
-                if info.get(\"is_winner\"):
+                if info.get("is_winner"):
                     economy[name] = {
-                        \"coins_delta\": info[\"payout\"] - info[\"entry_fee\"],
-                        \"trophies_delta\": 0,
-                        \"coins\": profile_after[\"coins\"],
-                        \"trophies\": profile_after[\"trophies\"],
-                        \"entry_fee\": info[\"entry_fee\"],
-                        \"payout\": info[\"payout\"],
+                        "coins_delta": info["payout"] - info["entry_fee"],
+                        "trophies_delta": 0,
+                        "coins": profile_after["coins"],
+                        "trophies": profile_after["trophies"],
+                        "entry_fee": info["entry_fee"],
+                        "payout": info["payout"],
                     }
                 else:
                     economy[name] = {
-                        \"coins_delta\": -info[\"entry_fee\"],
-                        \"trophies_delta\": 0,
-                        \"coins\": profile_after[\"coins\"],
-                        \"trophies\": profile_after[\"trophies\"],
-                        \"entry_fee\": info[\"entry_fee\"],
+                        "coins_delta": -info["entry_fee"],
+                        "trophies_delta": 0,
+                        "coins": profile_after["coins"],
+                        "trophies": profile_after["trophies"],
+                        "entry_fee": info["entry_fee"],
                     }
 
     room.economy_finalized = True

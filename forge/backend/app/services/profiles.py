@@ -44,15 +44,14 @@ def _load_profiles() -> dict[str, dict[str, Any]]:
 
 
 def _save_profiles(profiles: dict[str, dict[str, Any]]) -> None:
-    \"\"\"Atomically write all profile balances to disk.\"\"\"
+    """Atomically write all profile balances to disk."""
 
     path = _store_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp_path = f\"{path}.tmp\"
-    with open(tmp_path, \"w\", encoding=\"utf-8\") as fh:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
         json.dump(profiles, fh, ensure_ascii=True, indent=2, sort_keys=True)
     os.replace(tmp_path, path)
-
 
 
 def _new_profile(user_id: str, email: str = "", name: str = "", picture: str = "") -> dict[str, Any]:
@@ -109,16 +108,16 @@ def can_afford_entry(user_id: str) -> bool:
 
 
 def apply_delta(user_id: str, coins_delta: float = 0, trophies_delta: int = 0) -> dict[str, Any]:
-    \"\"\"Apply an economy delta and clamp trophies so they never drop below zero.\"\"\"
+    """Apply an economy delta and clamp trophies so they never drop below zero."""
 
-    return apply_batch_deltas({user_id: {\"coins_delta\": coins_delta, \"trophies_delta\": trophies_delta}})[user_id]
+    return apply_batch_deltas({user_id: {"coins_delta": coins_delta, "trophies_delta": trophies_delta}})[user_id]
 
 
 def apply_batch_deltas(deltas: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    \"\"\"
+    """
     Apply multiple economy deltas in a single read/write cycle.
-    deltas: { user_id: { \"coins_delta\": float, \"trophies_delta\": int } }
-    \"\"\"
+    deltas: { user_id: { "coins_delta": float, "trophies_delta": int } }
+    """
 
     with _lock:
         profiles = _load_profiles()
@@ -127,19 +126,18 @@ def apply_batch_deltas(deltas: dict[str, dict[str, Any]]) -> dict[str, dict[str,
         for user_id, delta in deltas.items():
             profile = profiles.get(user_id) or _new_profile(user_id)
 
-            coins_delta = float(delta.get(\"coins_delta\", 0))
-            trophies_delta = int(delta.get(\"trophies_delta\", 0))
+            coins_delta = float(delta.get("coins_delta", 0))
+            trophies_delta = int(delta.get("trophies_delta", 0))
 
-            profile[\"coins\"] = float(profile.get(\"coins\", INITIAL_COINS)) + coins_delta
-            trophies = int(profile.get(\"trophies\", INITIAL_TROPHIES)) + trophies_delta
-            profile[\"trophies\"] = max(0, trophies)
+            profile["coins"] = float(profile.get("coins", INITIAL_COINS)) + coins_delta
+            trophies = int(profile.get("trophies", INITIAL_TROPHIES)) + trophies_delta
+            profile["trophies"] = max(0, trophies)
 
             profiles[user_id] = profile
             results[user_id] = dict(profile)
 
         _save_profiles(profiles)
         return results
-
 
 
 def solo_rewards(correct_answers: int) -> tuple[float, int]:
