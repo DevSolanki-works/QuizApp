@@ -609,9 +609,7 @@ function applyUserEconomy(economy) {
   } catch (_) {}
 
   // Sync to Supabase leaderboard (fire-and-forget — never blocks the UI)
-  // Only update live leaderboard if running on the production domain
-  const isProd = window.location.hostname === 'forgetrivia.online';
-  if (isProd && typeof lbUpsertPlayer === 'function') {
+  if (typeof lbUpsertPlayer === 'function') {
     lbUpsertPlayer(
       State.user.id,
       State.user.name,
