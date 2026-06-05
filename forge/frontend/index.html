@@ -792,6 +792,10 @@ const WS = {
   off(type)     { delete this._handlers[type]; },
   _dispatch(msg) {
     const handler = this._handlers[msg.type];
+    // Attach arrival timestamp to help sync timers if the message is queued/delayed in the UI
+    if (msg.data && typeof msg.data === 'object') {
+      msg.data._receivedAt = Date.now();
+    }
     if (handler) { handler(msg.data); return; }
     if (!this._pending[msg.type]) this._pending[msg.type] = [];
     this._pending[msg.type].push(msg.data);

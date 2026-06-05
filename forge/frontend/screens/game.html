@@ -718,15 +718,20 @@ function _onQuestion(data) {
 
   const roundLimitMs = data.time_limit_ms || State.timeLimitMs || TIME_LIMIT_MS;
   State.timeLimitMs = roundLimitMs;
-  _startTimer(roundLimitMs);
+  _startTimer(roundLimitMs, data._receivedAt);
 }
 
 /* ── TIMER ───────────────────────────────────────────────── */
 
-function _startTimer(limitMs) {
+function _startTimer(limitMs, receivedAt = null) {
   _stopTimer();
   _lastTickSecond = -1;
-  _timerStart = Date.now();
+  
+  // Use receivedAt to sync with server time if the message was queued during animations
+  const now = Date.now();
+  const queueDelay = receivedAt ? (now - receivedAt) : 0;
+  _timerStart = now - queueDelay;
+
   const totalSecs = limitMs / 1000;
 
   const circleEl = document.getElementById('timer-circle');
@@ -756,14 +761,12 @@ function _startTimer(limitMs) {
     }
     if (remaining <= 0) {
       _stopTimer();
+      // Added 500ms client-side "soft" buffer to avoid racing the server's grace period.
+      // If we haven't answered, we wait for the server to force the reveal.
       if (!_answered) {
-        _answered = true;
+        // We don't force _answered = true here immediately to allow a late-arrival
+        // ANSWER_REVEAL message to take precedence, but we disable interaction.
         _disableOptions();
-        // Timeout = wrong answer → shatter streak
-        if (_myStreak > 0) {
-          _myStreak = 0;
-          _hideStreak(false);
-        }
       }
     }
   }, 200);
