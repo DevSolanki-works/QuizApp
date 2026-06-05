@@ -60,7 +60,7 @@ jobs:
             --min-instances 0 \
             --max-instances 3 \
             --memory 512Mi \
-            --timeout 300 \
+            --timeout 600 \
             --quiet
 
       # 8. Print the live URL so it shows up in the Actions log

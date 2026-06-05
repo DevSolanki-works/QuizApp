@@ -166,7 +166,7 @@ gcloud run deploy forge-backend \
   --min-instances 0 \
   --max-instances 3 \
   --memory 512Mi \
-  --timeout 300
+  --timeout 600
 ```
 
 ### Update env vars only (no redeploy needed)
@@ -404,7 +404,7 @@ Fix: `localStorage` is the source of truth for coins/trophies on the client.
 - Gemini is optional at runtime; if missing or misconfigured, local fallback questions keep backend running.
 - Current game flow is 10 fixed questions.
 - Mode only affects timer length; it does not change question difficulty.
-- Cloud Run timeout must be 300s — default 60s kills WS sessions.
+- Cloud Run timeout must be 600s — default 60s kills WS sessions.
 - `--workers 1` is intentional — multiple workers split in-memory state.
 - Frontend local dev: serve from frontend/ dir, open http://localhost:8080.
 - Frontend bundled inside Android .aab via CapacitorJS — NOT deployed separately.
