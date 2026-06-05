@@ -695,12 +695,8 @@ async function goTo(name, skipHash = false) {
   if (!skipHash) window.location.hash = name;
 
   // Hide footer during gameplay only
-  // Hide footer and leaderboard button during gameplay only
   const footer = document.getElementById('app-footer');
   if (footer) footer.classList.toggle('game-active', name === 'game');
-  const lbBtn = document.getElementById('lb-btn');
-  if (lbBtn) lbBtn.style.opacity = name === 'game' ? '0' : '1';
-  if (lbBtn) lbBtn.style.pointerEvents = name === 'game' ? 'none' : 'auto';
 
   const hook = `on${name.charAt(0).toUpperCase() + name.slice(1)}Show`;
   if (typeof window[hook] === 'function') window[hook]();

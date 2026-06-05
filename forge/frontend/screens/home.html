@@ -164,32 +164,61 @@
   }
   .home-back-link:hover { color: rgba(255,255,255,0.55); }
 
-  /* Chai support positioning */
-  .chai-top-left {
+  /* Top-left actions stack (Leaderboard + Chai) */
+  .top-left-actions {
     position: absolute;
     top: 20px;
     left: 20px;
     z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
-  .chai-top-left a {
-    padding: 8px 24px !important;
-    border-radius: 12px !important;
+  .lb-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    height: 38px;
+    border-radius: var(--radius-pill);
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.22);
+    text-decoration: none;
+    transition: background 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
   }
-  .chai-top-left img {
-    height: 28px !important;
+  .lb-pill:active { transform: scale(0.97); }
+  .lb-pill-icon { font-size: 18px; }
+  .lb-pill-text {
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    color: var(--white);
+    letter-spacing: 0.5px;
   }
 
+  .chai-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    padding: 8px 24px;
+    border-radius: 12px;
+    text-decoration: none;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+  }
+  .chai-link:active { transform: scale(0.97); }
+  .chai-link img { height: 28px; object-fit: contain; }
+
   @media (max-width: 1024px) {
-    .chai-top-left {
-      top: 12px;
-      left: 12px;
-    }
-    .chai-top-left a {
-      padding: 6px 16px !important;
-    }
-    .chai-top-left img {
-      height: 20px !important;
-    }
+    .top-left-actions { top: 12px; left: 12px; gap: 8px; }
+    .lb-pill { height: 32px; padding: 0 12px; }
+    .lb-pill-icon { font-size: 14px; }
+    .lb-pill-text { font-size: 7px; }
+    .chai-link { padding: 6px 16px; }
+    .chai-link img { height: 20px; }
   }
 
   /* Chai support row */
@@ -209,14 +238,18 @@
   <div class="confetti-bg" id="home-confetti"></div>
   <div class="stars-bg"    id="home-stars"></div>
 
-  <!-- TOP LEFT CHAI SUPPORT -->
-  <div class="chai-top-left">
+  <!-- TOP LEFT ACTIONS (Leaderboard + Support) -->
+  <div class="top-left-actions">
+    <a href="/leaderboard.html" target="_blank" rel="noopener" class="lb-pill" aria-label="View leaderboards">
+      <span class="lb-pill-icon">🏆</span>
+      <span class="lb-pill-text">LEADERBOARDS</span>
+    </a>
+
     <a href="https://chai4.me/devsolankiworks" target="_blank"
        title="Support devsolankiworks on Chai4Me"
        rel="noopener noreferrer"
-       style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;background:#ffffff;padding:8px 32px;border-radius:16px;text-decoration:none;border:1px solid #e5e7eb;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);transition:transform 0.2s;">
-      <img src="https://chai4.me/icons/wordmark.png" alt="Chai4Me"
-           style="height:32px;object-fit:contain;" />
+       class="chai-link">
+      <img src="https://chai4.me/icons/wordmark.png" alt="Chai4Me" />
     </a>
   </div>
 
