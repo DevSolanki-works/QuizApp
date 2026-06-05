@@ -458,24 +458,6 @@
 <div id="app">
   <div id="toast-container"></div>
 
-<!-- Leaderboard button — opens public leaderboard in new tab -->
-  <a href="/leaderboard.html" target="_blank" rel="noopener"
-     id="lb-btn"
-     aria-label="View leaderboard"
-     style="
-       position: fixed; top: calc(var(--header-h) + 12px); left: 12px; z-index: 500;
-       padding: 0 16px; height: 40px; border-radius: var(--radius-pill);
-       background: rgba(255,255,255,0.12);
-       border: 1px solid rgba(255,255,255,0.22);
-       display: flex; align-items: center; gap: 8px;
-       text-decoration: none;
-       -webkit-tap-highlight-color: transparent;
-       transition: background 0.15s, opacity 0.25s;
-     ">
-    <span style="font-size: 18px;">🏆</span>
-    <span style="font-family: var(--font-pixel); font-size: 8px; color: var(--white); letter-spacing: 0.5px;">LEADERBOARDS</span>
-  </a>
-
   <!-- Persistent mute toggle — visible across all screens -->
   <button id="mute-btn"
     onclick="Sound.toggleMute()"
