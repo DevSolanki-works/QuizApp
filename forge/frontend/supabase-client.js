@@ -38,7 +38,7 @@ function _initSupabase() {
  */
 async function lbUpsertPlayer(googleId, name, coins, trophies) {
   const db = _initSupabase();
-  if (!db) return;
+  if (!db) throw new Error('Supabase not available');
   const { error } = await db.from('leaderboard').upsert({
     google_id:    googleId,
     display_name: name,
@@ -46,7 +46,8 @@ async function lbUpsertPlayer(googleId, name, coins, trophies) {
     trophies:     Number(trophies) || 0,
     updated_at:   new Date().toISOString(),
   }, { onConflict: 'google_id' });
-  if (error) console.error('[Supabase] Leaderboard upsert failed:', error.message);
+  if (error) throw new Error(error.message || 'Leaderboard upsert failed');
+  return true;
 }
 
 /**

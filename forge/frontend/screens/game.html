@@ -994,7 +994,7 @@ function _clearLeaderboardTimers() {
 
 /* ── GAME OVER ───────────────────────────────────────────── */
 
-function _onGameOver(data) {
+async function _onGameOver(data) {
   _stopTimer();
   _clearLeaderboardTimers();
   _hideLB();
@@ -1004,7 +1004,11 @@ function _onGameOver(data) {
   State.resultStats = data;
   State.phase     = 'complete';
   if (data.economy && data.economy[State.playerName]) {
-    applyUserEconomy(data.economy[State.playerName]);
+    try {
+      await applyUserEconomy(data.economy[State.playerName]);
+    } catch (e) {
+      console.warn('[Results] Economy sync failed:', e);
+    }
   }
   if (data.team_scores)  State.teamScores  = data.team_scores;
   if (data.team_names)   State.teamNames   = data.team_names;

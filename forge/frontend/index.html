@@ -595,7 +595,7 @@ function formatCoins(value) {
   return Number.isInteger(n) ? n.toLocaleString() : n.toFixed(2);
 }
 
-function applyUserEconomy(economy) {
+async function applyUserEconomy(economy) {
   if (!State.user || !economy) return;
   if (economy.coins    !== undefined) State.user.coins    = economy.coins;
   if (economy.trophies !== undefined) State.user.trophies = economy.trophies;
@@ -608,15 +608,20 @@ function applyUserEconomy(economy) {
     }));
   } catch (_) {}
 
-  // Sync to Supabase leaderboard (fire-and-forget — never blocks the UI)
+  const syncTasks = [API.syncProfile(State.user.id, State.user.coins, State.user.trophies)];
+
   if (typeof lbUpsertPlayer === 'function') {
-    lbUpsertPlayer(
-      State.user.id,
-      State.user.name,
-      State.user.coins,
-      State.user.trophies,
-    ).catch(e => console.warn('[LB] Upsert failed silently:', e));
+    syncTasks.push(
+      lbUpsertPlayer(
+        State.user.id,
+        State.user.name,
+        State.user.coins,
+        State.user.trophies,
+      ).catch(e => console.warn('[LB] Upsert failed silently:', e))
+    );
   }
+
+  await Promise.allSettled(syncTasks);
 }
 
 // Restore basic state on boot
