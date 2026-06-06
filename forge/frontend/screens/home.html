@@ -25,6 +25,16 @@
   @media (min-width: 1024px) {
     .home-hero { grid-column:1; grid-row:1; padding:0; max-width:400px; align-self:center; }
   }
+  .home-trophy {
+    font-size: 64px;
+    line-height: 1;
+    filter: drop-shadow(0 4px 20px rgba(255,217,61,0.4));
+    animation: home-trophy-bob 3s ease-in-out infinite;
+  }
+  @keyframes home-trophy-bob {
+    0%,100% { transform: translateY(0) rotate(-2deg); }
+    50%      { transform: translateY(-8px) rotate(2deg); }
+  }
   .home-title {
     font-family: var(--font-pixel); font-size: 26px;
     color: var(--white); letter-spacing: 2px;
@@ -245,6 +255,7 @@
 
   <!-- HERO -->
   <div class="home-hero z1">
+    <div class="home-trophy" aria-hidden="true">🏆</div>
     <h1 class="home-title">
       FORGE<br>
       <span class="home-title-accent">AI TRIVIA SHOWDOWN</span>
