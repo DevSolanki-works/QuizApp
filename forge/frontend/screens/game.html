@@ -452,7 +452,16 @@
     <div class="game-score-chip">
       ⭐ <span id="game-my-score">0</span>
     </div>
-    <span class="game-topic-chip" id="game-topic-label">—</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="game-topic-chip" id="game-topic-label">—</span>
+      <button onclick="leaveModalOpen()" style="
+        background:rgba(239,35,60,0.15); border:1px solid rgba(239,35,60,0.35);
+        border-radius:var(--radius-pill); color:var(--red);
+        font-family:var(--font-pixel); font-size:6px;
+        padding:6px 10px; cursor:pointer; flex-shrink:0;
+        -webkit-tap-highlight-color:transparent;
+      ">✕ LEAVE</button>
+    </div>
   </div>
 
   <!-- TEAM SCORE BANNER (hidden in non-team modes) -->
@@ -496,6 +505,41 @@
 
   <!-- ANSWER OPTIONS -->
   <div class="game-options-grid z1" id="game-options-grid" style="visibility:hidden"></div>
+  <!-- LEAVE GAME MODAL -->
+  <div id="leave-modal" style="
+    display:none; position:fixed; inset:0; z-index:500;
+    background:rgba(9,15,80,0.92); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; padding:24px;
+  ">
+    <div style="
+      width:100%; max-width:340px; border-radius:var(--radius-lg);
+      background:rgba(13,27,142,0.98); border:1px solid rgba(255,255,255,0.15);
+      padding:28px 24px; display:flex; flex-direction:column; gap:20px;
+    ">
+      <div style="text-align:center;">
+        <div style="font-size:40px; margin-bottom:12px;">🚪</div>
+        <p style="font-family:var(--font-pixel); font-size:11px; color:var(--white); line-height:1.7;">LEAVE GAME?</p>
+        <p style="font-family:var(--font-body); font-size:14px; font-weight:700; color:rgba(255,255,255,0.6); margin-top:6px;">This cannot be undone.</p>
+      </div>
+
+      <div id="leave-warning-box" style="
+        background:rgba(239,35,60,0.12); border:1px solid rgba(239,35,60,0.35);
+        border-radius:var(--radius-md); padding:16px; display:flex; flex-direction:column; gap:10px;
+      ">
+        <p style="font-family:var(--font-pixel); font-size:8px; color:var(--red); margin-bottom:4px;">YOU WILL LOSE:</p>
+        <div id="leave-warning-items" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="leaveModalClose()">
+          ← KEEP PLAYING
+        </button>
+        <button class="btn btn-danger" style="flex:1;" onclick="leaveModalConfirm()">
+          LEAVE
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- LEADERBOARD OVERLAY (between rounds) -->
@@ -1024,5 +1068,52 @@ function _setPhaseLabel(label) {
 function _escHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── LEAVE MODAL ────────────────────────────────────────── */
+function leaveModalOpen() {
+  const isSolo = State.playMode === 'solo';
+  const isMulti = State.playMode === 'classic' || State.playMode === 'team';
+
+  const items = [];
+
+  if (isMulti && State.user) {
+    items.push('💰 25 coin entry fee (not refunded)');
+  }
+  items.push('📊 All score progress this round');
+  if (isSolo) {
+    items.push('🏆 Trophy changes for this session');
+  }
+  if (isMulti) {
+    items.push('🏆 Your spot in the winner pool');
+  }
+
+  const box = document.getElementById('leave-warning-items');
+  box.innerHTML = items.map(t => `
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-family:var(--font-body); font-size:14px; font-weight:700;
+                   color:rgba(255,100,100,0.9);">${t}</span>
+    </div>
+  `).join('');
+
+  const modal = document.getElementById('leave-modal');
+  modal.style.display = 'flex';
+}
+
+function leaveModalClose() {
+  document.getElementById('leave-modal').style.display = 'none';
+}
+
+function leaveModalConfirm() {
+  leaveModalClose();
+  _stopTimer();
+  _clearLeaderboardTimers();
+  _hideStreak(true);
+  WS.off('QUESTION');
+  WS.off('ANSWER_REVEAL');
+  WS.off('INTERMISSION_LEADERBOARD');
+  WS.off('GAME_OVER');
+  if (State.ws) { State.ws.close(); State.ws = null; }
+  goTo('home');
 }
 </script>

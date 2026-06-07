@@ -438,7 +438,7 @@ async function loadScores(col) {
       .from('leaderboard')
       .select('display_name, coins, trophies, updated_at')
       .order(col, { ascending: false })
-      .limit(50);
+      .limit(10);
 
     loadingEl.style.display = 'none';
 
@@ -486,7 +486,7 @@ async function loadDonors() {
     const { data, error } = await getDb()
       .from('donor_leaderboard')
       .select('display_name, total_donated, donation_count, last_donated_at')
-      .limit(50);
+      .limit(10);
 
     loadingEl.style.display = 'none';
 
