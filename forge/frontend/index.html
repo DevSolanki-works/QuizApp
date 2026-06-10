@@ -646,19 +646,30 @@ if (saved) {
  * giving human users an engaging introduction to the game.
  * From landing, the "Play Now" CTA navigates to 'home'.
  */
-const Screens = {
-  landing : { id: 'screen-landing', file: 'screens/landing.html' },
-  home    : { id: 'screen-home',    file: 'screens/home.html'    },
-  lobby   : { id: 'screen-lobby',   file: 'screens/lobby.html'   },
-  game    : { id: 'screen-game',    file: 'screens/game.html'    },
-  results : { id: 'screen-results', file: 'screens/results.html' },
+const SCREEN_GUARDS = {
+  lobby: () => !!(State.roomCode && State.playerName),
+  game:  () => !!(State.roomCode && State.playerName && State.ws),
+  results: () => !!(State.scores && Object.keys(State.scores).length > 0),
 };
 
 async function goTo(name, skipHash = false) {
+  // ── Guard check ────────────────────────────────────────────────────────────
+  const guard = SCREEN_GUARDS[name];
+  if (guard && !guard()) {
+    // Decide where to send them: home if they have a name, landing otherwise
+    const fallback = State.playerName ? 'home' : 'landing';
+    console.warn(`[Router] Guard blocked '${name}' → redirecting to '${fallback}'`);
+    // Avoid infinite redirect loops (home and landing are always open)
+    if (name !== fallback) {
+      return goTo(fallback, skipHash);
+    }
+    return;
+  }
+ 
   const cfg = Screens[name];
   if (!cfg) return;
   const el = document.getElementById(cfg.id);
-
+ 
   if (!el.dataset.loaded) {
     try {
       const html = await (await fetch(cfg.file)).text();
@@ -674,23 +685,22 @@ async function goTo(name, skipHash = false) {
       return;
     }
   }
-
+ 
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   el.classList.add('active');
   if (!skipHash) window.location.hash = name;
-
-  // Hide footer during gameplay only
+ 
   const footer = document.getElementById('app-footer');
   if (footer) footer.classList.toggle('game-active', name === 'game');
-
+ 
   const hook = `on${name.charAt(0).toUpperCase() + name.slice(1)}Show`;
   if (typeof window[hook] === 'function') window[hook]();
 }
-
-// Handle browser back/forward buttons
+ 
+// Also guard the hashchange listener the same way
 window.addEventListener('hashchange', () => {
   const h = window.location.hash.replace('#', '') || 'landing';
-  goTo(h, true);
+  goTo(h, true);   // goTo now runs the guard before loading
 });
 
 /* ── TOAST ──────────────────────────────────────────────── */
@@ -723,14 +733,17 @@ const API = {
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
+ 
   async getRoom(code) {
     const r = await fetch(`${API_BASE}/rooms/${code}`);
     if (!r.ok) throw new Error('Room not found');
     return r.json();
   },
+ 
   async health() {
     return (await fetch(`${API_BASE}/health`)).json();
   },
+ 
   async verifyGoogleToken(credential) {
     const r = await fetch(`${API_BASE}/auth/google`, {
       method  : 'POST',
@@ -740,10 +753,28 @@ const API = {
     if (!r.ok) throw new Error('Auth failed');
     return r.json();
   },
+ 
+  /**
+   * Sync the backend profile store to match Supabase state.
+   *
+   * Requires the raw Google ID token (credential) that was issued at login.
+   * If no credential is available (e.g. page reload, session-restored user),
+   * the sync is silently skipped — not an error, just deferred.
+   */
   async syncProfile(userId, coins, trophies) {
+    const credential = State.user?._credential;
+    if (!credential) {
+      // No live token available — skip the authenticated sync.
+      // The boot-time Supabase fetch handles cross-device consistency.
+      console.debug('[API] syncProfile: no credential, skipping backend sync');
+      return;
+    }
     return fetch(`${API_BASE}/economy/sync`, {
       method  : 'POST',
-      headers : { 'Content-Type': 'application/json' },
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
       body    : JSON.stringify({ user_id: userId, coins, trophies }),
     }).catch(e => console.warn('[API] Sync failed:', e));
   },

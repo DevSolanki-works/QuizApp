@@ -394,30 +394,39 @@ function _requireSignedIn() {
 async function handleGoogleLogin(response) {
   try {
     const user = await API.verifyGoogleToken(response.credential);
-    
+ 
+    // Store the raw token so syncProfile() can use it for authenticated calls
+    user._credential = response.credential;
+ 
     // SYNC: Fetch fresh data from Supabase on first login to this device
     try {
       const fresh = await lbFetchProfile(user.id);
       if (fresh) {
         user.coins    = fresh.coins;
         user.trophies = fresh.trophies;
-        // Notify backend so the authoritarian JSON store matches Supabase
         API.syncProfile(user.id, fresh.coins, fresh.trophies);
       }
     } catch (e) { console.warn('[Login] Sync failed:', e); }
-
+ 
     const localKey = `forge_economy_${user.id}`;
     try {
-      const saved = JSON.parse(localStorage.getItem(localKey) || '{}');
-      if ((saved.coins    ?? 0) > (user.coins    ?? 0)) user.coins    = saved.coins;
-      if ((saved.trophies ?? 0) > (user.trophies ?? 0)) user.trophies = saved.trophies;
+      const savedLocal = JSON.parse(localStorage.getItem(localKey) || '{}');
+      if ((savedLocal.coins    ?? 0) > (user.coins    ?? 0)) user.coins    = savedLocal.coins;
+      if ((savedLocal.trophies ?? 0) > (user.trophies ?? 0)) user.trophies = savedLocal.trophies;
     } catch (_) {}
-    State.user = user; State.playerName = user.name;
+ 
+    State.user       = user;
+    State.playerName = user.name;
+ 
     const nameInput = document.getElementById('input-name');
     if (nameInput) nameInput.value = user.name;
-    Session.save(); _initGoogleSignIn();
+    Session.save();
+    _initGoogleSignIn();
     Toast.success(`Signed in as ${user.name}`);
-  } catch (e) { console.error(e); Toast.error('Google Sign-In failed.'); }
+  } catch (e) {
+    console.error(e);
+    Toast.error('Google Sign-In failed.');
+  }
 }
 
 function homeLogout() {

@@ -12,6 +12,13 @@ Team mode (Milestone 20):
   action updates room.play_mode and broadcasts the change to all guests.
   Players self-assign via join_team. Topics are set per team via set_team_info.
   start_game accepts play_mode from the message to allow this override.
+
+Security hardening (Milestone 29):
+  - All WS inputs go through app.core.sanitize before use
+  - action field validated against an explicit allowlist
+  - topic validated for prompt-injection patterns
+  - X-Forwarded-For uses last-IP (Cloud Run's insertion), not first
+  - time_ms clamped to [0, time_limit_ms + 500ms grace]
 """
 
 import asyncio
@@ -23,7 +30,19 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.core.state import rooms
-from app.core.limiter import is_rate_limited
+from app.core.limiter import is_rate_limited, extract_real_ip_from_ws
+from app.core.sanitize import (
+    validate_action,
+    validate_topic,
+    validate_choice,
+    validate_time_ms,
+    validate_team_id,
+    validate_play_mode,
+    validate_game_mode,
+    sanitize_string,
+    MAX_TOPIC_LEN,
+    MAX_TEAM_NAME,
+)
 from app.models.quiz import (
     DEFAULT_GAME_MODE,
     Question,
@@ -46,10 +65,10 @@ from app.services.profiles import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-BASE_POINTS                    = 1000
-ANSWER_REVEAL_SECONDS          = 4
+BASE_POINTS                      = 1000
+ANSWER_REVEAL_SECONDS            = 4
 INTERMISSION_LEADERBOARD_SECONDS = 5
-GENERATION_TIMEOUT_SECONDS     = 30
+GENERATION_TIMEOUT_SECONDS       = 30
 
 _round_timeout_tasks: dict[str, asyncio.Task] = {}
 
@@ -74,7 +93,6 @@ async def broadcast(room_code: str, message: dict[str, Any]) -> None:
     if not tasks:
         return
 
-    # Send to all players in parallel. return_exceptions=True prevents one failure from stopping others.
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     dead: list[str] = []
@@ -82,14 +100,19 @@ async def broadcast(room_code: str, message: dict[str, Any]) -> None:
         if isinstance(result, Exception):
             name = player_names[i]
             dead.append(name)
-            logger.warning("Failed to send message to '%s' in room '%s': %s", name, room_code, result)
+            logger.warning(
+                "Failed to send message to '%s' in room '%s': %s", name, room_code, result
+            )
 
     for name in dead:
         player = room.players.get(name)
         if player:
-            player.websocket = None # Mark as disconnected rather than removing from dict immediately
-        logger.warning("Marked player '%s' as disconnected in room '%s' due to send failure", name, room_code)
-
+            player.websocket = None
+        logger.warning(
+            "Marked player '%s' as disconnected in room '%s' due to send failure",
+            name,
+            room_code,
+        )
 
 
 async def send_to(websocket: WebSocket, message: dict[str, Any]) -> None:
@@ -167,19 +190,16 @@ def _round_payload(room) -> dict[str, Any]:
 
 def _connected_players(room) -> list[Player]:
     """Return players who are currently attached to an open WebSocket."""
-
     return [p for p in room.players.values() if p.websocket is not None]
 
 
 def _missing_profile_names(room) -> list[str]:
     """Return connected players without a Google profile ID."""
-
     return [p.name for p in _connected_players(room) if not p.user_id]
 
 
 def _insufficient_coin_names(room) -> list[str]:
     """Return connected players who cannot pay the room entry fee."""
-
     names: list[str] = []
     for player in _connected_players(room):
         if player.user_id and not can_afford_entry(player.user_id):
@@ -189,7 +209,6 @@ def _insufficient_coin_names(room) -> list[str]:
 
 def _charge_room_entry_fees(room) -> None:
     """Deduct the multiplayer entry fee once at session start."""
-
     room.entry_fees = {}
     for player in _connected_players(room):
         if not player.user_id:
@@ -200,7 +219,6 @@ def _charge_room_entry_fees(room) -> None:
 
 def _refund_room_entry_fees(room) -> None:
     """Refund all charged entry fees if quiz startup fails."""
-
     for name, fee in room.entry_fees.items():
         player = room.players.get(name)
         if player and player.user_id:
@@ -208,9 +226,10 @@ def _refund_room_entry_fees(room) -> None:
     room.entry_fees = {}
 
 
-def _finalize_economy(room, final_scores: dict[str, int], correct_answers: dict[str, int]) -> dict[str, Any]:
+def _finalize_economy(
+    room, final_scores: dict[str, int], correct_answers: dict[str, int]
+) -> dict[str, Any]:
     """Apply end-of-game economy rules and return per-player UI payloads."""
-
     if room.economy_finalized:
         return {}
 
@@ -224,9 +243,9 @@ def _finalize_economy(room, final_scores: dict[str, int], correct_answers: dict[
             correct = int(correct_answers.get(name, 0))
             coins_delta, trophies_delta = solo_rewards(correct)
             deltas_to_apply[player.user_id] = {
-                "coins_delta": coins_delta,
+                "coins_delta":    coins_delta,
                 "trophies_delta": trophies_delta,
-                "player_name": name
+                "player_name":    name,
             }
     elif room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
         pool = float(sum(room.entry_fees.values()))
@@ -237,66 +256,66 @@ def _finalize_economy(room, final_scores: dict[str, int], correct_answers: dict[
         }
         if paid_scores and pool > 0:
             top_score = max(paid_scores.values())
-            winners = [name for name, score in paid_scores.items() if score == top_score]
-            payout = pool / len(winners) if winners else 0
+            winners   = [n for n, s in paid_scores.items() if s == top_score]
+            payout    = pool / len(winners) if winners else 0
             for name in winners:
                 player = room.players.get(name)
                 if not player or not player.user_id:
                     continue
                 entry_fee = room.entry_fees.get(name, 0)
                 deltas_to_apply[player.user_id] = {
-                    "coins_delta": payout,
+                    "coins_delta":    payout,
                     "trophies_delta": 0,
-                    "player_name": name,
-                    "is_winner": True,
-                    "payout": payout,
-                    "entry_fee": entry_fee
+                    "player_name":    name,
+                    "is_winner":      True,
+                    "payout":         payout,
+                    "entry_fee":      entry_fee,
                 }
             for name, fee in room.entry_fees.items():
                 player = room.players.get(name)
                 if not player or not player.user_id or player.user_id in deltas_to_apply:
                     continue
                 deltas_to_apply[player.user_id] = {
-                    "coins_delta": 0,
+                    "coins_delta":    0,
                     "trophies_delta": 0,
-                    "player_name": name,
-                    "is_winner": False,
-                    "entry_fee": fee
+                    "player_name":    name,
+                    "is_winner":      False,
+                    "entry_fee":      fee,
                 }
 
     if deltas_to_apply:
         from app.services.profiles import get_profile
-        profiles_before = {uid: get_profile(uid) for uid in deltas_to_apply}
+        profiles_before  = {uid: get_profile(uid) for uid in deltas_to_apply}
         updated_profiles = apply_batch_deltas(deltas_to_apply)
 
         for user_id, profile_after in updated_profiles.items():
-            info = deltas_to_apply[user_id]
-            name = info["player_name"]
+            info           = deltas_to_apply[user_id]
+            name           = info["player_name"]
             profile_before = profiles_before[user_id]
             if room.play_mode == PlayMode.SOLO:
                 economy[name] = {
-                    "coins_delta": info["coins_delta"],
+                    "coins_delta":    info["coins_delta"],
                     "trophies_delta": profile_after["trophies"] - profile_before["trophies"],
-                    "coins": profile_after["coins"],
-                    "trophies": profile_after["trophies"],
+                    "coins":          profile_after["coins"],
+                    "trophies":       profile_after["trophies"],
                 }
             else:
                 if info.get("is_winner"):
                     economy[name] = {
-                        "coins_delta": info["payout"] - info["entry_fee"],
+                        "coins_delta":    info["payout"] - info["entry_fee"],
                         "trophies_delta": 0,
-                        "coins": profile_after["coins"],
-                        "trophies": profile_after["trophies"],
-                        "entry_fee": info["entry_fee"],
-                        "payout": info["payout"],
+                        "coins":          profile_after["coins"],
+                        "trophies":       profile_after["trophies"],
+                        "entry_fee":      info["entry_fee"],
+                        "payout":         info["payout"],
                     }
                 else:
                     economy[name] = {
-                        "coins_delta": -info["entry_fee"],
+                        "coins_delta":    -info["entry_fee"],
                         "trophies_delta": 0,
-                        "coins": profile_after["coins"],
-                        "trophies": profile_after["trophies"],
-                        "entry_fee": info["entry_fee"],
+                        "coins":          profile_after["coins"],
+                        "trophies":       profile_after["trophies"],
+                        "entry_fee":      info["entry_fee"],
                     }
 
     room.economy_finalized = True
@@ -306,16 +325,11 @@ def _finalize_economy(room, final_scores: dict[str, int], correct_answers: dict[
 # ── Round lifecycle ───────────────────────────────────────────────────────────
 
 async def _expire_question(room_code: str, question_index: int) -> None:
-    """Resolve a round when the timer runs out server-side.
-    
-    Includes a 3-second grace period to account for network latency
-    and client-side animation delays.
-    """
+    """Resolve a round when the timer runs out server-side."""
     try:
         room = rooms.get(room_code)
         if not room:
             return
-        # Wait for the mode limit + a buffer for network roundtrip/latency
         await asyncio.sleep((room.time_limit_ms / 1000) + 3)
         await resolve_round(room_code, question_index)
     except asyncio.CancelledError:
@@ -334,13 +348,13 @@ async def broadcast_question(room_code: str) -> None:
         player.last_answer = None
 
     msg_data: dict[str, Any] = {
-        "index":        room.current_q_index,
-        "text":         question.question,
-        "options":      question.options,
-        "mode":         room.mode.value,
-        "play_mode":    room.play_mode.value,
-        "phase":        room.phase.value,
-        "time_limit_ms":room.time_limit_ms,
+        "index":         room.current_q_index,
+        "text":          question.question,
+        "options":       question.options,
+        "mode":          room.mode.value,
+        "play_mode":     room.play_mode.value,
+        "phase":         room.phase.value,
+        "time_limit_ms": room.time_limit_ms,
     }
     if room.play_mode == PlayMode.TEAM:
         msg_data["team_scores"] = _team_scores(room)
@@ -367,13 +381,12 @@ async def resolve_round(room_code: str, question_index: int) -> None:
 
     _cancel_round_timeout(room_code)
 
-    # Players who didn't answer in time have their streak reset
     for name, player in room.players.items():
         if name not in room.answers_this_round:
             player.streak = 0
 
-    room.phase = RoundPhase.ANSWER_REVEAL
-    reveal_data = _round_payload(room)
+    room.phase   = RoundPhase.ANSWER_REVEAL
+    reveal_data  = _round_payload(room)
     reveal_data.update({"phase": room.phase.value, "hold_ms": ANSWER_REVEAL_SECONDS * 1000})
     await broadcast(room_code, {"type": "ANSWER_REVEAL", "data": reveal_data})
     await asyncio.sleep(ANSWER_REVEAL_SECONDS)
@@ -382,7 +395,6 @@ async def resolve_round(room_code: str, question_index: int) -> None:
     if not room or room.status != GameStatus.ACTIVE:
         return
 
-    # Classic and Team both get the intermission leaderboard
     if room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
         room.phase = RoundPhase.INTERMISSION_LEADERBOARD
         is_final   = room.current_q_index + 1 >= len(room.questions)
@@ -415,21 +427,21 @@ async def _finish_game(room_code: str) -> None:
         return
     room.status = GameStatus.FINISHED
     room.phase  = RoundPhase.COMPLETE
-    total = len(room.questions)
+    total           = len(room.questions)
     final_scores    = {n: p.score           for n, p in room.players.items()}
     correct_answers = {n: p.correct_answers for n, p in room.players.items()}
     accuracy_pct    = {
         n: round((c / total) * 100) if total else 0
         for n, c in correct_answers.items()
     }
-    economy = _finalize_economy(room, final_scores, correct_answers)
+    economy   = _finalize_economy(room, final_scores, correct_answers)
     game_over: dict[str, Any] = {
-        "final_scores":        final_scores,
-        "correct_answers":     correct_answers,
-        "accuracy_percentages":accuracy_pct,
-        "total_questions":     total,
-        "play_mode":           room.play_mode.value,
-        "economy":             economy,
+        "final_scores":         final_scores,
+        "correct_answers":      correct_answers,
+        "accuracy_percentages": accuracy_pct,
+        "total_questions":      total,
+        "play_mode":            room.play_mode.value,
+        "economy":              economy,
     }
     if room.play_mode == PlayMode.TEAM:
         game_over["team_scores"] = _team_scores(room)
@@ -443,22 +455,47 @@ async def _finish_game(room_code: str) -> None:
 
 @router.websocket("/ws/{room_code}/{player_name}")
 async def websocket_endpoint(
-    websocket: WebSocket, room_code: str, player_name: str, user_id: str | None = None
+    websocket: WebSocket,
+    room_code: str,
+    player_name: str,
+    user_id: str | None = None,
 ) -> None:
     """Accept a player and process room actions until the socket disconnects."""
 
     await websocket.accept()
+
+    # ── Rate-limit new WS connections ─────────────────────────────────────────
+    ip = extract_real_ip_from_ws(websocket)
+    if is_rate_limited(ip, action="ws_join"):
+        await send_to(websocket, {
+            "type": "ERROR",
+            "data": {"message": "Too many connection attempts. Please wait a moment."},
+        })
+        await websocket.close()
+        return
+
     room = rooms.get(room_code)
     if not room:
         await send_to(websocket, {"type": "ERROR", "data": {"message": "Room not found"}})
         await websocket.close()
         return
 
+    # Sanitize the player name from the URL path
+    clean_name = sanitize_string(player_name, 20)
+    if not clean_name:
+        await send_to(websocket, {"type": "ERROR", "data": {"message": "Invalid player name."}})
+        await websocket.close()
+        return
+    player_name = clean_name
+
     # Re-join support: player reconnects after disconnect
     existing = room.players.get(player_name)
     if existing:
         if existing.websocket is not None:
-            await send_to(websocket, {"type": "ERROR", "data": {"message": "Name already taken in this room"}})
+            await send_to(websocket, {
+                "type": "ERROR",
+                "data": {"message": "Name already taken in this room"},
+            })
             await websocket.close()
             return
         existing.websocket = websocket
@@ -467,21 +504,31 @@ async def websocket_endpoint(
         logger.info("Player '%s' re-joined room '%s'", player_name, room_code)
     else:
         if room.status != GameStatus.WAITING:
-            await send_to(websocket, {"type": "ERROR", "data": {"message": "Game already in progress"}})
+            await send_to(websocket, {
+                "type": "ERROR",
+                "data": {"message": "Game already in progress"},
+            })
             await websocket.close()
             return
         if room.locked:
-            await send_to(websocket, {"type": "ERROR", "data": {"message": "Room is locked by host"}})
+            await send_to(websocket, {
+                "type": "ERROR",
+                "data": {"message": "Room is locked by host"},
+            })
             await websocket.close()
             return
         if room.play_mode == PlayMode.SOLO and player_name != room.host:
-            await send_to(websocket, {"type": "ERROR", "data": {"message": "Solo rooms are private"}})
+            await send_to(websocket, {
+                "type": "ERROR",
+                "data": {"message": "Solo rooms are private"},
+            })
             await websocket.close()
             return
-        room.players[player_name] = Player(name=player_name, user_id=user_id, websocket=websocket)
+        room.players[player_name] = Player(
+            name=player_name, user_id=user_id, websocket=websocket
+        )
         logger.info("Player '%s' joined room '%s'", player_name, room_code)
 
-    # PLAYER_JOINED always includes team state so late joiners are in sync
     joined_data: dict[str, Any] = {
         "players":    list(room.players.keys()),
         "lobby_mode": room.play_mode.value,
@@ -496,15 +543,39 @@ async def websocket_endpoint(
     try:
         while True:
             raw = await websocket.receive_text()
+
+            # ── Parse JSON ────────────────────────────────────────────────────
             try:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
                 await send_to(websocket, {"type": "ERROR", "data": {"message": "Invalid JSON"}})
                 continue
 
-            action = msg.get("action")
+            if not isinstance(msg, dict):
+                await send_to(websocket, {"type": "ERROR", "data": {"message": "Message must be a JSON object"}})
+                continue
 
-            # ── lock_room (host only) ──────────────────────────────────────
+            # ── Validate action against allowlist ─────────────────────────────
+            action = validate_action(msg.get("action"))
+            if action is None:
+                raw_action = msg.get("action")
+                # Only log if it looks like a real unknown action (not noise)
+                if isinstance(raw_action, str):
+                    logger.warning(
+                        "Unknown/invalid action '%s' from '%s' in room '%s'",
+                        raw_action[:64], player_name, room_code,
+                    )
+                await send_to(websocket, {
+                    "type": "ERROR",
+                    "data": {"message": "Unknown or invalid action."},
+                })
+                continue
+
+            # ═════════════════════════════════════════════════════════════════
+            # ACTION HANDLERS
+            # ═════════════════════════════════════════════════════════════════
+
+            # ── lock_room ─────────────────────────────────────────────────────
             if action == "lock_room":
                 if player_name != room.host:
                     continue
@@ -512,22 +583,20 @@ async def websocket_endpoint(
                 await broadcast(room_code, {
                     "type": "PLAYER_JOINED",
                     "data": {
-                        "players":    list(room.players.keys()),
-                        "lobby_mode": room.play_mode.value,
-                        "locked":     True,
-                        "teams":      dict(room.teams),
-                        "team_names": dict(room.team_names),
-                        "team_topics":dict(room.team_topics),
+                        "players":     list(room.players.keys()),
+                        "lobby_mode":  room.play_mode.value,
+                        "locked":      True,
+                        "teams":       dict(room.teams),
+                        "team_names":  dict(room.team_names),
+                        "team_topics": dict(room.team_topics),
                     },
                 })
 
-            # ── unlock_room (host only) ────────────────────────────────────
+            # ── unlock_room ───────────────────────────────────────────────────
             elif action == "unlock_room":
                 if player_name != room.host:
                     continue
-                room.locked = False
-                # If room was in Team Mode, force it back to Classic when unlocking
-                # since Team Mode requires a fixed/locked roster.
+                room.locked    = False
                 room.play_mode = PlayMode.CLASSIC
                 await broadcast(room_code, {
                     "type": "LOBBY_MODE_CHANGED",
@@ -541,130 +610,140 @@ async def websocket_endpoint(
                 await broadcast(room_code, {
                     "type": "PLAYER_JOINED",
                     "data": {
-                        "players":    list(room.players.keys()),
-                        "lobby_mode": room.play_mode.value,
-                        "locked":     False,
-                        "teams":      dict(room.teams),
-                        "team_names": dict(room.team_names),
-                        "team_topics":dict(room.team_topics),
+                        "players":     list(room.players.keys()),
+                        "lobby_mode":  room.play_mode.value,
+                        "locked":      False,
+                        "teams":       dict(room.teams),
+                        "team_names":  dict(room.team_names),
+                        "team_topics": dict(room.team_topics),
                     },
                 })
 
-            # ── set_lobby_mode (host only) ─────────────────────────────────
+            # ── set_lobby_mode ────────────────────────────────────────────────
             elif action == "set_lobby_mode":
                 if player_name != room.host:
                     continue
                 if room.status != GameStatus.WAITING:
                     continue
-                # If switching to Team Mode, room MUST be locked
-                requested = str(msg.get("mode", "classic")).lower()
-                if requested == "team" and not room.locked:
-                    await send_to(websocket, {"type": "ERROR", "data": {"message": "Lock room first to enable Team Mode"}})
+                requested = validate_play_mode(msg.get("mode"), allowed=("classic", "team"))
+                if requested is None:
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Invalid mode. Must be 'classic' or 'team'."},
+                    })
                     continue
-
-                try:
-                    new_mode = PlayMode(requested)
-                except ValueError:
-                    new_mode = PlayMode.CLASSIC
-                room.play_mode = new_mode
-                # Optionally update team names sent alongside
-                name_a = str(msg.get("name_a", room.team_names.get("A", "Team A"))).strip()[:20] or "Team A"
-                name_b = str(msg.get("name_b", room.team_names.get("B", "Team B"))).strip()[:20] or "Team B"
+                if requested == "team" and not room.locked:
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Lock room first to enable Team Mode"},
+                    })
+                    continue
+                room.play_mode = PlayMode(requested)
+                name_a = sanitize_string(msg.get("name_a", room.team_names.get("A", "Team A")), MAX_TEAM_NAME) or "Team A"
+                name_b = sanitize_string(msg.get("name_b", room.team_names.get("B", "Team B")), MAX_TEAM_NAME) or "Team B"
                 room.team_names = {"A": name_a, "B": name_b}
-                # Broadcast the mode change so guests can react
                 await broadcast(room_code, {
                     "type": "LOBBY_MODE_CHANGED",
                     "data": {
-                        "mode":       new_mode.value,
+                        "mode":       room.play_mode.value,
                         "locked":     room.locked,
                         "team_names": dict(room.team_names),
                         "teams":      dict(room.teams),
                     },
                 })
-                # Also send a PLAYER_JOINED refresh so everyone's UI updates
                 await broadcast(room_code, {
                     "type": "PLAYER_JOINED",
                     "data": {
-                        "players":    list(room.players.keys()),
-                        "lobby_mode": new_mode.value,
-                        "locked":     room.locked,
-                        "teams":      dict(room.teams),
-                        "team_names": dict(room.team_names),
-                        "team_topics":dict(room.team_topics),
+                        "players":     list(room.players.keys()),
+                        "lobby_mode":  room.play_mode.value,
+                        "locked":      room.locked,
+                        "teams":       dict(room.teams),
+                        "team_names":  dict(room.team_names),
+                        "team_topics": dict(room.team_topics),
                     },
                 })
 
-            # ── join_team ─────────────────────────────────────────────────
+            # ── join_team ─────────────────────────────────────────────────────
             elif action == "join_team":
                 if room.play_mode != PlayMode.TEAM:
                     continue
-                team_id = str(msg.get("team_id", "")).upper()
-                if team_id not in ("A", "B"):
-                    await send_to(websocket, {"type": "ERROR", "data": {"message": "Team must be A or B"}})
+                team_id = validate_team_id(msg.get("team_id"))
+                if team_id is None:
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Team must be A or B"},
+                    })
                     continue
                 room.teams[player_name] = team_id
                 await broadcast(room_code, {
                     "type": "PLAYER_JOINED",
                     "data": {
-                        "players":    list(room.players.keys()),
-                        "lobby_mode": room.play_mode.value,
-                        "teams":      dict(room.teams),
-                        "team_names": dict(room.team_names),
-                        "team_topics":dict(room.team_topics),
+                        "players":     list(room.players.keys()),
+                        "lobby_mode":  room.play_mode.value,
+                        "teams":       dict(room.teams),
+                        "team_names":  dict(room.team_names),
+                        "team_topics": dict(room.team_topics),
                     },
                 })
 
-            # ── set_team_info (host or joined player) ────────────────────
+            # ── set_team_info ─────────────────────────────────────────────────
             elif action == "set_team_info":
                 if room.play_mode != PlayMode.TEAM:
                     continue
-                name_a  = str(msg.get("name_a", room.team_names.get("A","Team A"))).strip()[:20] or "Team A"
-                name_b  = str(msg.get("name_b", room.team_names.get("B","Team B"))).strip()[:20] or "Team B"
-                topic_a = str(msg.get("topic_a", "")).strip()[:60]
-                topic_b = str(msg.get("topic_b", "")).strip()[:60]
+                name_a  = sanitize_string(msg.get("name_a",  room.team_names.get("A", "Team A")), MAX_TEAM_NAME) or "Team A"
+                name_b  = sanitize_string(msg.get("name_b",  room.team_names.get("B", "Team B")), MAX_TEAM_NAME) or "Team B"
+                # Validate topics through the injection filter
+                raw_topic_a = msg.get("topic_a", "")
+                raw_topic_b = msg.get("topic_b", "")
+                topic_a, _ = validate_topic(raw_topic_a) if raw_topic_a else ("", None)
+                topic_b, _ = validate_topic(raw_topic_b) if raw_topic_b else ("", None)
                 room.team_names = {"A": name_a, "B": name_b}
-                if topic_a: room.team_topics["A"] = topic_a
-                if topic_b: room.team_topics["B"] = topic_b
+                if topic_a:
+                    room.team_topics["A"] = topic_a
+                if topic_b:
+                    room.team_topics["B"] = topic_b
                 await broadcast(room_code, {
                     "type": "PLAYER_JOINED",
                     "data": {
-                        "players":    list(room.players.keys()),
-                        "lobby_mode": room.play_mode.value,
-                        "teams":      dict(room.teams),
-                        "team_names": dict(room.team_names),
-                        "team_topics":dict(room.team_topics),
+                        "players":     list(room.players.keys()),
+                        "lobby_mode":  room.play_mode.value,
+                        "teams":       dict(room.teams),
+                        "team_names":  dict(room.team_names),
+                        "team_topics": dict(room.team_topics),
                     },
                 })
 
-            # ── start_game ────────────────────────────────────────────────
+            # ── start_game ────────────────────────────────────────────────────
             elif action == "start_game":
                 if player_name != room.host:
-                    await send_to(websocket, {"type": "ERROR", "data": {"message": "Only the host can start the game"}})
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Only the host can start the game"},
+                    })
                     continue
                 if room.status != GameStatus.WAITING:
-                    await send_to(websocket, {"type": "ERROR", "data": {"message": "Game already started"}})
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Game already started"},
+                    })
                     continue
 
-                # Rate limit
-                ip = "0.0.0.0"
-                if websocket.client:
-                    ip = websocket.client.host
-                fwd = websocket.headers.get("X-Forwarded-For")
-                if fwd:
-                    ip = fwd.split(",")[0].strip()
-                if is_rate_limited(ip, action="quiz", limit=3):
-                    await send_to(websocket, {"type": "ERROR", "data": {"message": "Quiz generation limit reached. Wait a minute!"}})
+                # Rate-limit quiz generation (uses last-IP)
+                if is_rate_limited(ip, action="quiz"):
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Quiz generation limit reached. Wait a minute!"},
+                    })
                     continue
 
-                # ── play_mode: accept message override ───────────────────
-                # Rooms start as 'classic'; host may switch to 'team' in lobby.
-                # The message's play_mode is authoritative here.
+                # Resolve play mode
                 if room.play_mode != PlayMode.SOLO:
-                    requested_pm = str(msg.get("play_mode", room.play_mode.value)).lower()
-                    try:
-                        room.play_mode = PlayMode(requested_pm)
-                    except ValueError:
-                        room.play_mode = PlayMode.CLASSIC
+                    raw_pm = validate_play_mode(msg.get("play_mode"), allowed=("classic", "team"))
+                    if raw_pm:
+                        try:
+                            room.play_mode = PlayMode(raw_pm)
+                        except ValueError:
+                            room.play_mode = PlayMode.CLASSIC
 
                 if room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
                     missing_profiles = _missing_profile_names(room)
@@ -683,30 +762,46 @@ async def websocket_endpoint(
                         continue
                     _charge_room_entry_fees(room)
 
-                # Difficulty
-                mode_val = str(msg.get("mode", DEFAULT_GAME_MODE.value)).strip().lower()
-                try:
-                    room.mode = GameMode(mode_val)
-                except ValueError:
+                # Validate difficulty
+                raw_mode = validate_game_mode(msg.get("mode"))
+                if raw_mode:
+                    try:
+                        room.mode = GameMode(raw_mode)
+                    except ValueError:
+                        room.mode = DEFAULT_GAME_MODE
+                else:
                     room.mode = DEFAULT_GAME_MODE
                 room.time_limit_ms = time_limit_for_mode(room.mode)
-                room.status = GameStatus.STARTING
+                room.status        = GameStatus.STARTING
 
-                # ── Topic resolution ──────────────────────────────────────
+                # ── Topic resolution ──────────────────────────────────────────
                 if room.play_mode == PlayMode.TEAM:
                     candidates = [t for t in room.team_topics.values() if t.strip()]
                     if not candidates:
-                        topic = "General Knowledge"
+                        topic          = "General Knowledge"
                         chosen_team_id: str | None = None
                     else:
-                        topic = random.choice(candidates)
+                        topic          = random.choice(candidates)
                         chosen_team_id = next(
                             (tid for tid, t in room.team_topics.items() if t == topic), None
                         )
                     room.topic = topic
                 else:
-                    topic = str(msg.get("topic", "General Knowledge")).strip() or "General Knowledge"
-                    room.topic = topic
+                    raw_topic = msg.get("topic", "General Knowledge")
+                    topic, topic_err = validate_topic(raw_topic)
+                    if topic_err:
+                        # Refund any charged fees before bailing
+                        if room.entry_fees:
+                            _refund_room_entry_fees(room)
+                        room.status = GameStatus.WAITING
+                        await send_to(websocket, {
+                            "type": "ERROR",
+                            "data": {"message": topic_err},
+                        })
+                        continue
+                    if not topic:
+                        topic = "General Knowledge"
+                    room.topic     = topic
                     chosen_team_id = None
 
                 starting_data: dict[str, Any] = {
@@ -724,21 +819,29 @@ async def websocket_endpoint(
 
                 await broadcast(room_code, {"type": "GAME_STARTING", "data": starting_data})
 
-                # ── Generate questions ────────────────────────────────────
+                # ── Generate questions ────────────────────────────────────────
                 try:
                     room.questions = await asyncio.wait_for(
-                        generate_questions(topic), timeout=GENERATION_TIMEOUT_SECONDS
+                        generate_questions(topic),
+                        timeout=GENERATION_TIMEOUT_SECONDS,
                     )
                 except asyncio.TimeoutError:
-                    logger.warning("Question generation timed out for room '%s'; using fallback", room_code)
+                    logger.warning(
+                        "Question generation timed out for room '%s'; using fallback", room_code
+                    )
                     room.questions = [Question(**q) for q in FALLBACK_QUESTIONS]
                 except Exception as exc:
-                    logger.error("Question generation failed for room '%s': %s", room_code, exc)
+                    logger.error(
+                        "Question generation failed for room '%s': %s", room_code, exc
+                    )
                     if room.entry_fees:
                         _refund_room_entry_fees(room)
                     room.status = GameStatus.WAITING
                     room.phase  = RoundPhase.LOBBY
-                    await broadcast(room_code, {"type": "ERROR", "data": {"message": "Failed to generate questions. Try again."}})
+                    await broadcast(room_code, {
+                        "type": "ERROR",
+                        "data": {"message": "Failed to generate questions. Try again."},
+                    })
                     continue
 
                 for p in room.players.values():
@@ -747,24 +850,26 @@ async def websocket_endpoint(
                 room.current_q_index = 0
                 await broadcast_question(room_code)
 
-            # ── answer ────────────────────────────────────────────────────
+            # ── answer ────────────────────────────────────────────────────────
             elif action == "answer":
                 if room.status != GameStatus.ACTIVE or room.phase != RoundPhase.QUESTION:
                     continue
                 if player_name in room.answers_this_round:
                     continue
-                choice = msg.get("choice")
-                if not isinstance(choice, int) or choice not in range(4):
-                    await send_to(websocket, {"type": "ERROR", "data": {"message": "Invalid answer choice"}})
-                    continue
-                try:
-                    time_ms = int(msg.get("time_ms", room.time_limit_ms))
-                except (TypeError, ValueError):
-                    time_ms = room.time_limit_ms
 
-                question   = room.questions[room.current_q_index]
+                choice = validate_choice(msg.get("choice"))
+                if choice is None:
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Invalid answer choice"},
+                    })
+                    continue
+
+                time_ms  = validate_time_ms(msg.get("time_ms"), room.time_limit_ms)
+                question = room.questions[room.current_q_index]
                 is_correct = choice == question.correct_index
                 player     = room.players[player_name]
+
                 if is_correct:
                     player.streak += 1
                     points = calculate_score(time_ms, room.time_limit_ms, player.streak)
@@ -772,6 +877,7 @@ async def websocket_endpoint(
                 else:
                     player.streak = 0
                     points = 0
+
                 player.score      += points
                 player.answered    = True
                 player.last_answer = choice
@@ -781,9 +887,6 @@ async def websocket_endpoint(
                 connected = _connected_players(room)
                 if len(room.answers_this_round) >= len(connected):
                     await resolve_round(room_code, room.current_q_index)
-
-            else:
-                await send_to(websocket, {"type": "ERROR", "data": {"message": f"Unknown action: '{action}'"}})
 
     except WebSocketDisconnect:
         player = room.players.get(player_name)

@@ -4,47 +4,85 @@ import random
 import string
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Header
 from pydantic import BaseModel
+from typing import Optional
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 from app.core import state
-from app.core.limiter import is_rate_limited
+from app.core.config import settings
+from app.core.limiter import is_rate_limited, extract_real_ip
 from app.models.quiz import DEFAULT_PLAY_MODE, GameStatus, PlayMode, Room
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class CreateRoomRequest(BaseModel):
-    """Body expected when a player creates a new room."""
+# ── Request / response models ─────────────────────────────────────────────────
 
+class CreateRoomRequest(BaseModel):
     host_name: str = "Host"
     play_mode: PlayMode = DEFAULT_PLAY_MODE
     user_id: str | None = None
 
 
 class CreateRoomResponse(BaseModel):
-    """Room details returned to the creating player."""
-
     room_code: str
     host_name: str
     ws_url: str
     play_mode: PlayMode
 
 
+class RewardRequest(BaseModel):
+    user_id: str
+    coins_delta: float = 20
+
+
+class SyncRequest(BaseModel):
+    user_id: str
+    coins: float
+    trophies: int
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
 def _generate_room_code() -> str:
     """Generate a unique four-character alphanumeric room code."""
-
     while True:
         code = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
         if code not in state.rooms:
             return code
 
 
+def _verify_google_token(credential: str) -> str:
+    """
+    Verify a Google ID token and return the Google user ID (sub).
+
+    Raises HTTPException 401 if the token is missing, expired, or tampered.
+    This is used to prove that the caller owns the account they're modifying —
+    preventing one user from manipulating another user's economy balance.
+    """
+    if not credential:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID if settings.GOOGLE_CLIENT_ID else None,
+        )
+        return idinfo["sub"]
+    except ValueError as e:
+        logger.warning("Invalid Google token on economy endpoint: %s", e)
+        raise HTTPException(status_code=401, detail="Invalid or expired authentication token.")
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
+
 @router.get("/health")
 async def health_check():
     """Return a lightweight health response used for startup warming."""
-
     return {
         "status": "ok",
         "active_rooms": len(state.rooms),
@@ -54,21 +92,13 @@ async def health_check():
 @router.post("/rooms/create", response_model=CreateRoomResponse)
 async def create_room(body: CreateRoomRequest, request: Request):
     """Create a waiting solo or classic room in process memory."""
+    ip = extract_real_ip(request)
 
-    # Rate limit check: max 5 rooms per minute per IP
-    ip = "0.0.0.0"
-    if request.client:
-        ip = request.client.host
-    
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        ip = forwarded.split(",")[0].strip()
-    
-    if is_rate_limited(ip, action="room", limit=5):
+    if is_rate_limited(ip, action="room"):
         logger.warning("Rate limit hit for IP %s (create_room)", ip)
         raise HTTPException(
-            status_code=429, 
-            detail="Too many rooms created. Please wait a minute before starting another!"
+            status_code=429,
+            detail="Too many rooms created. Please wait a minute before starting another!",
         )
 
     code = _generate_room_code()
@@ -91,22 +121,21 @@ async def create_room(body: CreateRoomRequest, request: Request):
 @router.get("/rooms/{code}")
 async def get_room(code: str):
     """Return public room metadata for validation and debugging."""
-
     room = state.rooms.get(code.upper())
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
 
     return {
-        "code": room.code,
-        "host": room.host,
-        "status": room.status,
-        "play_mode": room.play_mode,
-        "phase": room.phase,
-        "players": list(room.players.keys()),
-        "locked": room.locked,
-        "teams": dict(room.teams),
-        "team_names": dict(room.team_names),
-        "team_topics": dict(room.team_topics),
+        "code":             room.code,
+        "host":             room.host,
+        "status":           room.status,
+        "play_mode":        room.play_mode,
+        "phase":            room.phase,
+        "players":          list(room.players.keys()),
+        "locked":           room.locked,
+        "teams":            dict(room.teams),
+        "team_names":       dict(room.team_names),
+        "team_topics":      dict(room.team_topics),
         "current_question": room.current_q_index,
     }
 
@@ -114,40 +143,84 @@ async def get_room(code: str):
 @router.delete("/rooms/{code}")
 async def delete_room(code: str):
     """Manually remove a room for administration or local testing."""
-
     code = code.upper()
     if code not in state.rooms:
         raise HTTPException(status_code=404, detail="Room not found")
-
     del state.rooms[code]
     return {"deleted": code}
-class RewardRequest(BaseModel):
-    user_id: str
-    coins_delta: float = 20
+
 
 @router.post("/economy/reward")
-async def ad_coin_reward(body: RewardRequest):
-    """Apply ad-watch coin reward. Frontend is source of truth; this just syncs."""
+async def ad_coin_reward(
+    body: RewardRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    Apply a small coin reward (e.g. ad-watch bonus).
+
+    Requires a valid Google ID token in the Authorization header so the
+    caller can only reward their own account.
+
+    Header format:  Authorization: Bearer <google_id_token>
+    """
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+
+    # Ensure the token belongs to the account being rewarded
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
     try:
         from app.services.profiles import apply_delta
         profile = apply_delta(body.user_id, coins_delta=body.coins_delta)
         return {"coins": profile["coins"], "trophies": profile["trophies"]}
-    except Exception:
-        # Silent fail — frontend already applied the reward locally
-        return {"ok": True}
+    except Exception as e:
+        logger.error("Economy reward failed: %s", e)
+        return {"ok": True}   # silent fail — frontend already applied locally
 
-class SyncRequest(BaseModel):
-    user_id: str
-    coins: float
-    trophies: int
 
 @router.post("/economy/sync")
-async def sync_profile_endpoint(body: SyncRequest):
-    """Force the backend to match the external Supabase state."""
+async def sync_profile_endpoint(
+    body: SyncRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    Force the backend profile store to match the client's Supabase state.
+
+    SECURITY: Requires a valid Google ID token (Bearer scheme) that matches
+    the user_id being synced. Without this check, any caller who knows a
+    Google user ID (a 21-digit number that is not truly secret) could
+    arbitrarily inflate another player's balance.
+
+    Header format:  Authorization: Bearer <google_id_token>
+    """
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    # Clamp values to sane bounds — defence in depth even after auth
+    coins    = max(0.0, min(float(body.coins),    1_000_000.0))
+    trophies = max(0,   min(int(body.trophies),   100_000))
+
     try:
         from app.services.profiles import sync_profile
-        profile = sync_profile(body.user_id, body.coins, body.trophies)
+        profile = sync_profile(body.user_id, coins, trophies)
         return {"coins": profile["coins"], "trophies": profile["trophies"]}
     except Exception as e:
         logger.error("Economy sync failed: %s", e)
         raise HTTPException(status_code=500, detail="Sync failed")
+    
