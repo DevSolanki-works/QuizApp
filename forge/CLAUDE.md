@@ -17,10 +17,41 @@ quiz → players compete live via WebSockets using a 4-digit room code.
 
 ---
 
+## 💻 Local Development
+
+### ⚠️ CRITICAL: Run the frontend server from the RIGHT directory
+```bash
+# CORRECT — serve from forge/frontend/
+cd forge/frontend && python3 -m http.server 8080
+
+# WRONG — fetch('screens/landing.html') returns 404, blank screen
+cd forge && python3 -m http.server 8080
+```
+
+### Start backend locally
+```bash
+cd forge/backend
+source .venv/bin/activate
+uvicorn main:app --reload --port 8000
+```
+
+### Local URLs
+- Frontend: http://127.0.0.1:8080
+- Backend API: http://127.0.0.1:8000
+- API docs: http://127.0.0.1:8000/docs
+
+### Known local dev quirk — Supabase defer race (FIXED Milestone 29)
+`supabase-client.js` is loaded with `defer`. Returning signed-in users triggered
+a "lbFetchProfile is not a function" crash in the boot IIFE, leaving a blank blue
+screen. Fixed with `waitForSupabase()` polling helper in the boot block. First-time
+visitors were never affected (they don't hit the profile sync path).
+
+---
+
 ## 💰 Monetization Strategy
 
 ### Current Approach
-1. **Google AdSense** (primary goal) — pending approval.
+1. **Google AdSense** (primary goal) — pending approval (PAN card pending).
 2. **Chai4Me micro-donations** — `https://www.chai4.me/devsolankiworks`
 3. **In-game economy** — Coins and Trophies earned through gameplay.
 
@@ -34,17 +65,51 @@ or any instant-approval ad network.
 - [x] Cookie consent banner with localStorage + NPA support
 - [x] `landing.html` — rich semantic content (Low Value Content filter)
 - [x] `robots.txt` and `sitemap.xml` present and up to date
+- [x] Landing page is the default entry point (bots see it first)
 - [ ] AdSense manual review approval — PENDING (PAN card pending)
+
+### ⚠️ AdSense Landing Page Rule — DO NOT BREAK
+`landing.html` MUST remain the first screen served on a cold visit (`/#` or `/`).
+The boot IIFE explicitly routes to `landing` as the default case (Case 3).
+Never change this to `home` as the default — AdSense bots must see real content.
 
 ---
 
-## 🗄️ Supabase (Added Milestone 27)
+## 🔒 Security (Milestone 29)
+
+### Files changed
+| File | What changed |
+|------|-------------|
+| `app/core/sanitize.py` | NEW — input validation module for all WS messages |
+| `app/core/limiter.py` | XFF now trusts last IP (Cloud Run's insertion), not first (spoofable) |
+| `app/routers/http.py` | `/economy/sync` and `/economy/reward` require `Authorization: Bearer <id_token>` |
+| `app/routers/websocket.py` | All inputs via sanitize module; action allowlist; WS join rate-limited |
+| `index.html` boot IIFE | `waitForSupabase()` fixes defer race; try/catch safety net |
+| `index.html` goTo() | SCREEN_GUARDS block direct `/#results`, `/#game` URL access |
+| `index.html` API object | `syncProfile()` sends `Authorization: Bearer` header |
+| `index.html` handleGoogleLogin() | Stores `user._credential` for authenticated backend calls |
+
+### Security model summary
+- **WS actions**: validated against explicit allowlist in `sanitize.VALID_ACTIONS`
+- **Topics**: checked against prompt-injection regex blocklist before Gemini call
+- **Economy endpoints**: require live Google JWT matching the `user_id` in body
+- **Rate limiting**: per-IP, per-action, using last XFF entry (not first)
+- **Screen guards**: `lobby` requires roomCode+playerName; `game` requires active WS; `results` requires non-empty scores
+- **time_ms**: clamped to `[0, time_limit_ms + 500ms]` — can't claim 0ms for max points
+
+### Known remaining attack surfaces (acceptable for MVP)
+- Leaderboard inflation via direct Supabase REST — blocked only by RLS policies
+- Score advantage from `time_ms: 1` partially mitigated (clamped, not server-clock verified)
+- Room code brute-force impractical (15 WS joins/min/IP rate limit)
+
+---
+
+## 🗄️ Supabase (Milestone 27)
 
 ### Project
 - **URL:** `https://ffstsbwkianjcjpqvmtv.supabase.co`
 - **Anon key:** `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` (full key in supabase-client.js)
 - **Region:** Southeast Asia (Singapore)
-- **Dashboard:** supabase.com → project `forge`
 
 ### Tables
 | Table | Purpose |
@@ -54,26 +119,16 @@ or any instant-approval ad network.
 | `donor_leaderboard` | VIEW. Auto-sums approved donations per person. Read-only. |
 
 ### Key rules
-- Leaderboard upsert fires in `applyUserEconomy()` (index.html) — fire-and-forget, never blocks UI
-- `lbUpsertPlayer()` uses `onConflict: 'google_id'` — playing again updates the row, NEVER resets it
-- The anon key only has permissions defined in RLS policies — safe to be in frontend
-- Donation approval is 100% manual: Supabase dashboard → Table Editor → donations → edit row → set status to 'approved'
-- `donor_leaderboard` view auto-updates — no action needed after approving a donation row
+- Leaderboard upsert fires in `applyUserEconomy()` (index.html) — fire-and-forget
+- `lbUpsertPlayer()` uses `onConflict: 'google_id'` — never resets on play-again
+- Donation approval is 100% manual: Supabase dashboard → donations → set status = 'approved'
+- `donor_leaderboard` is a SQL VIEW — never try to insert into it
 
 ### Admin workflow (approving donations)
 1. Go to supabase.com → your project → Table Editor → `donations`
 2. Find rows with `status = pending`
 3. Cross-check the `upi_txn_id` in your UPI app
 4. Click the row → edit → change `status` to `approved` → save
-5. The donor leaderboard at `/leaderboard.html` updates on next page load
-
-### Supabase helper functions (supabase-client.js)
-| Function | Purpose |
-|----------|---------|
-| `lbUpsertPlayer(id, name, coins, trophies)` | Upsert leaderboard row |
-| `lbFetch(column, limit)` | Fetch top N by coins or trophies |
-| `lbFetchDonors(limit)` | Fetch donor leaderboard |
-| `donationSubmit(name, id, amount, txnId)` | Submit donation claim |
 
 ---
 
@@ -81,7 +136,7 @@ or any instant-approval ad network.
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| Frontend | HTML5 + Tailwind CSS + Vanilla JS | Stays portable for CapacitorJS |
+| Frontend | HTML5 + CSS + Vanilla JS | Stays portable for CapacitorJS |
 | Database | Supabase (PostgreSQL, free tier) | Leaderboard + donations, $0 |
 | Mobile Wrapper | CapacitorJS → Android .aab | $0 |
 | Backend | Python + FastAPI | Student knows Python well |
@@ -111,23 +166,30 @@ forge/
 │   ├── requirements.txt
 │   ├── main.py
 │   └── app/
-│       ├── core/         config.py, state.py, limiter.py
+│       ├── core/
+│       │   ├── config.py
+│       │   ├── state.py
+│       │   ├── limiter.py      ← hardened XFF (Milestone 29)
+│       │   └── sanitize.py     ← NEW input validation (Milestone 29)
 │       ├── models/       quiz.py
-│       ├── routers/      http.py, websocket.py, auth.py
+│       ├── routers/
+│       │   ├── http.py         ← economy endpoints now JWT-protected (M29)
+│       │   ├── websocket.py    ← full sanitize integration (M29)
+│       │   └── auth.py
 │       └── services/     ai.py, profiles.py
 └── frontend/
-    ├── index.html             ← App shell + Supabase SDK + upsert hook ✅
-    ├── supabase-client.js     ← Supabase singleton + helper functions ✅ NEW
-    ├── leaderboard.html       ← Public leaderboard (3 tabs + donation form) ✅ NEW
+    ├── index.html             ← boot fix + screen guards + auth API (M29)
+    ├── supabase-client.js
+    ├── leaderboard.html
     ├── privacy.html
     ├── about.html
     ├── contact.html
     ├── terms.html
     ├── robots.txt
-    ├── sitemap.xml            ← leaderboard.html added ✅
+    ├── sitemap.xml
     └── screens/
-        ├── landing.html
-        ├── home.html          ← 🏆 trophy button (top-left) ✅
+        ├── landing.html       ← DEFAULT entry point (AdSense requirement)
+        ├── home.html
         ├── lobby.html
         ├── game.html
         └── results.html
@@ -142,10 +204,12 @@ forge/
 | **Website** | `https://forgetrivia.online` |
 | **Leaderboard** | `https://forgetrivia.online/leaderboard.html` |
 | Backend URL | `https://forge-backend-878124462453.us-central1.run.app` |
-| Frontend | Vercel (auto-deploys from git push) |
+| Frontend | Vercel (auto-deploys from git push to main) |
 
 ### Re-deploy backend
 ```bash
+cd forge/backend
+
 docker buildx build \
   --platform linux/amd64 \
   --tag us-central1-docker.pkg.dev/quiz-app-forge/forge/backend:latest \
@@ -199,14 +263,15 @@ Economy localStorage key: `forge_economy_{user_id}` — source of truth on clien
 
 ## 🌐 REST API
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Liveness probe |
-| POST | `/rooms/create` | Create room |
-| GET | `/rooms/{code}` | Inspect room |
-| DELETE | `/rooms/{code}` | Remove room |
-| POST | `/auth/google` | Verify Google ID token |
-| POST | `/economy/reward` | Apply coin reward |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/health` | None | Liveness probe |
+| POST | `/rooms/create` | None | Create room |
+| GET | `/rooms/{code}` | None | Inspect room |
+| DELETE | `/rooms/{code}` | None | Remove room |
+| POST | `/auth/google` | None | Verify Google ID token |
+| POST | `/economy/reward` | Bearer JWT | Apply coin reward |
+| POST | `/economy/sync` | Bearer JWT | Sync coins/trophies from Supabase |
 
 ---
 
@@ -223,10 +288,15 @@ Economy localStorage key: `forge_economy_{user_id}` — source of truth on clien
 { "type": "ERROR",                    "data": { "message": "..." } }
 ```
 
-### Client → Server
+### Client → Server (all validated via sanitize.py)
 ```json
 { "action": "start_game", "topic": "...", "mode": "hard", "play_mode": "classic" }
 { "action": "answer",     "choice": 2,   "time_ms": 3400 }
+{ "action": "join_team",  "team_id": "A" }
+{ "action": "set_team_info", "name_a": "...", "name_b": "...", "topic_a": "...", "topic_b": "..." }
+{ "action": "set_lobby_mode", "mode": "team" }
+{ "action": "lock_room" }
+{ "action": "unlock_room" }
 ```
 
 ---
@@ -247,7 +317,9 @@ Economy localStorage key: `forge_economy_{user_id}` — source of truth on clien
 | 25 | Monetization pivot: landing page + Chai4Me | ✅ Done |
 | 26 | AdSense Compliance: Cookie Consent Banner | ✅ Done |
 | 27 | Supabase Leaderboard + Donation System | ✅ Done |
-| 28 | Play Store submission | 🔲 Blocked (needs ID) |
+| 28 | Play Store submission | 🔲 Blocked (needs PAN card) |
+| 29 | Security Hardening | ✅ Done |
+| 30 | Question count selector (5/10/15/20) + Results share button | 🔲 Next |
 
 ---
 
@@ -264,7 +336,11 @@ Economy localStorage key: `forge_economy_{user_id}` — source of truth on clien
   Supabase is the persistent cross-session store updated at game end.
 - Donation approval is intentionally manual — no webhook or automated verification.
 - `donor_leaderboard` is a SQL VIEW, not a table — never try to insert into it.
-- Leaderboard page fetches once on load, no polling. Refresh page for latest data.
+- **Local dev server MUST be run from `forge/frontend/`** — not `forge/`.
+- **supabase-client.js defer race** — fixed in M29 with `waitForSupabase()` polling.
+- `/economy/sync` and `/economy/reward` now require Bearer JWT — frontend passes
+  `State.user._credential` which is only available in the same browser session
+  (not after page reload). Supabase boot-sync handles the reload case instead.
 
 ---
 
@@ -281,3 +357,5 @@ Economy localStorage key: `forge_economy_{user_id}` — source of truth on clien
 10. ADB commands: Windows PowerShell only.
 11. Never re-introduce banned ad networks.
 12. Supabase RLS must always be enabled — never disable it.
+13. Landing page must always be the default boot destination — AdSense requirement.
+14. File contents over reconstruction — paste current files at session start.
