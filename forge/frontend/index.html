@@ -14,6 +14,8 @@
 
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922314688440658" crossorigin="anonymous"></script>
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <!-- Forge Supabase helpers — defer so it doesn't block render -->
@@ -370,7 +372,36 @@
     z-index:1000; display:none;
   "></header>
 
-  <section id="screen-landing" class="screen"></section>
+  <section id="screen-landing" class="screen">
+    <!-- Static content for AdSense bots & SEO -->
+    <div style="width:100%; padding: 40px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 24px;">
+      <div style="font-size: 64px;">🏆</div>
+      <h1 style="font-family: var(--font-pixel); font-size: 24px; color: var(--yellow); line-height: 1.4;">
+        FORGE<br><span style="color: #fff;">AI TRIVIA SHOWDOWN</span>
+      </h1>
+      <p style="font-family: var(--font-body); font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.8); line-height: 1.7; max-width: 400px;">
+        The trivia game that never runs out of questions. Powered by Google Gemini AI, 
+        Forge generates unique multiplayer quizzes on any topic in seconds.
+      </p>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px;">
+        <span class="badge badge-yellow">AI POWERED</span>
+        <span class="badge badge-green">MULTIPLAYER</span>
+        <span class="badge badge-white">FREE TO PLAY</span>
+      </div>
+      <button class="btn btn-primary" style="max-width: 280px; margin-top: 20px;" onclick="goTo('home')">
+        PLAY NOW
+      </button>
+      <div style="margin-top: 40px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; text-align: left; width: 100%; max-width: 400px;">
+        <h2 style="font-family: var(--font-pixel); font-size: 10px; color: var(--yellow); margin-bottom: 12px;">HOW IT WORKS</h2>
+        <p style="font-family: var(--font-body); font-size: 14px; color: rgba(255,255,255,0.6); line-height: 1.6;">
+          1. Create a room and share the code.<br>
+          2. Pick any topic (History, Movies, Science).<br>
+          3. AI generates 10 custom questions.<br>
+          4. Compete live with friends for the top spot!
+        </p>
+      </div>
+    </div>
+  </section>
   <section id="screen-home"    class="screen"></section>
   <section id="screen-lobby"   class="screen"></section>
   <section id="screen-game"    class="screen"></section>
