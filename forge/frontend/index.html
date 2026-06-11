@@ -1047,57 +1047,98 @@ if (document.readyState === 'loading') {
  *  3. Otherwise, always show landing first — this is the new default entry point
  *     and the page Google's crawler will index and evaluate for AdSense.
  */
-(async () => {
-  API.health().catch(() => {});  // warm up Cloud Run silently
-
-  const hash  = window.location.hash.replace('#', '');
-  const saved = Session.load();
-
-  // FORCE SYNC: If we have a logged-in user, fetch fresh data from Supabase
-  // leaderboard to ensure coins/trophies match across devices on page load.
-  if (State.user && State.user.id) {
-    try {
-      const fresh = await lbFetchProfile(State.user.id);
-      if (fresh) {
-        State.user.coins    = fresh.coins;
-        State.user.trophies = fresh.trophies;
-        if (fresh.display_name) State.user.name = fresh.display_name;
-        Session.save();
-        
-        // Notify backend so the authoritarian JSON store matches Supabase immediately
-        API.syncProfile(State.user.id, fresh.coins, fresh.trophies);
-        
-        console.log('[Boot] Profile synced from Supabase');
-      }
-    } catch (e) {
-      console.warn('[Boot] Profile sync failed:', e);
-    }
-  }
-
-  // Case 1: active session with a room — try to restore it
-  if (saved?.roomCode && hash && hash !== 'landing' && hash !== 'home') {
-    try {
-      await API.getRoom(saved.roomCode);
-      if (hash === 'lobby' || hash === 'game' || hash === 'results') {
-        WS.connect(saved.roomCode, saved.playerName);
-      }
-      await goTo(hash, true);
+function waitForSupabase(timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    if (typeof lbFetchProfile === 'function') {
+      resolve(true);
       return;
-    } catch (e) {
-      console.warn('Saved room no longer valid:', e);
-      Session.clear();
+    }
+    const start    = Date.now();
+    const interval = setInterval(() => {
+      if (typeof lbFetchProfile === 'function') {
+        clearInterval(interval);
+        resolve(true);
+      } else if (Date.now() - start >= timeoutMs) {
+        clearInterval(interval);
+        console.warn('[Boot] Supabase helpers not available after timeout — skipping profile sync.');
+        resolve(false);   // resolve, not reject — boot continues without sync
+      }
+    }, 50);
+  });
+}
+ 
+(async () => {
+  try {
+    API.health().catch(() => {});   // warm up Cloud Run silently
+ 
+    const hash  = window.location.hash.replace('#', '');
+    const saved = Session.load();
+ 
+    // FORCE SYNC: If we have a logged-in user, fetch fresh data from Supabase
+    // leaderboard to ensure coins/trophies match across devices on page load.
+    if (State.user && State.user.id) {
+      // Wait for supabase-client.js defer script to finish loading
+      const supabaseReady = await waitForSupabase();
+ 
+      if (supabaseReady) {
+        try {
+          const fresh = await lbFetchProfile(State.user.id);
+          if (fresh) {
+            State.user.coins    = fresh.coins;
+            State.user.trophies = fresh.trophies;
+            if (fresh.display_name) State.user.name = fresh.display_name;
+            Session.save();
+            // syncProfile requires a live credential — will silently skip if
+            // the user is session-restored (no _credential on reload). That's
+            // fine; Supabase is the source of truth for cross-device sync.
+            API.syncProfile(State.user.id, fresh.coins, fresh.trophies);
+            console.log('[Boot] Profile synced from Supabase');
+          }
+        } catch (e) {
+          console.warn('[Boot] Profile sync failed:', e);
+        }
+      }
+    }
+ 
+    // Case 1: active session with a room — try to restore it
+    if (saved?.roomCode && hash && hash !== 'landing' && hash !== 'home') {
+      try {
+        await API.getRoom(saved.roomCode);
+        if (hash === 'lobby' || hash === 'game' || hash === 'results') {
+          WS.connect(saved.roomCode, saved.playerName);
+        }
+        await goTo(hash, true);
+        return;
+      } catch (e) {
+        console.warn('Saved room no longer valid:', e);
+        Session.clear();
+      }
+    }
+ 
+    // Case 2: explicit #home hash (returning player skipping landing)
+    if (hash === 'home') {
+      await goTo('home', true);
+      return;
+    }
+ 
+    // Case 3: default — show landing (new visitors, direct URL, empty hash)
+    await goTo('landing', true);
+ 
+  } catch (e) {
+    // Safety net: if anything above throws unexpectedly, always show landing.
+    // A blank screen is the worst possible outcome — landing is always safe.
+    console.error('[Boot] Unexpected error, falling back to landing:', e);
+    try {
+      await goTo('landing', true);
+    } catch (fallbackErr) {
+      // Absolute last resort: force-activate the landing screen element
+      console.error('[Boot] goTo fallback failed:', fallbackErr);
+      const el = document.getElementById('screen-landing');
+      if (el) el.classList.add('active');
     }
   }
-
-  // Case 2: explicit #home hash (returning player skipping landing)
-  if (hash === 'home') {
-    await goTo('home', true);
-    return;
-  }
-
-  // Case 3: default — show landing (new visitors, direct URL, empty hash)
-  await goTo('landing', true);
 })();
+
 </script>
 <noscript>
   <style>
