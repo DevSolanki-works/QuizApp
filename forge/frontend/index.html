@@ -8,16 +8,17 @@
 
   <title>FORGE — AI Trivia Showdown</title>
 
-  <!-- Press Start 2P = pixel font for UI chrome / titles / labels -->
-  <!-- Nunito = clean readable font for questions & body copy -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
 
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922314688440658" crossorigin="anonymous"></script>
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Forge Supabase helpers — defer so it doesn't block render -->
   <script src="supabase-client.js" defer></script>
 
   <style>
@@ -53,9 +54,7 @@
       --radius-lg:    20px;
       --radius-pill:  999px;
 
-      /* Footer height — screens pad their bottom by this amount */
       --footer-h:     32px;
-      /* Header height — 0px as no header content is currently used */
       --header-h:     0px;
     }
 
@@ -84,8 +83,8 @@
       align-items: center;
       background: var(--bg);
       background-image:
-        radial-gradient(circle at 10% 10%, rgba(37, 64, 204, 0.2) 0%, transparent 40%),
-        radial-gradient(circle at 90% 90%, rgba(37, 64, 204, 0.2) 0%, transparent 40%),
+        radial-gradient(circle at 10% 10%, rgba(37,64,204,0.2) 0%, transparent 40%),
+        radial-gradient(circle at 90% 90%, rgba(37,64,204,0.2) 0%, transparent 40%),
         radial-gradient(ellipse at 50% 0%, #1B2EAD 0%, #0D1B8E 70%);
       padding: 0;
       position: fixed;
@@ -107,11 +106,11 @@
       overflow-y: auto;
       overflow-x: hidden;
       position: relative;
-      background: rgba(13, 27, 142, 0.4);
+      background: rgba(13,27,142,0.4);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      border-right: 1px solid rgba(255, 255, 255, 0.05);
-      border-left:  1px solid rgba(255, 255, 255, 0.05);
+      border-right: 1px solid rgba(255,255,255,0.05);
+      border-left:  1px solid rgba(255,255,255,0.05);
     }
 
     @media (min-width: 1024px) {
@@ -119,85 +118,53 @@
         height: calc(100% - var(--footer-h) - var(--header-h));
         max-height: 900px;
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255,255,255,0.1);
         border-bottom: none;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
       }
     }
     .screen.active { display: flex; }
 
     /* ── BUTTONS ─────────────────────────────────────────── */
     .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-      min-height: 56px;
-      border: none;
-      border-radius: var(--radius-pill);
-      font-family: var(--font-pixel);
-      font-size: 10px;
-      letter-spacing: 0.5px;
-      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; width: 100%; min-height: 56px;
+      border: none; border-radius: var(--radius-pill);
+      font-family: var(--font-pixel); font-size: 10px;
+      letter-spacing: 0.5px; cursor: pointer;
       transition: transform 0.1s ease;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
     .btn:active { transform: scale(0.97); }
-
     .btn-primary {
-      background: var(--yellow);
-      color: var(--text-dark);
+      background: var(--yellow); color: var(--text-dark);
       box-shadow: 0 6px 0 var(--yellow-dark), 0 8px 20px rgba(255,217,61,0.35);
     }
-    .btn-primary:active {
-      box-shadow: 0 2px 0 var(--yellow-dark);
-      transform: translateY(4px);
-    }
-
+    .btn-primary:active { box-shadow: 0 2px 0 var(--yellow-dark); transform: translateY(4px); }
     .btn-secondary {
-      background: rgba(255,255,255,0.12);
-      color: var(--white);
+      background: rgba(255,255,255,0.12); color: var(--white);
       border: 2px solid rgba(255,255,255,0.3);
       box-shadow: 0 4px 0 rgba(0,0,0,0.2);
     }
-    .btn-secondary:active {
-      box-shadow: none;
-      transform: translateY(4px);
-    }
-
-    .btn-danger {
-      background: var(--red);
-      color: var(--white);
-      box-shadow: 0 6px 0 #9B0019;
-    }
-    .btn-danger:active {
-      box-shadow: 0 2px 0 #9B0019;
-      transform: translateY(4px);
-    }
+    .btn-secondary:active { box-shadow: none; transform: translateY(4px); }
+    .btn-danger { background: var(--red); color: var(--white); box-shadow: 0 6px 0 #9B0019; }
+    .btn-danger:active { box-shadow: 0 2px 0 #9B0019; transform: translateY(4px); }
 
     /* ── INPUTS ──────────────────────────────────────────── */
     .input-label {
-      font-family: var(--font-pixel);
-      font-size: 8px;
-      color: var(--yellow);
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-      display: block;
+      font-family: var(--font-pixel); font-size: 8px;
+      color: var(--yellow); letter-spacing: 0.5px;
+      margin-bottom: 6px; display: block;
     }
     .input-field {
-      width: 100%;
-      height: 56px;
+      width: 100%; height: 56px;
       background: rgba(255,255,255,0.1);
       border: 2px solid rgba(255,255,255,0.2);
       border-radius: var(--radius-md);
-      color: var(--white);
-      font-family: var(--font-body);
-      font-size: 18px;
-      font-weight: 700;
-      padding: 0 18px;
-      outline: none;
+      color: var(--white); font-family: var(--font-body);
+      font-size: 18px; font-weight: 700;
+      padding: 0 18px; outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     .input-field::placeholder { color: rgba(255,255,255,0.3); font-weight: 400; }
@@ -215,13 +182,9 @@
 
     /* ── BADGE ───────────────────────────────────────────── */
     .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 14px;
-      border-radius: var(--radius-pill);
-      font-family: var(--font-pixel);
-      font-size: 8px;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 14px; border-radius: var(--radius-pill);
+      font-family: var(--font-pixel); font-size: 8px;
     }
     .badge-yellow { background: rgba(255,217,61,0.18); color: var(--yellow); border: 1px solid rgba(255,217,61,0.4); }
     .badge-green  { background: rgba(6,214,160,0.18);  color: var(--green);  border: 1px solid rgba(6,214,160,0.4); }
@@ -229,65 +192,49 @@
 
     /* ── DIVIDER ─────────────────────────────────────────── */
     .divider-text {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      display: flex; align-items: center; gap: 12px;
       color: rgba(255,255,255,0.4);
-      font-family: var(--font-pixel);
-      font-size: 8px;
-      width: 100%;
+      font-family: var(--font-pixel); font-size: 8px; width: 100%;
     }
-    .divider-text::before,
-    .divider-text::after {
-      content: '';
-      flex: 1;
-      height: 1px;
+    .divider-text::before, .divider-text::after {
+      content: ''; flex: 1; height: 1px;
       background: rgba(255,255,255,0.15);
     }
 
     /* ── TOAST ───────────────────────────────────────────── */
     #toast-container {
-      position: fixed;
-      top: 16px;
-      left: 50%;
+      position: fixed; top: 16px; left: 50%;
       transform: translateX(-50%);
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      z-index: 9999; display: flex;
+      flex-direction: column; gap: 8px;
       pointer-events: none;
       width: calc(min(var(--max-w), 100vw) - 32px);
     }
     .toast {
-      padding: 12px 18px;
-      border-radius: var(--radius-md);
-      font-family: var(--font-pixel);
-      font-size: 8px;
-      line-height: 1.8;
-      animation: toast-in 0.25s ease forwards;
-      pointer-events: all;
+      padding: 12px 18px; border-radius: var(--radius-md);
+      font-family: var(--font-pixel); font-size: 8px; line-height: 1.8;
+      animation: toast-in 0.25s ease forwards; pointer-events: all;
     }
     .toast-error   { background: var(--red);    color: #fff; }
     .toast-success { background: var(--green);  color: #003; }
     .toast-info    { background: var(--yellow); color: #1A1A2E; }
     @keyframes toast-in {
       from { opacity: 0; transform: translateY(-8px); }
-      to   { opacity: 1; transform: translateY(0);    }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     /* ── DOT LOADER ──────────────────────────────────────── */
     .dot-loader { display: flex; gap: 6px; align-items: center; }
     .dot-loader span {
-      width: 8px; height: 8px;
-      border-radius: 50%;
+      width: 8px; height: 8px; border-radius: 50%;
       background: var(--yellow);
       animation: dot-bounce 1.2s infinite ease-in-out;
     }
     .dot-loader span:nth-child(2) { animation-delay: 0.2s; }
     .dot-loader span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes dot-bounce {
-      0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
-      40%            { transform: scale(1.1); opacity: 1;   }
+      0%,80%,100% { transform: scale(0.7); opacity: 0.5; }
+      40%          { transform: scale(1.1); opacity: 1; }
     }
 
     /* ── DECORATIVE BG ELEMENTS ──────────────────────────── */
@@ -301,10 +248,10 @@
       opacity: 0.15;
     }
     @keyframes confetti-fall {
-      0%   { transform: translateY(-20px) rotate(0deg);   opacity: 0;    }
+      0%   { transform: translateY(-20px) rotate(0deg);   opacity: 0; }
       10%  { opacity: 0.15; }
       90%  { opacity: 0.15; }
-      100% { transform: translateY(110vh) rotate(720deg); opacity: 0;    }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
     }
     .star {
       position: absolute; border-radius: 50%;
@@ -312,7 +259,7 @@
       animation: twinkle var(--dur,3s) infinite ease-in-out var(--delay,0s);
     }
     @keyframes twinkle {
-      0%,100% { opacity: 0.2; transform: scale(1);   }
+      0%,100% { opacity: 0.2; transform: scale(1); }
       50%      { opacity: 0.9; transform: scale(1.4); }
     }
 
@@ -323,7 +270,7 @@
     .fade-up { animation: fade-up 0.35s ease forwards; }
     @keyframes fade-up {
       from { opacity: 0; transform: translateY(18px); }
-      to   { opacity: 1; transform: translateY(0);    }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     /* scrollbar */
@@ -333,124 +280,72 @@
 
     /* ── PERSISTENT FOOTER NAV ───────────────────────────── */
     #app-footer {
-      position: fixed;
-      bottom: 0;
-      left: 50%;
+      position: fixed; bottom: 0; left: 50%;
       transform: translateX(-50%);
-      width: 100%;
-      max-width: var(--max-w);
-      height: var(--footer-h);
-      z-index: 400;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 18px;
-      padding: 0 16px;
-      background: rgba(9, 19, 100, 0.92);
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      width: 100%; max-width: var(--max-w);
+      height: var(--footer-h); z-index: 400;
+      display: flex; align-items: center;
+      justify-content: center; gap: 18px; padding: 0 16px;
+      background: rgba(9,19,100,0.92);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
       transition: opacity 0.25s ease;
     }
     #app-footer a, #app-footer span {
-      font-family: var(--font-pixel);
-      font-size: 6px;
-      color: rgba(255, 255, 255, 0.38);
-      text-decoration: none;
-      letter-spacing: 0.3px;
-      white-space: nowrap;
-      transition: color 0.15s;
+      font-family: var(--font-pixel); font-size: 6px;
+      color: rgba(255,255,255,0.38); text-decoration: none;
+      letter-spacing: 0.3px; white-space: nowrap; transition: color 0.15s;
     }
     #app-footer a:hover { color: var(--yellow); }
     #app-footer .footer-dot {
       width: 3px; height: 3px; border-radius: 50%;
       background: rgba(255,255,255,0.2); flex-shrink: 0;
     }
-    /* Hide footer during active gameplay so it doesn't cover answer buttons */
     #app-footer.game-active { opacity: 0; pointer-events: none; }
 
-    /* ── BLOCK B: Cookie Consent Banner CSS ───────────────────── */
+    /* ── COOKIE CONSENT BANNER ───────────────────────────── */
     #cookie-banner {
       position: fixed;
-      bottom: var(--footer-h, 32px);   /* sits just above the persistent footer nav */
-      left: 50%;
-      transform: translateX(-50%) translateY(110%); /* hidden offscreen by default */
-      width: 100%;
-      max-width: var(--max-w, 430px);
+      bottom: var(--footer-h, 32px);
+      left: 50%; transform: translateX(-50%) translateY(110%);
+      width: 100%; max-width: var(--max-w, 430px);
       z-index: 9990;
-
-      background: rgba(9, 19, 100, 0.97);
-      border: 1px solid rgba(255, 217, 61, 0.28);
-      border-bottom: none;
-      border-radius: 16px 16px 0 0;
+      background: rgba(9,19,100,0.97);
+      border: 1px solid rgba(255,217,61,0.28);
+      border-bottom: none; border-radius: 16px 16px 0 0;
       padding: 16px 18px 14px;
-
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.35);
-
-      /* Slide-up animation — triggered by adding .visible */
-      transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.45s;
-      visibility: hidden;
-      pointer-events: none;
+      display: flex; flex-direction: column; gap: 12px;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 -4px 30px rgba(0,0,0,0.35);
+      transition: transform 0.45s cubic-bezier(0.22,1,0.36,1), visibility 0.45s;
+      visibility: hidden; pointer-events: none;
     }
-
     #cookie-banner.visible {
       transform: translateX(-50%) translateY(0);
-      visibility: visible;
-      pointer-events: auto;
+      visibility: visible; pointer-events: auto;
     }
-
     .cookie-text {
-      font-family: 'Nunito', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      color: rgba(255, 255, 255, 0.8);
-      line-height: 1.65;
+      font-family: 'Nunito', sans-serif; font-size: 13px;
+      font-weight: 700; color: rgba(255,255,255,0.8); line-height: 1.65;
     }
-    .cookie-text a {
-      color: #FFD93D;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-
-    .cookie-actions {
-      display: flex;
-      gap: 9px;
-    }
-
+    .cookie-text a { color: #FFD93D; text-decoration: underline; text-underline-offset: 2px; }
+    .cookie-actions { display: flex; gap: 9px; }
     .cookie-btn {
-      flex: 1;
-      height: 38px;
-      border: none;
-      border-radius: 999px;
-      font-family: 'Press Start 2P', monospace;
-      font-size: 6.5px;
-      letter-spacing: 0.3px;
-      cursor: pointer;
+      flex: 1; height: 38px; border: none; border-radius: 999px;
+      font-family: 'Press Start 2P', monospace; font-size: 6.5px;
+      letter-spacing: 0.3px; cursor: pointer;
       transition: transform 0.1s, opacity 0.1s;
       -webkit-tap-highlight-color: transparent;
     }
     .cookie-btn:active { transform: scale(0.97); }
-
-    .cookie-accept {
-      background: #FFD93D;
-      color: #1A1A2E;
-      box-shadow: 0 3px 0 #b89a00;
-    }
+    .cookie-accept { background: #FFD93D; color: #1A1A2E; box-shadow: 0 3px 0 #b89a00; }
     .cookie-accept:hover { opacity: 0.92; }
-
     .cookie-decline {
-      background: rgba(255, 255, 255, 0.09);
-      color: rgba(255, 255, 255, 0.55);
-      border: 1px solid rgba(255, 255, 255, 0.18) !important;
-      font-size: 5.5px;   /* slightly smaller — secondary action */
+      background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.55);
+      border: 1px solid rgba(255,255,255,0.18) !important; font-size: 5.5px;
     }
     .cookie-decline:hover { background: rgba(255,255,255,0.14); }
+<<<<<<< HEAD
     /* ── LANDING ROOT ─────────────────────────────────────────── */
     .landing-root {
       width: 100%;
@@ -992,6 +887,8 @@
       letter-spacing: 0.5px;
     }
     /* ── END BLOCK B ──────────────────────────────────────────── */
+=======
+>>>>>>> Sec
   </style>
   <!-- Google AdSense -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922314688440658" crossorigin="anonymous"></script>
@@ -1000,29 +897,28 @@
 <div id="app">
   <div id="toast-container"></div>
 
-  <!-- Persistent mute toggle — visible across all screens -->
+  <!-- Persistent mute toggle -->
   <button id="mute-btn"
     onclick="Sound.toggleMute()"
     aria-label="Toggle sound"
     style="
-      position: fixed; top: calc(var(--header-h) + 12px); right: 12px; z-index: 500;
-      width: 40px; height: 40px; border-radius: 50%;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.22);
-      font-size: 18px; cursor: pointer; display: flex;
-      align-items: center; justify-content: center;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.15s;
-    ">
-    🔊
-  </button>
+      position:fixed; top:calc(var(--header-h) + 12px); right:12px; z-index:500;
+      width:40px; height:40px; border-radius:50%;
+      background:rgba(255,255,255,0.12);
+      border:1px solid rgba(255,255,255,0.22);
+      font-size:18px; cursor:pointer; display:flex;
+      align-items:center; justify-content:center;
+      -webkit-tap-highlight-color:transparent;
+      transition:background 0.15s;
+    ">🔊</button>
 
   <header id="app-header" style="
-    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
-    width: 100%; max-width: var(--max-w); height: var(--header-h);
-    z-index: 1000; display: none;
+    position:fixed; top:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:var(--max-w); height:var(--header-h);
+    z-index:1000; display:none;
   "></header>
 
+<<<<<<< HEAD
   <!--
     SCREEN ORDER:
     landing  → rich content entry page (AdSense/SEO compliant, shown on first visit)
@@ -1639,12 +1535,43 @@
 
 </main>
 </section>
+=======
+  <section id="screen-landing" class="screen">
+    <!-- Static content for AdSense bots & SEO -->
+    <div style="width:100%; padding: 40px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 24px;">
+      <div style="font-size: 64px;">🏆</div>
+      <h1 style="font-family: var(--font-pixel); font-size: 24px; color: var(--yellow); line-height: 1.4;">
+        FORGE<br><span style="color: #fff;">AI TRIVIA SHOWDOWN</span>
+      </h1>
+      <p style="font-family: var(--font-body); font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.8); line-height: 1.7; max-width: 400px;">
+        The trivia game that never runs out of questions. Powered by Google Gemini AI, 
+        Forge generates unique multiplayer quizzes on any topic in seconds.
+      </p>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px;">
+        <span class="badge badge-yellow">AI POWERED</span>
+        <span class="badge badge-green">MULTIPLAYER</span>
+        <span class="badge badge-white">FREE TO PLAY</span>
+      </div>
+      <button class="btn btn-primary" style="max-width: 280px; margin-top: 20px;" onclick="goTo('home')">
+        PLAY NOW
+      </button>
+      <div style="margin-top: 40px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; text-align: left; width: 100%; max-width: 400px;">
+        <h2 style="font-family: var(--font-pixel); font-size: 10px; color: var(--yellow); margin-bottom: 12px;">HOW IT WORKS</h2>
+        <p style="font-family: var(--font-body); font-size: 14px; color: rgba(255,255,255,0.6); line-height: 1.6;">
+          1. Create a room and share the code.<br>
+          2. Pick any topic (History, Movies, Science).<br>
+          3. AI generates 10 custom questions.<br>
+          4. Compete live with friends for the top spot!
+        </p>
+      </div>
+    </div>
+  </section>
+>>>>>>> Sec
   <section id="screen-home"    class="screen"></section>
   <section id="screen-lobby"   class="screen"></section>
   <section id="screen-game"    class="screen"></section>
   <section id="screen-results" class="screen"></section>
 
-  <!-- Persistent footer — always visible, hidden during gameplay -->
   <nav id="app-footer" role="navigation" aria-label="Site links">
     <a href="/about.html">ABOUT</a>
     <div class="footer-dot"></div>
@@ -1657,7 +1584,6 @@
     <span>© 2026 FORGE</span>
   </nav>
 
-  <!-- ── BLOCK A: Cookie Consent Banner HTML ─────────────────── -->
   <div id="cookie-banner" role="dialog" aria-modal="false" aria-label="Cookie consent">
     <p class="cookie-text">
       We use cookies and browser storage to save your high scores, mute settings,
@@ -1671,22 +1597,25 @@
       <button class="cookie-btn cookie-decline" onclick="cookieDecline()">NON-PERSONALISED ADS</button>
     </div>
   </div>
-  <!-- ── END BLOCK A ─────────────────────────────────────────── -->
 </div>
 
 <script>
-/* ── CONFIG ─────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   CONFIG
+   ══════════════════════════════════════════════════════════ */
 const IS_NATIVE_APP =
   window.location.protocol === 'capacitor:' ||
   (window.location.protocol === 'https:' && window.location.hostname === 'localhost') ||
   (typeof window.Capacitor?.isNativePlatform === 'function' &&
    window.Capacitor.isNativePlatform());
+
 const IS_LOCAL_DEV = !IS_NATIVE_APP && (
   window.location.protocol === 'file:' ||
   (window.location.protocol === 'http:' &&
    (window.location.hostname === 'localhost' ||
     window.location.hostname === '127.0.0.1'))
 );
+
 const API_BASE = IS_LOCAL_DEV
   ? 'http://127.0.0.1:8000'
   : 'https://forge-backend-878124462453.us-central1.run.app';
@@ -1694,7 +1623,9 @@ const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws:/
 
 const GOOGLE_CLIENT_ID = '878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com';
 
-/* ── SESSION PERSISTENCE ─────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   SESSION PERSISTENCE
+   ══════════════════════════════════════════════════════════ */
 const Session = {
   KEY: 'forge_session_v1',
   save() {
@@ -1714,10 +1645,12 @@ const Session = {
       return JSON.parse(raw);
     } catch { return null; }
   },
-  clear() { localStorage.removeItem(this.KEY); }
+  clear() { localStorage.removeItem(this.KEY); },
 };
 
-/* ── GLOBAL STATE ────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   GLOBAL STATE
+   ══════════════════════════════════════════════════════════ */
 const State = {
   playerName : '',
   roomCode   : '',
@@ -1758,43 +1691,32 @@ async function applyUserEconomy(economy) {
   } catch (_) {}
 
   const syncTasks = [API.syncProfile(State.user.id, State.user.coins, State.user.trophies)];
-
   if (typeof lbUpsertPlayer === 'function') {
     syncTasks.push(
-      lbUpsertPlayer(
-        State.user.id,
-        State.user.name,
-        State.user.coins,
-        State.user.trophies,
-      ).catch(e => console.warn('[LB] Upsert failed silently:', e))
+      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies)
+        .catch(e => console.warn('[LB] Upsert failed silently:', e))
     );
   }
-
   await Promise.allSettled(syncTasks);
 }
 
-// Restore basic state on boot
-const saved = Session.load();
-if (saved) {
-  State.playerName = saved.playerName || '';
-  State.roomCode   = saved.roomCode   || '';
-  State.isHost     = !!saved.isHost;
-  State.playMode   = saved.playMode   || 'classic';
-  State.user       = saved.user       || null;
+// Restore session state on boot
+const _savedSession = Session.load();
+if (_savedSession) {
+  State.playerName = _savedSession.playerName || '';
+  State.roomCode   = _savedSession.roomCode   || '';
+  State.isHost     = !!_savedSession.isHost;
+  State.playMode   = _savedSession.playMode   || 'classic';
+  State.user       = _savedSession.user       || null;
   if (State.user) {
     if (State.user.coins    === undefined) State.user.coins    = 200;
     if (State.user.trophies === undefined) State.user.trophies = 50;
   }
 }
 
-/* ── ROUTER ──────────────────────────────────────────────── */
-/*
- * SCREEN REGISTRY
- * 'landing' is the new default entry point — a content-rich page
- * that satisfies AdSense "Low Value Content" requirements while
- * giving human users an engaging introduction to the game.
- * From landing, the "Play Now" CTA navigates to 'home'.
- */
+/* ══════════════════════════════════════════════════════════
+   ROUTER
+   ══════════════════════════════════════════════════════════ */
 const Screens = {
   landing : { id: 'screen-landing', file: 'screens/landing.html' },
   home    : { id: 'screen-home',    file: 'screens/home.html'    },
@@ -1803,51 +1725,82 @@ const Screens = {
   results : { id: 'screen-results', file: 'screens/results.html' },
 };
 
+/*
+ * Screen guards — each returns true if navigation to that screen is valid.
+ * Prevents direct URL access to mid-game screens (e.g. /#results, /#game).
+ * landing and home are always accessible (no guard needed).
+ */
+const SCREEN_GUARDS = {
+  lobby  : () => !!(State.roomCode && State.playerName),
+  game   : () => !!(State.roomCode && State.playerName && State.ws),
+  results: () => !!(State.scores && Object.keys(State.scores).length > 0),
+};
+
 async function goTo(name, skipHash = false) {
+  // Guard check — redirect if required state is missing
+  const guard = SCREEN_GUARDS[name];
+  if (guard && !guard()) {
+    const fallback = State.playerName ? 'home' : 'landing';
+    console.warn(`[Router] Guard blocked '${name}' → redirecting to '${fallback}'`);
+    if (name !== fallback) return goTo(fallback, skipHash);
+    return;
+  }
+
   const cfg = Screens[name];
   if (!cfg) return;
   const el = document.getElementById(cfg.id);
+  if (!el) return;
 
+  // Load screen HTML if not already loaded
   if (!el.dataset.loaded) {
     try {
-      const html = await (await fetch(cfg.file)).text();
+      const res  = await fetch(cfg.file);
+      if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${cfg.file}`);
+      const html = await res.text();
       el.innerHTML = html;
       el.dataset.loaded = 'true';
+      // Re-execute any <script> blocks inside the loaded HTML
       el.querySelectorAll('script').forEach(old => {
         const s = document.createElement('script');
         s.textContent = old.textContent;
         document.body.appendChild(s);
       });
     } catch (e) {
-      Toast.error('Failed to load screen.');
+      console.error('[Router] Failed to load screen:', name, e);
+      Toast.error('Failed to load screen. Please refresh.');
       return;
     }
   }
 
+  // Activate screen
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   el.classList.add('active');
   if (!skipHash) window.location.hash = name;
 
-  // Hide footer during gameplay only
+  // Hide footer during gameplay
   const footer = document.getElementById('app-footer');
   if (footer) footer.classList.toggle('game-active', name === 'game');
 
+  // Call screen lifecycle hook if defined
   const hook = `on${name.charAt(0).toUpperCase() + name.slice(1)}Show`;
   if (typeof window[hook] === 'function') window[hook]();
 }
 
-// Handle browser back/forward buttons
+// Single hashchange listener — guarded via goTo()
 window.addEventListener('hashchange', () => {
   const h = window.location.hash.replace('#', '') || 'landing';
   goTo(h, true);
 });
 
-/* ── TOAST ──────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   TOAST
+   ══════════════════════════════════════════════════════════ */
 const Toast = {
   _show(msg, cls, dur = 3000) {
     const c = document.getElementById('toast-container');
+    if (!c) return;
     const d = document.createElement('div');
-    d.className = `toast ${cls}`;
+    d.className   = `toast ${cls}`;
     d.textContent = msg;
     c.appendChild(d);
     setTimeout(() => d.remove(), dur);
@@ -1857,29 +1810,34 @@ const Toast = {
   info   (m) { this._show(m, 'toast-info');    },
 };
 
-/* ── API ────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   API
+   ══════════════════════════════════════════════════════════ */
 const API = {
   async createRoom(hostName, playMode = 'classic') {
     const r = await fetch(`${API_BASE}/rooms/create`, {
       method  : 'POST',
       headers : { 'Content-Type': 'application/json' },
       body    : JSON.stringify({
-        host_name: hostName,
-        play_mode: playMode,
-        user_id: State.user?.id || null,
+        host_name : hostName,
+        play_mode : playMode,
+        user_id   : State.user?.id || null,
       }),
     });
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
+
   async getRoom(code) {
     const r = await fetch(`${API_BASE}/rooms/${code}`);
     if (!r.ok) throw new Error('Room not found');
     return r.json();
   },
+
   async health() {
     return (await fetch(`${API_BASE}/health`)).json();
   },
+
   async verifyGoogleToken(credential) {
     const r = await fetch(`${API_BASE}/auth/google`, {
       method  : 'POST',
@@ -1889,16 +1847,33 @@ const API = {
     if (!r.ok) throw new Error('Auth failed');
     return r.json();
   },
+
+  /*
+   * Sync backend profile store with Supabase state.
+   * Requires a live Google ID token (only available in the same browser session
+   * as sign-in). On page reload, _credential is gone — sync is skipped silently.
+   * The Supabase boot-sync path handles cross-device/cross-session consistency.
+   */
   async syncProfile(userId, coins, trophies) {
+    const credential = State.user?._credential;
+    if (!credential) {
+      console.debug('[API] syncProfile: no live credential, skipping backend sync');
+      return;
+    }
     return fetch(`${API_BASE}/economy/sync`, {
       method  : 'POST',
-      headers : { 'Content-Type': 'application/json' },
-      body    : JSON.stringify({ user_id: userId, coins, trophies }),
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: userId, coins, trophies }),
     }).catch(e => console.warn('[API] Sync failed:', e));
   },
 };
 
-/* ── WEBSOCKET ──────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   WEBSOCKET
+   ══════════════════════════════════════════════════════════ */
 const WS = {
   connect(roomCode, playerName) {
     if (State.ws) { State.ws.close(); State.ws = null; }
@@ -1928,63 +1903,50 @@ const WS = {
     delete this._pending[type];
     queued.forEach(data => fn(data));
   },
-  off(type)     { delete this._handlers[type]; },
+  off(type) { delete this._handlers[type]; },
   _dispatch(msg) {
     const handler = this._handlers[msg.type];
-    // Attach arrival timestamp to help sync timers if the message is queued/delayed in the UI
-    if (msg.data && typeof msg.data === 'object') {
-      msg.data._receivedAt = Date.now();
-    }
+    if (msg.data && typeof msg.data === 'object') msg.data._receivedAt = Date.now();
     if (handler) { handler(msg.data); return; }
     if (!this._pending[msg.type]) this._pending[msg.type] = [];
     this._pending[msg.type].push(msg.data);
   },
 };
 
-/* ── DECORATION HELPERS ─────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   DECORATION HELPERS
+   ══════════════════════════════════════════════════════════ */
 function spawnConfetti(container) {
   const cols = ['#FFD93D','#06D6A0','#4FC3F7','#EF233C','#9B5DE5','#FF9F1C'];
   for (let i = 0; i < 28; i++) {
-    const el = document.createElement('div');
+    const el    = document.createElement('div');
     el.className = 'confetti-piece';
     const size  = 6 + Math.random() * 10;
     const col   = cols[Math.floor(Math.random() * cols.length)];
     const dur   = 7 + Math.random() * 8;
     const delay = Math.random() * -12;
-    el.style.cssText = `
-      width:${size}px;height:${size}px;
-      left:${Math.random()*100}%;
-      background:${col};
-      border-radius:${[2,4,6][Math.floor(Math.random()*3)]}px;
-      --dur:${dur}s;--delay:${delay}s;
-    `;
+    el.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;background:${col};border-radius:${[2,4,6][Math.floor(Math.random()*3)]}px;--dur:${dur}s;--delay:${delay}s;`;
     container.appendChild(el);
   }
 }
 
 function spawnStars(container) {
   for (let i = 0; i < 35; i++) {
-    const el = document.createElement('div');
+    const el    = document.createElement('div');
     el.className = 'star';
     const size  = 1.5 + Math.random() * 2.5;
     const dur   = 2 + Math.random() * 4;
     const delay = Math.random() * -5;
-    el.style.cssText = `
-      width:${size}px;height:${size}px;
-      top:${Math.random()*100}%;left:${Math.random()*100}%;
-      --dur:${dur}s;--delay:${delay}s;
-    `;
+    el.style.cssText = `width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${dur}s;--delay:${delay}s;`;
     container.appendChild(el);
   }
 }
 
-/* ── SOUND ENGINE ────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   SOUND ENGINE
+   ══════════════════════════════════════════════════════════ */
 const Sound = {
-  _ctx: null,
-  _masterGain: null,
-  _bgInterval: null,
-  muted: false,
-
+  _ctx: null, _masterGain: null, _bgInterval: null, muted: false,
   init() {
     if (this._ctx) return;
     try {
@@ -1996,66 +1958,48 @@ const Sound = {
       _updateMuteBtn();
     } catch (e) { console.warn('[Sound] Web Audio API unavailable:', e); }
   },
-
   _safe() {
     this.init();
     if (!this._ctx) return null;
     if (this._ctx.state === 'suspended') this._ctx.resume();
     return this._ctx;
   },
-
   _tone(freq, type, duration, volume, startTime) {
     const ctx = this._ctx; if (!ctx) return;
-    const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, startTime);
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(freq, startTime);
     gain.gain.setValueAtTime(volume, startTime);
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-    osc.connect(gain);
-    gain.connect(this._masterGain);
-    osc.start(startTime);
-    osc.stop(startTime + duration + 0.02);
+    osc.connect(gain); gain.connect(this._masterGain);
+    osc.start(startTime); osc.stop(startTime + duration + 0.02);
   },
-
   click()      { const ctx = this._safe(); if (!ctx) return; this._tone(700,'sine',0.06,0.22,ctx.currentTime); },
   tick()       { const ctx = this._safe(); if (!ctx) return; this._tone(1050,'square',0.04,0.18,ctx.currentTime); },
   playerJoin() { const ctx = this._safe(); if (!ctx) return; const t=ctx.currentTime; this._tone(880,'sine',0.12,0.28,t); this._tone(1100,'sine',0.18,0.22,t+0.10); },
-
   correct() {
-    const ctx = this._safe(); if (!ctx) return;
-    const t = ctx.currentTime;
+    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
     this._tone(523,'sine',0.15,0.45,t); this._tone(659,'sine',0.15,0.45,t+0.10);
     this._tone(784,'sine',0.20,0.45,t+0.20); this._tone(1047,'sine',0.35,0.40,t+0.32);
   },
-
   wrong() {
-    const ctx = this._safe(); if (!ctx) return;
-    const t = ctx.currentTime;
+    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
     this._tone(220,'sawtooth',0.18,0.35,t); this._tone(155,'sawtooth',0.22,0.28,t+0.18);
   },
-
   gameStart() {
-    const ctx = this._safe(); if (!ctx) return;
-    const t = ctx.currentTime;
+    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
     [523,659,784,1047].forEach((f,i) => this._tone(f,'square',0.14,0.28,t+i*0.14));
   },
-
   combo() {
-    const ctx = this._safe(); if (!ctx) return;
-    const t = ctx.currentTime;
+    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
     this._tone(523,'square',0.12,0.40,t); this._tone(659,'square',0.12,0.40,t+0.09);
     this._tone(784,'square',0.12,0.40,t+0.18); this._tone(1047,'square',0.18,0.50,t+0.27);
     this._tone(1319,'sine',0.28,0.55,t+0.39);
   },
-
   gameOver() {
-    const ctx = this._safe(); if (!ctx) return;
-    const t = ctx.currentTime;
+    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
     const notes=[523,659,523,784,659,1047], times=[0,0.14,0.28,0.40,0.54,0.68];
     notes.forEach((f,i) => this._tone(f,'sine',0.22,0.40,t+times[i]));
   },
-
   startBgMusic() {
     this.stopBgMusic();
     const ctx = this._safe(); if (!ctx) return;
@@ -2070,9 +2014,7 @@ const Sound = {
       osc.start(t); osc.stop(t+0.58); i++;
     }, 500);
   },
-
-  stopBgMusic() { clearInterval(this._bgInterval); this._bgInterval=null; },
-
+  stopBgMusic() { clearInterval(this._bgInterval); this._bgInterval = null; },
   toggleMute() {
     this.muted = !this.muted;
     if (this._masterGain && this._ctx)
@@ -2092,129 +2034,189 @@ function _updateMuteBtn() {
   document.addEventListener(ev, () => Sound.init(), { once: true })
 );
 
-/* ── BLOCK C: Cookie Consent Logic ───────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   COOKIE CONSENT
+   ══════════════════════════════════════════════════════════ */
 const CookieConsent = {
-  STORAGE_KEY : 'forge_cookie_consent',   // 'accepted' | 'declined'
-  BANNER_ID   : 'cookie-banner',
-
-  /** Read stored decision */
-  getDecision() {
-    try { return localStorage.getItem(this.STORAGE_KEY); } catch { return null; }
-  },
-
-  /** Persist decision */
-  setDecision(value) {
-    try { localStorage.setItem(this.STORAGE_KEY, value); } catch {}
-  },
-
-  /**
-   * Show the banner with a small delay so it doesn't flash
-   * on screen before the game UI has painted.
-   */
+  STORAGE_KEY: 'forge_cookie_consent',
+  BANNER_ID:   'cookie-banner',
+  getDecision() { try { return localStorage.getItem(this.STORAGE_KEY); } catch { return null; } },
+  setDecision(v) { try { localStorage.setItem(this.STORAGE_KEY, v); } catch {} },
   init() {
-    if (this.getDecision()) return;   // already answered — never show again
+    if (this.getDecision()) return;
     setTimeout(() => {
       const el = document.getElementById(this.BANNER_ID);
       if (el) el.classList.add('visible');
-    }, 1800);   // 1.8 s delay feels natural; avoids layout-shift on initial paint
+    }, 1800);
   },
-
-  /** User tapped "Got It" — accept all cookies */
-  accept() {
-    this.setDecision('accepted');
-    this._dismiss();
-    // Flip AdSense to personalised mode if it was held back
-    if (typeof window.__adsenseNPA !== 'undefined') window.__adsenseNPA = false;
-  },
-
-  /** User tapped "Non-Personalised Ads" — respect the choice */
-  decline() {
-    this.setDecision('declined');
-    this._dismiss();
-    // Signal to AdSense to serve non-personalised ads only
-    if (typeof window.__adsenseNPA !== 'undefined') window.__adsenseNPA = true;
-  },
-
+  accept()  { this.setDecision('accepted');  this._dismiss(); if (typeof window.__adsenseNPA !== 'undefined') window.__adsenseNPA = false; },
+  decline() { this.setDecision('declined');  this._dismiss(); if (typeof window.__adsenseNPA !== 'undefined') window.__adsenseNPA = true; },
   _dismiss() {
     const el = document.getElementById(this.BANNER_ID);
     if (!el) return;
     el.classList.remove('visible');
-    // Remove from DOM after animation completes
     setTimeout(() => el.remove(), 500);
   },
 };
-
-/** Called from HTML onclick — keeps global scope tidy */
 function cookieAccept()  { CookieConsent.accept();  }
 function cookieDecline() { CookieConsent.decline(); }
 
-// Kick off on DOMContentLoaded (safe even if script is in <head>)
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => CookieConsent.init());
 } else {
-  CookieConsent.init();   // DOM already ready (script at end of body)
+  CookieConsent.init();
 }
-/* ── END BLOCK C ──────────────────────────────────────────── */
 
-/* ── BOOT ────────────────────────────────────────────────── */
-/*
- * Boot priority:
- *  1. If user has a saved in-progress room session (hash is lobby/game/results),
- *     attempt to reconnect and restore that session as before.
- *  2. If user navigates directly to #home, skip landing (returning player UX).
- *  3. Otherwise, always show landing first — this is the new default entry point
- *     and the page Google's crawler will index and evaluate for AdSense.
- */
+/* ══════════════════════════════════════════════════════════
+   GOOGLE LOGIN HANDLER
+   ══════════════════════════════════════════════════════════ */
+async function handleGoogleLogin(response) {
+  try {
+    const user = await API.verifyGoogleToken(response.credential);
+
+    // Store credential so syncProfile() can send authenticated requests
+    user._credential = response.credential;
+
+    // Sync from Supabase if available
+    try {
+      if (typeof lbFetchProfile === 'function') {
+        const fresh = await lbFetchProfile(user.id);
+        if (fresh) {
+          user.coins    = fresh.coins;
+          user.trophies = fresh.trophies;
+          if (fresh.display_name) user.name = fresh.display_name;
+          API.syncProfile(user.id, fresh.coins, fresh.trophies);
+        }
+      }
+    } catch (e) { console.warn('[Login] Supabase sync failed:', e); }
+
+    // localStorage wins if higher (cross-tab safety)
+    const localKey = `forge_economy_${user.id}`;
+    try {
+      const saved = JSON.parse(localStorage.getItem(localKey) || '{}');
+      if ((saved.coins    ?? 0) > (user.coins    ?? 0)) user.coins    = saved.coins;
+      if ((saved.trophies ?? 0) > (user.trophies ?? 0)) user.trophies = saved.trophies;
+    } catch (_) {}
+
+    State.user = user; State.playerName = user.name;
+    const nameInput = document.getElementById('input-name');
+    if (nameInput) nameInput.value = user.name;
+    Session.save();
+    if (typeof _initGoogleSignIn === 'function') _initGoogleSignIn();
+    Toast.success(`Signed in as ${user.name}`);
+  } catch (e) {
+    console.error(e);
+    Toast.error('Google Sign-In failed.');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   SUPABASE READY HELPER
+   Polls until supabase-client.js (deferred) has loaded and
+   exported lbFetchProfile. Resolves false after 5s timeout
+   so boot always continues regardless.
+   ══════════════════════════════════════════════════════════ */
+function waitForSupabase(timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    if (typeof lbFetchProfile === 'function') { resolve(true); return; }
+    const start    = Date.now();
+    const interval = setInterval(() => {
+      if (typeof lbFetchProfile === 'function') {
+        clearInterval(interval); resolve(true);
+      } else if (Date.now() - start >= timeoutMs) {
+        clearInterval(interval);
+        console.warn('[Boot] Supabase not ready after timeout — skipping profile sync.');
+        resolve(false);
+      }
+    }, 50);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   BOOT
+   Always ends with a screen being shown.
+   Order of preference:
+     1. Restore active room session (hash = lobby/game/results)
+     2. Explicit #home hash (returning player)
+     3. Landing page (default — required for AdSense)
+   ══════════════════════════════════════════════════════════ */
 (async () => {
-  API.health().catch(() => {});  // warm up Cloud Run silently
+  try {
+    API.health().catch(() => {});  // warm Cloud Run silently, never block boot
 
-  const hash  = window.location.hash.replace('#', '');
-  const saved = Session.load();
+    const hash = window.location.hash.replace('#', '');
 
-  // FORCE SYNC: If we have a logged-in user, fetch fresh data from Supabase
-  // leaderboard to ensure coins/trophies match across devices on page load.
-  if (State.user && State.user.id) {
-    try {
-      const fresh = await lbFetchProfile(State.user.id);
-      if (fresh) {
-        State.user.coins    = fresh.coins;
-        State.user.trophies = fresh.trophies;
-        if (fresh.display_name) State.user.name = fresh.display_name;
-        Session.save();
-        
-        // Notify backend so the authoritarian JSON store matches Supabase immediately
-        API.syncProfile(State.user.id, fresh.coins, fresh.trophies);
-        
-        console.log('[Boot] Profile synced from Supabase');
+    // Cross-device profile sync for returning signed-in users
+    if (State.user && State.user.id) {
+      const supabaseReady = await waitForSupabase();
+      if (supabaseReady) {
+        try {
+          const fresh = await lbFetchProfile(State.user.id);
+          if (fresh) {
+            State.user.coins    = fresh.coins;
+            State.user.trophies = fresh.trophies;
+            if (fresh.display_name) State.user.name = fresh.display_name;
+            Session.save();
+            API.syncProfile(State.user.id, fresh.coins, fresh.trophies);
+            console.log('[Boot] Profile synced from Supabase');
+          }
+        } catch (e) { console.warn('[Boot] Profile sync failed:', e); }
       }
-    } catch (e) {
-      console.warn('[Boot] Profile sync failed:', e);
     }
-  }
 
-  // Case 1: active session with a room — try to restore it
-  if (saved?.roomCode && hash && hash !== 'landing' && hash !== 'home') {
-    try {
-      await API.getRoom(saved.roomCode);
-      if (hash === 'lobby' || hash === 'game' || hash === 'results') {
-        WS.connect(saved.roomCode, saved.playerName);
+    // Case 1: restore active room session
+    if (_savedSession?.roomCode && hash && hash !== 'landing' && hash !== 'home') {
+      try {
+        await API.getRoom(_savedSession.roomCode);
+        if (hash === 'lobby' || hash === 'game' || hash === 'results') {
+          WS.connect(_savedSession.roomCode, _savedSession.playerName);
+        }
+        await goTo(hash, true);
+        return;
+      } catch (e) {
+        console.warn('[Boot] Saved room no longer valid:', e);
+        Session.clear();
       }
-      await goTo(hash, true);
+    }
+
+    // Case 2: explicit #home (returning player skipping landing)
+    if (hash === 'home') {
+      await goTo('home', true);
       return;
-    } catch (e) {
-      console.warn('Saved room no longer valid:', e);
-      Session.clear();
+    }
+
+    // Case 3: default — landing page (AdSense bots land here)
+    await goTo('landing', true);
+
+  } catch (e) {
+    // Absolute safety net — if anything above fails, always show landing
+    console.error('[Boot] Unexpected error, falling back to landing:', e);
+    try {
+      await goTo('landing', true);
+    } catch (fallbackErr) {
+      console.error('[Boot] goTo fallback failed:', fallbackErr);
+      // Last resort: manually activate the screen div
+      const el = document.getElementById('screen-landing');
+      if (el) {
+        el.classList.add('active');
+        // Attempt direct fetch as a final fallback
+        fetch('screens/landing.html')
+          .then(r => r.text())
+          .then(html => {
+            el.innerHTML = html;
+            el.querySelectorAll('script').forEach(old => {
+              const s = document.createElement('script');
+              s.textContent = old.textContent;
+              document.body.appendChild(s);
+            });
+            if (typeof onLandingShow === 'function') onLandingShow();
+          })
+          .catch(() => {
+            el.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#fff"><h1 style="color:#FFD93D;margin-bottom:16px">FORGE</h1><p>Loading failed. Please refresh the page.</p></div>';
+          });
+      }
     }
   }
-
-  // Case 2: explicit #home hash (returning player skipping landing)
-  if (hash === 'home') {
-    await goTo('home', true);
-    return;
-  }
-
-  // Case 3: default — show landing (new visitors, direct URL, empty hash)
-  await goTo('landing', true);
 })();
 
 /* ── LANDING SCREEN LOGIC ───────────────────────────────── */
@@ -2271,6 +2273,7 @@ function landingScrollModes() {
   }
 }
 </script>
+
 <noscript>
   <style>
     body { font-family: 'Nunito', sans-serif; background: #0D1B8E; color: #fff; padding: 24px; }
@@ -2281,11 +2284,7 @@ function landingScrollModes() {
   </style>
   <div class="ns-wrap">
     <div class="ns-title">🏆 FORGE — AI Trivia Showdown</div>
-    <p class="ns-body">
-      Forge is a free, real-time multiplayer trivia game powered by Google Gemini AI.
-      Enter any topic and compete live with friends using a 4-digit room code.
-      JavaScript is required to play. Please enable JavaScript in your browser to continue.
-    </p>
+    <p class="ns-body">Forge is a free, real-time multiplayer trivia game powered by Google Gemini AI. JavaScript is required to play. Please enable JavaScript in your browser to continue.</p>
     <div class="ns-links">
       <a href="/about.html">About</a>
       <a href="/privacy.html">Privacy Policy</a>
