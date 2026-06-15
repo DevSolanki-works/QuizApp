@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Leaderboard — Forge: AI Trivia Showdown</title>
   <meta name="description" content="Top players on Forge: AI Trivia Showdown. Compete for coins, trophies, and donor recognition."/>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922314688440658" crossorigin="anonymous"></script>
+  <script src="platform.js"></script>
+  <script>window.ForgePlatform && window.ForgePlatform.loadAdSense();</script>
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet"/>
@@ -339,7 +340,7 @@
   <div class="lb-tabs">
     <button class="lb-tab active-coins"    id="tab-coins"    onclick="switchTab('coins')">💰 COINS</button>
     <button class="lb-tab"                 id="tab-trophies" onclick="switchTab('trophies')">🏆 TROPHIES</button>
-    <button class="lb-tab"                 id="tab-donors"   onclick="switchTab('donors')">☕ DONORS</button>
+    <button class="lb-tab"                 id="tab-donors"   onclick="switchTab('donors')" data-web-only>☕ DONORS</button>
   </div>
 
   <!-- COINS PANEL -->
@@ -363,7 +364,7 @@
   </div>
 
   <!-- DONORS PANEL -->
-  <div class="lb-panel" id="panel-donors">
+  <div class="lb-panel" id="panel-donors" data-web-only>
     <div class="lb-loading" id="loading-donors">
       <div class="dot-loader"><span></span><span></span><span></span></div>
       <p class="lb-loading-text">LOADING DONORS...</p>
