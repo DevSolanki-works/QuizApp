@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.devsolanki.forge"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -18,15 +25,19 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file("C:/QuizApp/forge-release.jks")   // path to your .jks
-            storePassword "DevSol@nki777"
-            keyAlias "forge"
-            keyPassword "DevSol@nki777"
+            if (hasReleaseKeystore) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
         }
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false      // keep false for now — ProGuard can break Capacitor
             shrinkResources false
         }

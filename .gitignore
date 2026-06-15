@@ -1,0 +1,9 @@
+*.jks
+*.keystore
+*.aab
+*.apk
+forge/android/keystore.properties
+forge/android/app/release/
+forge/android/app/build/
+forge/android/build/
+forge/node_modules/

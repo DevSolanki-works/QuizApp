@@ -358,12 +358,15 @@
       width: 100%; max-width: var(--max-w);
       height: var(--footer-h); z-index: 400;
       display: flex; align-items: center;
-      justify-content: center; gap: 18px; padding: 0 16px;
+      justify-content: flex-start; gap: 14px; padding: 0 16px;
       background: rgba(9,19,100,0.92);
       border-top: 1px solid rgba(255,255,255,0.08);
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
       transition: opacity 0.25s ease;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
+    #app-footer::-webkit-scrollbar { display: none; }
     #app-footer a, #app-footer span {
       font-family: var(--font-pixel); font-size: 6px;
       color: rgba(255,255,255,0.38); text-decoration: none;
@@ -475,6 +478,10 @@
 
   <nav id="app-footer" role="navigation" aria-label="Site links">
     <a href="/about.html">ABOUT</a>
+    <div class="footer-dot"></div>
+    <a href="/how-to-play.html">HOW TO PLAY</a>
+    <div class="footer-dot"></div>
+    <a href="/topic-guide.html">TOPICS</a>
     <div class="footer-dot"></div>
     <a href="/privacy.html">PRIVACY POLICY</a>
     <div class="footer-dot"></div>
