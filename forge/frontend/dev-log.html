@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dev Log — What's New at Forge: AI Trivia Showdown</title>
+  <meta name="description" content="Read the official Forge dev log! Catch up on security updates, the Supabase leaderboard, Team Mode launch, and all the latest AI trivia features on Forge." />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="https://forgetrivia.online/dev-log.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Dev Log — What's New at Forge: AI Trivia Showdown" />
+  <meta property="og:description" content="Behind-the-scenes developer updates from Dev Solanki — the CS student building Forge." />
+  <meta property="og:url" content="https://forgetrivia.online/dev-log.html" />
+  <script src="platform.js"></script>
+  <script>window.ForgePlatform && window.ForgePlatform.loadAdSense();</script>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 50% 0%, #2540CC 0%, #0D1B8E 72%);
+      color: #fff;
+      font-family: 'Nunito', sans-serif;
+      padding: 0 16px 64px;
+      line-height: 1.75;
+    }
+    header, main, footer { max-width: 820px; margin: 0 auto; }
+    header { padding: 42px 0 28px; text-align: center; }
+    .logo {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 22px;
+      color: #FFD93D;
+      text-decoration: none;
+      letter-spacing: 2px;
+    }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    nav a {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      color: #FFD93D;
+      text-decoration: none;
+      border: 1px solid rgba(255,217,61,0.28);
+      border-radius: 999px;
+      padding: 10px 13px;
+      background: rgba(255,255,255,0.06);
+      transition: background 0.15s;
+    }
+    nav a:hover { background: rgba(255,255,255,0.12); }
+    .hero {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 36px 30px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 600px) { .hero { padding: 24px 18px; } }
+    h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(16px, 3.5vw, 24px);
+      color: #FFD93D;
+      line-height: 1.55;
+      margin-bottom: 16px;
+    }
+    p {
+      font-size: 16px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.86);
+      margin-bottom: 14px;
+    }
+    a { color: #FFD93D; }
+    a:hover { text-decoration: underline; }
+    .breadcrumb {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 16px;
+    }
+    .breadcrumb a { color: rgba(255,217,61,0.6); text-decoration: none; }
+    .log-entry {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 32px 30px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .log-entry::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 30px;
+      width: 3px; height: 100%;
+      background: rgba(255,217,61,0.15);
+      border-radius: 2px;
+      display: none;
+    }
+    @media (max-width: 600px) { .log-entry { padding: 22px 18px; } }
+    .log-date {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      color: #06D6A0;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .log-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      color: #FFD93D;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .log-tag {
+      display: inline-block;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+    .tag-security { background: rgba(239,35,60,0.15); border: 1px solid rgba(239,35,60,0.35); color: #ff7b8d; }
+    .tag-feature  { background: rgba(155,93,229,0.15); border: 1px solid rgba(155,93,229,0.35); color: #c4a0ff; }
+    .tag-backend  { background: rgba(6,214,160,0.12);  border: 1px solid rgba(6,214,160,0.3);  color: #06D6A0; }
+    .tag-launch   { background: rgba(255,217,61,0.12); border: 1px solid rgba(255,217,61,0.3); color: #FFD93D; }
+    .log-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 8px 0 18px;
+    }
+    .sig {
+      font-family: 'Nunito', sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.55);
+      font-style: italic;
+      margin-top: 8px;
+    }
+    .cta-box {
+      background: rgba(255,217,61,0.1);
+      border: 1.5px solid rgba(255,217,61,0.35);
+      border-radius: 14px;
+      padding: 24px;
+      text-align: center;
+      margin-top: 8px;
+    }
+    .cta-box p { color: rgba(255,255,255,0.75); margin-bottom: 14px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #FFD93D;
+      color: #0D1B8E;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      padding: 16px 28px;
+      border-radius: 999px;
+      text-decoration: none;
+      box-shadow: 0 4px 0 #b89a00;
+      transition: transform 0.1s;
+    }
+    footer {
+      text-align: center;
+      padding: 20px 0 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      color: rgba(255,255,255,0.25);
+      line-height: 2.6;
+    }
+    footer a { color: #FFD93D; text-decoration: none; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">FORGE</a>
+    <nav aria-label="Site navigation">
+      <a href="/">Play</a>
+      <a href="/how-to-play.html">How to Play</a>
+      <a href="/trivia-tips.html">Trivia Tips</a>
+      <a href="/multiplayer-quiz-guide.html">Quiz Night Guide</a>
+      <a href="/topic-guide.html">Topic Guide</a>
+      <a href="/ai-trivia-questions.html">How AI Works</a>
+      <a href="/dev-log.html">Dev Log</a>
+      <a href="/about.html">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <p class="breadcrumb"><a href="/">Home</a> › Dev Log</p>
+      <h1>Dev Log — What's New at Forge</h1>
+      <p>Hey, Dev here. This is my running diary of everything I'm building, breaking, and fixing on Forge. No marketing fluff — just real updates about what's changing and why. If you want to follow along with the development of a student-built AI game, this is the place.</p>
+    </div>
+
+    <article class="log-entry" id="june-2026">
+      <p class="log-date">JUNE 2026</p>
+      <div class="log-tag tag-security">SECURITY</div>
+      <h2 class="log-title">Security Hardening — Because Multiplayer Trust Matters</h2>
+      <div class="log-divider"></div>
+      <p>This month I went full security mode. Running a real-time multiplayer game means opening WebSocket connections to the world, and that's a playground for bad actors if you're not careful. I added several layers: strict input validation on every user-generated field (player names, topic selections, answer choices), a WebSocket action allowlist so only pre-approved message types can pass through, and per-IP rate limiting on all API endpoints to prevent spam attacks.</p>
+      <p>The biggest win was prompt injection protection on the topic input. Since players can type any topic into the AI, someone could theoretically try to trick Gemini into generating harmful content. I sanitized and constrained the prompt structure using a regex blocklist and a validated template, so the AI only ever sees a safe, predictable input — no matter what players type, they can't break out of the quiz context.</p>
+      <p>I also fixed an XFF (X-Forwarded-For) header spoofing vulnerability in the rate limiter — on Google Cloud Run, the real client IP is always the last entry in that header, not the first. Trusting the first entry would let anyone bypass rate limits by faking it. Why does all this matter? Because a cheater ruins the fun for everyone. Forge should be a fair, safe space where your knowledge is the only weapon — and now it is.</p>
+      <p class="sig">— Dev</p>
+    </article>
+
+    <article class="log-entry" id="may-2026">
+      <p class="log-date">MAY 2026</p>
+      <div class="log-tag tag-backend">BACKEND + LEADERBOARD</div>
+      <h2 class="log-title">Supabase Leaderboard, Coins, Trophies, and a Donation System</h2>
+      <div class="log-divider"></div>
+      <p>May was all about giving you something to fight for. I launched a persistent leaderboard powered by Supabase — a PostgreSQL database I can run entirely on the free tier (because, honestly, I'm a student and cloud bills are real). The leaderboard has two tabs: Coins and Trophies. Coins are earned for correct answers, speed bonuses, and streaks. Trophies are for bigger milestones — like winning a multiplayer match. Now your rank persists even after you close the browser and come back days later.</p>
+      <p>I chose Supabase because it's free, has solid documentation, and supports real-time subscriptions out of the box. The alternative was building my own PostgreSQL setup on Cloud Run, which would have cost money and taken weeks. Supabase let me ship in days. The leaderboard upserts at the end of every game using a Google account ID as the primary key — so no matter what name you're playing with, your stats follow you.</p>
+      <p>I also added a micro-donation system through Chai4Me. It's a simple "buy the dev a chai" button — no pay-to-win, no premium features locked behind it. Just a way for people who enjoy the game to keep the cloud bills covered. I appreciate every single one. The donation system uses a manual approval workflow: you submit a UPI transaction ID, I verify it, and then your name appears on the donor leaderboard. No automation — just honesty.</p>
+      <p class="sig">— Dev</p>
+    </article>
+
+    <article class="log-entry" id="april-2026">
+      <p class="log-date">APRIL 2026</p>
+      <div class="log-tag tag-feature">FEATURE</div>
+      <h2 class="log-title">Team Mode — The Feature You Asked For</h2>
+      <div class="log-divider"></div>
+      <p>You spoke, I listened. Team Mode was the most requested feature after launch, and honestly — it was a beast to build. Coordinating multiple players across two teams in real time, aggregating scores correctly, synchronizing game state for everyone simultaneously, and making sure no team could gain an unfair timing advantage: my brain hurt for weeks. But we got there.</p>
+      <p>Here's how it works: you create a room, lock it once everyone has joined, split into teams, and each team nominates a quiz topic. Before the game starts, a randomizer wheel spins and picks which team's topic everyone will play on — adding a fun, chaotic energy because nobody knows what's coming until the wheel stops. Team scores are aggregated live from each member's individual performance, so a strong player on your team genuinely pulls the group forward.</p>
+      <p>The hardest technical challenge was synchronizing the question broadcast. In a solo or classic game, everyone receives the question at roughly the same time anyway. But with teams, I needed a guarantee that no team's players were getting the question even a fraction of a second before the other team's. I solved it by firing a single server-side broadcast task that sends to all players in parallel using asyncio.gather(), rather than looping through them sequentially. It's not perfect to the millisecond, but it's as fair as the internet allows.</p>
+      <p class="sig">— Dev</p>
+    </article>
+
+    <article class="log-entry" id="march-2026">
+      <p class="log-date">MARCH 2026</p>
+      <div class="log-tag tag-launch">LAUNCH</div>
+      <h2 class="log-title">The Very First Version — Solo, Classic, and the AI Pipeline</h2>
+      <div class="log-divider"></div>
+      <p>This is where it all began. Back in March, I had a simple idea: what if trivia questions were never repeated? What if the AI generated them fresh each time, so every game felt genuinely new? That seed grew into Forge during my semester break. The first working version had just Solo Mode (you vs the AI) and Classic Multiplayer (free-for-all, no teams, no leaderboard).</p>
+      <p>I hacked together the AI question pipeline using Google Gemini's API, FastAPI for the backend, and vanilla JavaScript on the frontend. Every time you picked a topic, the backend would fire off a carefully crafted prompt to Gemini, get back a structured JSON array of ten questions, validate each one with Pydantic (checking for exactly four options, a valid correct index, no malformed data), and serve it to your screen in real time over WebSockets.</p>
+      <p>I started this during my semester break primarily because I wanted to learn how to build a real-time AI-powered application — not just a chatbot, but something interactive and multiplayer. I also wanted to prove that a solo student developer could build something genuinely fun without a team, without a budget, and without paid infrastructure. Looking back, that first version was rough in places — WebSocket reconnections were flaky, there was no authentication, and the frontend was held together with string — but it worked. It made people smile. That was enough to keep me going.</p>
+      <p class="sig">— Dev</p>
+    </article>
+
+    <div class="cta-box">
+      <p>Want to follow along or share feedback? I read every message.</p>
+      <a href="/contact.html" class="btn">✉️ SEND FEEDBACK</a>
+    </div>
+
+  </main>
+
+  <footer>
+    &copy; 2026 FORGE &middot;
+    <a href="/">Home</a> &middot;
+    <a href="/how-to-play.html">How to Play</a> &middot;
+    <a href="/trivia-tips.html">Trivia Tips</a> &middot;
+    <a href="/multiplayer-quiz-guide.html">Quiz Night Guide</a> &middot;
+    <a href="/topic-guide.html">Topic Guide</a> &middot;
+    <a href="/ai-trivia-questions.html">How AI Works</a> &middot;
+    <a href="/dev-log.html">Dev Log</a> &middot;
+    <a href="/about.html">About</a> &middot;
+    <a href="/privacy.html">Privacy</a> &middot;
+    <a href="/terms.html">Terms</a> &middot;
+    <a href="/contact.html">Contact</a> &middot;
+    forgetrivia.online
+  </footer>
+</body>
+</html>

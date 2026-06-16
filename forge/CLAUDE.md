@@ -166,27 +166,32 @@ forge/
 │   ├── requirements.txt
 │   ├── main.py
 │   └── app/
-│       ├── core/
-│       │   ├── config.py
-│       │   ├── state.py
-│       │   ├── limiter.py      ← hardened XFF (Milestone 29)
-│       │   └── sanitize.py     ← NEW input validation (Milestone 29)
-│       ├── models/       quiz.py
-│       ├── routers/
-│       │   ├── http.py         ← economy endpoints now JWT-protected (M29)
-│       │   ├── websocket.py    ← full sanitize integration (M29)
-│       │   └── auth.py
-│       └── services/     ai.py, profiles.py
+│       ├── core/ (config.py, state.py, limiter.py, sanitize.py)
+│       ├── models/ (quiz.py)
+│       ├── routers/ (http.py, websocket.py, auth.py)
+│       └── services/ (ai.py, profiles.py)
 └── frontend/
     ├── index.html             ← boot fix + screen guards + auth API (M29)
-    ├── supabase-client.js
-    ├── leaderboard.html
-    ├── privacy.html
+    ├── platform.js            ← AdSense loader
+    ├── app.js                 ← Core game logic (multiplayer)
+    ├── supabase-client.js     ← DB interactions (leaderboard/economy)
+    ├── ads.txt / app-ads.txt
+    ├── robots.txt / sitemap.xml
     ├── about.html
     ├── contact.html
+    ├── privacy.html
     ├── terms.html
-    ├── robots.txt
-    ├── sitemap.xml
+    ├── how-to-play.html
+    ├── topic-guide.html
+    ├── trivia-tips.html
+    ├── ai-trivia-questions.html
+    ├── dev-log.html
+    ├── multiplayer-quiz-guide.html
+    ├── leaderboard.html
+    ├── assets/ (fonts, icons)
+    ├── components/
+    │   ├── leaderboard.js
+    │   └── timer.js
     └── screens/
         ├── landing.html       ← DEFAULT entry point (AdSense requirement)
         ├── home.html
