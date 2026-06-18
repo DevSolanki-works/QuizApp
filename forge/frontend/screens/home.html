@@ -142,7 +142,36 @@
     width: 100%; display: flex; flex-direction: column;
     align-items: center; gap: 12px; margin-bottom: 8px;
   }
+  .auth-help-wrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .auth-toggle {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.78);
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .auth-toggle:active {
+    transform: scale(0.96);
+  }
+  .auth-toggle.open {
+    background: rgba(255,217,61,0.14);
+    color: var(--yellow);
+  }
   .auth-note {
+    display: none;
+    width: 100%;
     font-family: var(--font-body);
     font-size: 13px;
     font-weight: 800;
@@ -314,7 +343,10 @@
         <button class="btn-logout" onclick="homeLogout()">LOGOUT</button>
       </div>
     </div>
-    <p class="auth-note">You can play without signing in. Google sign-in only saves your coins, trophies, and leaderboard progress.</p>
+    <div class="auth-help-wrap" id="auth-help-wrap">
+      <button class="auth-toggle" id="auth-help-toggle" type="button" aria-expanded="false" aria-controls="auth-help-note" onclick="toggleAuthHelp()">⌄</button>
+      <p class="auth-note" id="auth-help-note">You can play without signing in. Google sign-in only saves your coins, trophies, and leaderboard progress.</p>
+    </div>
 
     <div>
       <label class="input-label" for="input-name">YOUR NAME</label>
@@ -392,6 +424,8 @@ function _initGoogleSignIn() {
   if (State.user) {
     btnArea.style.display     = 'none';
     profileArea.style.display = 'block';
+    const helpWrap = document.getElementById('auth-help-wrap');
+    if (helpWrap) helpWrap.style.display = 'none';
     document.getElementById('user-img').src = State.user.picture;
     document.getElementById('user-name-display').textContent = State.user.name;
     document.getElementById('user-coins-display').textContent = formatCoins(State.user.coins);
@@ -404,6 +438,16 @@ function _initGoogleSignIn() {
   } else {
     btnArea.style.display     = 'block';
     profileArea.style.display = 'none';
+    const helpWrap = document.getElementById('auth-help-wrap');
+    if (helpWrap) helpWrap.style.display = 'flex';
+    const helpNote = document.getElementById('auth-help-note');
+    const helpToggle = document.getElementById('auth-help-toggle');
+    if (helpNote) helpNote.style.display = 'none';
+    if (helpToggle) {
+      helpToggle.classList.remove('open');
+      helpToggle.textContent = '⌄';
+      helpToggle.setAttribute('aria-expanded', 'false');
+    }
     if (window.google) {
       google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
@@ -457,6 +501,17 @@ async function handleGoogleLogin(response) {
 
 function homeLogout() {
   State.user = null; Session.save(); _initGoogleSignIn(); Toast.info('Signed out');
+}
+
+function toggleAuthHelp() {
+  const note = document.getElementById('auth-help-note');
+  const toggle = document.getElementById('auth-help-toggle');
+  if (!note || !toggle) return;
+  const open = note.style.display === 'block';
+  note.style.display = open ? 'none' : 'block';
+  toggle.classList.toggle('open', !open);
+  toggle.textContent = open ? '⌄' : '⌃';
+  toggle.setAttribute('aria-expanded', String(!open));
 }
 
 async function _homeUpdateStatus() {
