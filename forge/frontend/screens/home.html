@@ -142,6 +142,18 @@
     width: 100%; display: flex; flex-direction: column;
     align-items: center; gap: 12px; margin-bottom: 8px;
   }
+  .auth-note {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.5;
+    text-align: center;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+  }
   .user-profile-badge {
     display: flex; align-items: center; gap: 10px; padding: 8px 16px;
     background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
@@ -302,6 +314,7 @@
         <button class="btn-logout" onclick="homeLogout()">LOGOUT</button>
       </div>
     </div>
+    <p class="auth-note">You can play without signing in. Google sign-in only saves your coins, trophies, and leaderboard progress.</p>
 
     <div>
       <label class="input-label" for="input-name">YOUR NAME</label>
@@ -404,12 +417,6 @@ function _initGoogleSignIn() {
   }
 }
 
-function _requireSignedIn() {
-  if (State.user?.id) return true;
-  Toast.error('Sign in with Google to save coins and trophies.');
-  return false;
-}
-
 async function handleGoogleLogin(response) {
   try {
     const user = await API.verifyGoogleToken(response.credential);
@@ -482,7 +489,6 @@ function _setLoading(id, on) {
 /* ── CREATE ROOM ── */
 async function homeCreateRoom() {
   Sound.click();
-  if (!_requireSignedIn()) return;
   const name = _validateName(); if (!name) return;
   _setLoading('btn-create', true);
   try {
@@ -511,7 +517,6 @@ async function homeCreateRoom() {
 /* ── SOLO ── */
 async function homeStartSolo() {
   Sound.click();
-  if (!_requireSignedIn()) return;
   const name = _validateName(); if (!name) return;
   _setLoading('btn-solo', true);
   try {
@@ -540,7 +545,6 @@ async function homeStartSolo() {
 /* ── JOIN ROOM ── */
 async function homeJoinRoom() {
   Sound.click();
-  if (!_requireSignedIn()) return;
   const name   = _validateName(); if (!name) return;
   const codeEl = document.getElementById('input-code');
   const code   = codeEl?.value.trim().toUpperCase();

@@ -147,6 +147,14 @@
     font-family: var(--font-pixel); font-size: 8px;
     color: var(--green); line-height: 1.8;
   }
+  .results-save-note {
+    margin-top: 2px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.72);
+  }
 
   /* ── SOLO STATS ──────────────────────────────────────────── */
   .solo-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -204,6 +212,7 @@
       <p class="my-result-score" id="my-result-score">0</p>
       <p class="my-result-rank"  id="my-result-rank">—</p>
       <p class="my-economy-delta" id="my-economy-delta"></p>
+      <p class="results-save-note" id="results-save-note"></p>
     </div>
   </div>
 
@@ -299,10 +308,16 @@ function onResultsShow() {
 
 function _renderEconomyResult() {
   const el = document.getElementById('my-economy-delta');
+  const note = document.getElementById('results-save-note');
   if (!el) return;
   const economy = State.resultStats?.economy?.[State.playerName];
   if (!economy) {
     el.textContent = State.user ? 'BALANCE SYNCED' : '';
+    if (note) {
+      note.textContent = State.user
+        ? ''
+        : 'Play without Google if you want. Progress, coins, and trophies only save when you sign in.';
+    }
     return;
   }
   const coinDelta = Number(economy.coins_delta || 0);
@@ -318,6 +333,7 @@ function _renderEconomyResult() {
     ? '0 TROPHIES'
     : (trophyDelta > 0 ? '+' : '') + fmt(trophyDelta) + ' TROPHIES';
   el.textContent = coinText + ' · ' + trophyText + ' · BALANCE ' + fmt(economy.coins) + ' COINS / ' + fmt(economy.trophies) + ' TROPHIES';
+  if (note) note.textContent = State.user ? '' : 'Play without Google if you want. Progress, coins, and trophies only save when you sign in.';
 }
 
 /* ── TEAM WINNER BANNER ─────────────────────────────────── */
@@ -455,11 +471,6 @@ function _confettiBurst() {
 
 /* ── ACTIONS ─────────────────────────────────────────────── */
 async function resultsPlayAgain() {
-  if (!State.user?.id) {
-    Toast.error('Sign in with Google to save coins and trophies.');
-    resultsGoHome();
-    return;
-  }
   if (State.isHost) {
     try {
       const data = await API.createRoom(State.playerName, State.playMode || 'classic');
