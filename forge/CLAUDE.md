@@ -161,6 +161,11 @@ forge/
 ├── package.json
 ├── capacitor.config.json
 ├── android/
+├── assets/                    ← Master branding assets (M29.5)
+│   ├── icon.png
+│   ├── icon-foreground.png
+│   ├── icon-background.png
+│   └── splash.png
 ├── backend/
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -324,6 +329,7 @@ Economy localStorage key: `forge_economy_{user_id}` — source of truth on clien
 | 27 | Supabase Leaderboard + Donation System | ✅ Done |
 | 28 | Play Store submission | 🔲 Blocked (needs PAN card) |
 | 29 | Security Hardening | ✅ Done |
+| 29.5 | Branding Assets (Icons/Splash) Generated | ✅ Done |
 | 30 | Question count selector (5/10/15/20) + Results share button | 🔲 Next |
 
 ---
