@@ -330,11 +330,17 @@ Economy localStorage key: `forge_economy_{user_id}` — source of truth on clien
 | 28 | Play Store submission | 🔲 Blocked (needs PAN card) |
 | 29 | Security Hardening | ✅ Done |
 | 29.5 | Branding Assets (Icons/Splash) Generated | ✅ Done |
+| 29.6 | Amazon Appstore Submission | ✅ Done |
 | 30 | Question count selector (5/10/15/20) + Results share button | 🔲 Next |
 
 ---
 
 ## 🐛 Known Issues / Decisions Log
+- **Amazon Appstore Submission (June 18, 2026):** Initial submission complete.
+- **Play Store Workflow:** When requested to "make the app for Play Store," follow these steps:
+  1. `npx cap sync android` (Sync latest UI/JS changes).
+  2. `./gradlew.bat clean bundleRelease` (Generate signed AAB using `keystore.properties`).
+  3. Verify `versionCode` in `app/build.gradle` is incremented.
 - Cloud Run scales to zero — ~2s cold start. Mitigation: /health ping on launch.
 - In-memory state lost on container restart. Acceptable for MVP.
 - ARM64: always `docker buildx --platform linux/amd64 --push`.
@@ -370,3 +376,4 @@ Economy localStorage key: `forge_economy_{user_id}` — source of truth on clien
 12. Supabase RLS must always be enabled — never disable it.
 13. Landing page must always be the default boot destination — AdSense requirement.
 14. File contents over reconstruction — paste current files at session start.
+15. **Production Build Protocol:** Always "Refresh & Sync" before any store submission to ensure the latest frontend assets are bundled into the native container.
