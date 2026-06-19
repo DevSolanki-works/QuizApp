@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to Play Forge - AI Trivia Game Rules and Scoring</title>
+  <meta name="description" content="Learn how to play Forge, create AI trivia rooms, choose topics, understand scoring, and run fair multiplayer quiz sessions." />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="https://forgetrivia.online/how-to-play.html" />
+  <script src="platform.js"></script>
+  <script>window.ForgePlatform && window.ForgePlatform.loadAdSense();</script>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 50% 0%, #2540CC 0%, #0D1B8E 72%);
+      color: #fff;
+      font-family: 'Nunito', sans-serif;
+      padding: 0 16px 56px;
+      line-height: 1.75;
+    }
+    header, main, footer { max-width: 820px; margin: 0 auto; }
+    header { padding: 42px 0 28px; text-align: center; }
+    .logo {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 22px;
+      color: #FFD93D;
+      text-decoration: none;
+      letter-spacing: 2px;
+    }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    nav a, .btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      color: #FFD93D;
+      text-decoration: none;
+      border: 1px solid rgba(255,217,61,0.28);
+      border-radius: 999px;
+      padding: 10px 13px;
+      background: rgba(255,255,255,0.06);
+    }
+    .hero, section {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 30px;
+      margin-bottom: 18px;
+    }
+    h1, h2, h3 {
+      font-family: 'Press Start 2P', monospace;
+      color: #FFD93D;
+      line-height: 1.65;
+    }
+    h1 { font-size: clamp(18px, 4vw, 28px); margin-bottom: 12px; }
+    h2 { font-size: 12px; margin-bottom: 12px; }
+    h3 { font-size: 9px; margin: 18px 0 8px; color: #fff; }
+    p, li { font-size: 16px; color: rgba(255,255,255,0.86); font-weight: 700; }
+    ul, ol { padding-left: 22px; margin-top: 8px; }
+    li { margin-bottom: 8px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+    th, td {
+      text-align: left;
+      padding: 13px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.11);
+      background: rgba(255,255,255,0.05);
+      font-size: 14px;
+      font-weight: 800;
+    }
+    th {
+      color: #FFD93D;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+    }
+    .callout {
+      border-left: 4px solid #FFD93D;
+      background: rgba(255,217,61,0.09);
+      padding: 16px 18px;
+      border-radius: 10px;
+      margin-top: 14px;
+    }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+    .btn.primary { background: #FFD93D; color: #0D1B8E; }
+    footer {
+      text-align: center;
+      color: rgba(255,255,255,0.42);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      line-height: 2.4;
+      margin-top: 34px;
+    }
+    footer a { color: #FFD93D; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="logo" href="/">FORGE</a>
+    <nav aria-label="Site navigation">
+      <a href="/">Play</a>
+      <a href="/topic-guide.html">Topic Guide</a>
+      <a href="/leaderboard.html">Leaderboard</a>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/contact.html">Contact</a>
+    </nav>
+  </header>
+
+  <main>
+    <article class="hero">
+      <h1>How to Play Forge</h1>
+      <p>
+        Forge is a free AI trivia game built for quick solo practice, live party
+        rooms, team battles, and classroom-style quiz sessions. The main idea is
+        simple: choose any topic, let the AI create a fresh quiz, and compete on
+        accuracy, speed, and streak control.
+      </p>
+      <div class="cta-row">
+        <a class="btn primary" href="/">Start Playing</a>
+        <a class="btn" href="/topic-guide.html">Find Topic Ideas</a>
+      </div>
+    </article>
+
+    <section>
+      <h2>Basic Game Flow</h2>
+      <ol>
+        <li>Open Forge and enter a display name. You can play immediately without Google Sign-In; signing in only saves coins, trophies, and leaderboard progress.</li>
+        <li>Choose Solo Play for practice, Create Room to host friends, or Join Room if you already have a four-character room code.</li>
+        <li>The host enters a quiz topic, selects a difficulty, and starts the match.</li>
+        <li>Every player receives the same question at the same time and taps one of four answer choices.</li>
+        <li>After each question, Forge reveals the correct answer and updates the scoreboard before moving to the next round.</li>
+        <li>At the end, the results screen shows final scores, correct answer counts, and economy rewards.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Modes Explained</h2>
+      <h3>Solo Mode</h3>
+      <p>
+        Solo Mode is best for warming up, learning a subject, or testing whether
+        a topic makes a good quiz. You play alone, but your saved account can
+        still earn coins and trophies based on performance.
+      </p>
+      <h3>Classic Multiplayer</h3>
+      <p>
+        Classic mode is a live room where every player competes individually.
+        It works well for friends, online hangouts, quick event breaks, and
+        small contests where one winner should be clear.
+      </p>
+      <h3>Team Mode</h3>
+      <p>
+        Team Mode splits the room into two sides. Players can choose teams,
+        team names, and topic suggestions. Forge still tracks individual points,
+        but the team total creates a second layer of competition.
+      </p>
+    </section>
+
+    <section>
+      <h2>Difficulty and Timers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Difficulty</th>
+            <th>Timer</th>
+            <th>Best Use</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Easy</td>
+            <td>30 seconds</td>
+            <td>New players, younger players, casual learning sessions</td>
+          </tr>
+          <tr>
+            <td>Medium</td>
+            <td>20 seconds</td>
+            <td>Balanced parties, standard competitive play</td>
+          </tr>
+          <tr>
+            <td>Hard</td>
+            <td>10 seconds</td>
+            <td>Fast experts, speed rounds, intense finals</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <p>
+          Difficulty changes the pressure, not the topic itself. A niche topic
+          can still be hard on Easy, and a familiar topic can become intense on
+          Hard because players have less time to think.
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Scoring Rules</h2>
+      <p>
+        Correct answers earn between 500 and 1000 base points depending on how
+        quickly you answer. Wrong answers score zero. Streaks add a multiplier:
+        three correct answers in a row start a bonus, and the multiplier can rise
+        up to 3x for long streaks.
+      </p>
+      <ul>
+        <li>Accuracy matters first because wrong answers break your streak.</li>
+        <li>Speed matters second because fast correct answers earn more base points.</li>
+        <li>Consistency matters over the whole game because streak multipliers compound your score.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Fair Play Tips</h2>
+      <ul>
+        <li>Use clear, specific topics such as "Indian Premier League 2018-2024" instead of vague prompts like "sports".</li>
+        <li>Avoid entering personal information, private names, passwords, or sensitive data as quiz topics.</li>
+        <li>Do not use bots, scripts, refresh tricks, or automated clicks. They harm other players and can break room fairness.</li>
+        <li>If a generated question looks wrong, treat it as entertainment and report it through the contact page.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    &copy; 2026 FORGE &middot; <a href="/terms.html">Terms</a> &middot; <a href="/privacy.html">Privacy Policy</a> &middot; forgetrivia.online
+  </footer>
+</body>
+</html>

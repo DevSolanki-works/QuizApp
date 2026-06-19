@@ -1,0 +1,1119 @@
+<!--
+  GAME SCREEN
+  Shows: question progress bar · question text · 4 answer options
+  · countdown timer ring · per-round leaderboard flash
+  · streak/combo badge with fire particles
+-->
+<style>
+  .game-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; padding: 0 20px 32px;
+  }
+
+  /* ── TOP STATUS BAR ─────────────────────────────────────── */
+  .game-topbar {
+    width: 100%; display: flex;
+    align-items: center; justify-content: space-between;
+    padding: 18px 0 12px;
+  }
+  .game-q-counter {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.55); letter-spacing: 0.5px;
+  }
+  .game-score-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.15);
+    border: 1px solid rgba(255,217,61,0.3);
+    font-family: var(--font-pixel); font-size: 9px;
+    color: var(--yellow);
+  }
+  .game-topic-chip {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.45); letter-spacing: 0.3px;
+    max-width: 100px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ── TEAM SCORE BANNER (team mode only) ─────────────────── */
+  .team-score-banner {
+    width: 100%; display: flex; align-items: stretch;
+    border-radius: var(--radius-md); overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.12);
+    margin-bottom: 10px;
+  }
+  .team-score-side {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; padding: 8px 12px; gap: 2px;
+  }
+  .team-score-side.team-a { background: rgba(230,57,70,0.2); border-right: 1px solid rgba(255,255,255,0.1); }
+  .team-score-side.team-b { background: rgba(33,150,243,0.2); }
+  .team-score-side.my-team { box-shadow: inset 0 0 0 2px rgba(255,217,61,0.5); }
+  .team-score-name {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.6); letter-spacing: 0.3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  }
+  .team-score-pts {
+    font-family: var(--font-pixel); font-size: 11px;
+    color: var(--white);
+  }
+  .team-score-divider {
+    display: flex; align-items: center; padding: 0 10px;
+    background: rgba(0,0,0,0.2);
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.4);
+  }
+
+  /* ── PROGRESS STRIP ─────────────────────────────────────── */
+  .game-progress-track {
+    width: 100%; height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px; overflow: hidden;
+  }
+  .game-progress-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--yellow), var(--green));
+    transition: width 0.5s ease;
+  }
+  .game-phase-label {
+    margin-top: 12px;
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--yellow); letter-spacing: 0.8px;
+  }
+
+  /* ── TIMER RING ─────────────────────────────────────────── */
+  .timer-wrap {
+    margin: 20px 0 22px;
+    position: relative; width: 80px; height: 80px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .timer-svg {
+    position: absolute; top: 0; left: 0;
+    width: 80px; height: 80px;
+    transform: rotate(-90deg);
+  }
+  .timer-bg-circle {
+    fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 5;
+  }
+  .timer-fg-circle {
+    fill: none; stroke: var(--yellow); stroke-width: 5;
+    stroke-linecap: round;
+    stroke-dasharray: 220;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+  }
+  .timer-fg-circle.urgent { stroke: var(--red); }
+  .timer-number {
+    font-family: var(--font-pixel); font-size: 20px;
+    color: var(--white); z-index: 1;
+    transition: color 0.3s;
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%; text-align: center;
+  }
+  .timer-number.urgent { color: var(--red); }
+
+  /* ── STREAK BADGE ────────────────────────────────────────── */
+  /*
+   * Floats above the timer ring, anchored to the right of the game wrap.
+   * State classes:
+   *   .active   → visible, normal fire
+   *   .mega     → 5+ streak, screen-edge glow
+   *   .shatter  → wrong answer explosion, then removed
+   */
+  #streak-badge {
+    position: fixed;
+    top: 80px; right: 16px;
+    z-index: 200;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+    pointer-events: none;
+    opacity: 0; transform: scale(0.5) translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  #streak-badge.active {
+    opacity: 1; transform: scale(1) translateY(0);
+  }
+  #streak-badge.mega #streak-inner {
+    background: linear-gradient(135deg, #FF6B00, #FFD93D);
+    box-shadow: 0 0 0 3px rgba(255,107,0,0.4), 0 0 30px rgba(255,107,0,0.6);
+    animation: mega-pulse 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes mega-pulse {
+    from { box-shadow: 0 0 0 3px rgba(255,107,0,0.4), 0 0 20px rgba(255,107,0,0.5); }
+    to   { box-shadow: 0 0 0 5px rgba(255,107,0,0.6), 0 0 45px rgba(255,107,0,0.8); }
+  }
+  #streak-badge.shatter #streak-inner {
+    animation: shatter-out 0.4s ease-out forwards;
+  }
+  @keyframes shatter-out {
+    0%   { transform: scale(1); opacity: 1; }
+    30%  { transform: scale(1.3) rotate(10deg); opacity: 0.8; }
+    100% { transform: scale(0) rotate(-20deg); opacity: 0; }
+  }
+
+  #streak-inner {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: linear-gradient(135deg, #FF4500, #FF8C00);
+    box-shadow: 0 0 0 3px rgba(255,140,0,0.3), 0 0 20px rgba(255,69,0,0.5);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1px;
+    animation: streak-float 2s ease-in-out infinite;
+  }
+  @keyframes streak-float {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-4px); }
+  }
+  .streak-fire { font-size: 18px; line-height: 1; }
+  .streak-count {
+    font-family: var(--font-pixel); font-size: 9px;
+    color: #fff; line-height: 1;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.5);
+  }
+  #streak-label {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,140,0,0.9); letter-spacing: 0.3px;
+    white-space: nowrap;
+    text-shadow: 0 0 8px rgba(255,140,0,0.8);
+  }
+
+  /* ── FIRE PARTICLES (streak 3+) ─────────────────────────── */
+  .fire-particle {
+    position: fixed; pointer-events: none; z-index: 199;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #FF6B00;
+    animation: fire-rise var(--fdur, 0.8s) ease-out var(--fdelay, 0s) both;
+  }
+  @keyframes fire-rise {
+    0%   { transform: translate(0,0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--fx,0),var(--fy,-60px)) scale(0); opacity: 0; }
+  }
+
+  /* ── SCREEN-EDGE GLOW (streak 5+) ───────────────────────── */
+  #streak-edge-glow {
+    position: fixed; inset: 0; pointer-events: none; z-index: 195;
+    opacity: 0; transition: opacity 0.4s ease;
+    box-shadow: inset 0 0 60px 20px rgba(255,107,0,0.25);
+    border-radius: inherit;
+  }
+  #streak-edge-glow.active { opacity: 1; }
+
+  /* Streak level label inside badge */
+  .streak-level-tag {
+    font-family: var(--font-pixel); font-size: 6px;
+    padding: 2px 6px; border-radius: 4px;
+    background: rgba(0,0,0,0.3); color: #FFD93D;
+    letter-spacing: 0.3px; white-space: nowrap;
+  }
+
+  /* ── QUESTION CARD ──────────────────────────────────────── */
+  .game-question-card {
+    width: 100%; padding: 22px 20px;
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.15);
+    text-align: center;
+  }
+  .game-question-number {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--yellow); letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+  .game-question-text {
+    font-family: var(--font-body); font-size: 18px;
+    font-weight: 800; color: var(--white);
+    line-height: 1.45;
+  }
+  @media (min-width: 1024px) {
+    .game-question-text { font-size: 28px; }
+    .game-options-grid  { gap: 20px; }
+    .option-btn         { min-height: 84px; }
+    .option-text        { font-size: 18px; }
+  }
+
+  /* ── ANSWER OPTIONS GRID ────────────────────────────────── */
+  .game-options-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  @media (max-width: 300px) {
+    .game-options-grid { grid-template-columns: 1fr; }
+  }
+
+  .option-btn {
+    min-height: 72px; padding: 12px 14px;
+    border-radius: var(--radius-md);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    transition: transform 0.1s, filter 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; text-align: left;
+    position: relative; overflow: hidden;
+  }
+  .option-btn:active:not([disabled]) { transform: scale(0.97); }
+  .option-btn[disabled] { cursor: default; }
+
+  .option-btn[data-idx="0"] { background: var(--opt-a); box-shadow: 0 5px 0 #8b0011; }
+  .option-btn[data-idx="1"] { background: var(--opt-b); box-shadow: 0 5px 0 #0d5fa3; }
+  .option-btn[data-idx="2"] { background: var(--opt-c); box-shadow: 0 5px 0 #038a67; }
+  .option-btn[data-idx="3"] { background: var(--opt-d); box-shadow: 0 5px 0 #5a2d8e; }
+
+  .option-btn:active:not([disabled])[data-idx="0"] { box-shadow: 0 1px 0 #8b0011; transform: translateY(4px); }
+  .option-btn:active:not([disabled])[data-idx="1"] { box-shadow: 0 1px 0 #0d5fa3; transform: translateY(4px); }
+  .option-btn:active:not([disabled])[data-idx="2"] { box-shadow: 0 1px 0 #038a67; transform: translateY(4px); }
+  .option-btn:active:not([disabled])[data-idx="3"] { box-shadow: 0 1px 0 #5a2d8e; transform: translateY(4px); }
+
+  .option-letter {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: rgba(0,0,0,0.22); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-pixel); font-size: 11px; color: #fff;
+  }
+  .option-text {
+    flex: 1; font-family: var(--font-body);
+    font-size: 14px; font-weight: 800; color: #fff; line-height: 1.3;
+  }
+
+  /* ── ANSWER FEEDBACK states ─────────────────────────────── */
+  .option-btn.correct {
+    animation: correct-flash 0.4s ease;
+    box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(6,214,160,0.7) !important;
+    filter: brightness(1.15);
+  }
+  .option-btn.wrong {
+    opacity: 0.4; filter: grayscale(60%);
+    box-shadow: none !important; transform: scale(0.96);
+  }
+  .option-btn.dimmed {
+    opacity: 0.4; filter: grayscale(60%);
+    box-shadow: none !important; transform: scale(0.96);
+  }
+  .option-btn.chosen-wrong {
+    background: var(--red) !important;
+    opacity: 1; filter: none;
+    box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(230,57,70,0.62) !important;
+  }
+  .option-btn.reveal-correct {
+    box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(6,214,160,0.5) !important;
+    filter: brightness(1.1);
+  }
+  @keyframes correct-flash {
+    0%   { transform: scale(1);    }
+    40%  { transform: scale(1.06); }
+    100% { transform: scale(1);    }
+  }
+
+  .option-result-icon {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px;
+    animation: icon-pop 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes icon-pop {
+    from { transform: translateY(-50%) scale(0); }
+    to   { transform: translateY(-50%) scale(1); }
+  }
+
+  /* ── CORRECT BURST OVERLAY ───────────────────────────────── */
+  .correct-burst {
+    position: fixed; inset: 0; pointer-events: none;
+    z-index: 150; border-radius: 12px;
+    animation: correct-burst-anim 0.35s ease-out forwards;
+  }
+  @keyframes correct-burst-anim {
+    0%   { box-shadow: inset 0 0 0px 0px rgba(6,214,160,0); }
+    30%  { box-shadow: inset 0 0 40px 20px rgba(6,214,160,0.22); }
+    100% { box-shadow: inset 0 0 0px 0px rgba(6,214,160,0); }
+  }
+
+  /* ── MINI LEADERBOARD OVERLAY ───────────────────────────── */
+  .leaderboard-overlay {
+    position: fixed; inset: 0;
+    background: rgba(13,27,142,0.96);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100; padding: 32px 24px;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
+    visibility: hidden; pointer-events: none; overflow-y: auto;
+  }
+  .leaderboard-overlay.visible {
+    transform: translateY(0); visibility: visible; pointer-events: auto;
+  }
+  .lb-title {
+    font-family: var(--font-pixel); font-size: 12px;
+    color: var(--yellow); letter-spacing: 1px;
+    margin-bottom: 24px; text-align: center;
+  }
+  .lb-list {
+    width: 100%; max-width: var(--max-w);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .lb-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    animation: lb-slide 0.35s ease both;
+  }
+  .lb-row:nth-child(2) { animation-delay: 0.05s; }
+  .lb-row:nth-child(3) { animation-delay: 0.10s; }
+  .lb-row:nth-child(4) { animation-delay: 0.15s; }
+  .lb-row:nth-child(5) { animation-delay: 0.20s; }
+  @keyframes lb-slide {
+    from { opacity:0; transform:translateY(12px); }
+    to   { opacity:1; transform:translateY(0);    }
+  }
+  .lb-row.rank-1 { background: rgba(255,217,61,0.18); border-color: rgba(255,217,61,0.4); }
+  .lb-row.rank-2 { background: rgba(192,192,192,0.12); border-color: rgba(192,192,192,0.3); }
+  .lb-row.rank-3 { background: rgba(205,127,50,0.12); border-color: rgba(205,127,50,0.3); }
+  .lb-rank { font-family: var(--font-pixel); font-size: 10px; color: rgba(255,255,255,0.5); width: 24px; text-align: center; }
+  .lb-rank.rank-1 { color: var(--yellow); }
+  .lb-rank.rank-2 { color: #C0C0C0; }
+  .lb-rank.rank-3 { color: #CD7F32; }
+  .lb-name { flex:1; font-family: var(--font-body); font-size: 16px; font-weight: 800; color: var(--white); }
+  .lb-name.is-you { color: var(--yellow); }
+  .lb-streak {
+    font-size: 13px; margin-right: 4px; 
+    display: none;
+  }
+  .lb-streak.visible { display: inline; }
+  .lb-score { font-family: var(--font-pixel); font-size: 10px; color: var(--white); display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+  .lb-gain { font-family: var(--font-pixel); font-size: 7px; color: var(--green); }
+  .lb-next-btn { margin-top: 28px; width: 100%; max-width: var(--max-w); }
+
+  /* ── TEAM INTERMISSION SECTION ───────────────────────────── */
+  .team-lb-section {
+    width: 100%; max-width: var(--max-w);
+    margin-bottom: 20px;
+  }
+  .team-lb-cards {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; width: 100%;
+  }
+  .team-lb-card {
+    padding: 14px; border-radius: var(--radius-md);
+    text-align: center; border: 2px solid transparent;
+  }
+  .team-lb-card.team-a { background: rgba(230,57,70,0.15); border-color: rgba(230,57,70,0.4); }
+  .team-lb-card.team-b { background: rgba(33,150,243,0.15); border-color: rgba(33,150,243,0.4); }
+  .team-lb-card.leading { border-width: 3px; box-shadow: 0 0 20px rgba(255,217,61,0.3); }
+  .team-lb-card-name {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.7); margin-bottom: 6px;
+  }
+  .team-lb-card-score {
+    font-family: var(--font-pixel); font-size: 16px;
+    color: var(--white);
+  }
+  .team-lb-card-label {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: var(--yellow); margin-top: 4px;
+  }
+
+  /* ── LOADING STATE ──────────────────────────────────────── */
+  .game-loading {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 18px; padding: 60px 0;
+  }
+  .game-loading-text {
+    font-family: var(--font-pixel); font-size: 9px;
+    color: rgba(255,255,255,0.6); text-align: center;
+    letter-spacing: 0.5px; line-height: 2;
+  }
+  .big-emoji { font-size: 52px; animation: trophy-bounce 2s infinite ease-in-out; }
+</style>
+
+<!-- Screen-edge glow for mega-streak (5+) -->
+<div id="streak-edge-glow"></div>
+
+<!-- Floating streak badge -->
+<div id="streak-badge">
+  <div id="streak-inner">
+    <span class="streak-fire">🔥</span>
+    <span class="streak-count" id="streak-count">1</span>
+  </div>
+  <span id="streak-label">COMBO!</span>
+</div>
+
+<div class="game-wrap" id="game-wrap">
+  <div class="stars-bg" id="game-stars"></div>
+
+  <!-- TOP STATUS BAR -->
+  <div class="game-topbar z1">
+    <span class="game-q-counter" id="game-q-counter">Q 1 / 10</span>
+    <div class="game-score-chip">
+      ⭐ <span id="game-my-score">0</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="game-topic-chip" id="game-topic-label">—</span>
+      <button onclick="leaveModalOpen()" style="
+        background:rgba(239,35,60,0.15); border:1px solid rgba(239,35,60,0.35);
+        border-radius:var(--radius-pill); color:var(--red);
+        font-family:var(--font-pixel); font-size:6px;
+        padding:6px 10px; cursor:pointer; flex-shrink:0;
+        -webkit-tap-highlight-color:transparent;
+      ">✕ LEAVE</button>
+    </div>
+  </div>
+
+  <!-- TEAM SCORE BANNER (hidden in non-team modes) -->
+  <div class="team-score-banner z1" id="team-score-banner" style="display:none;">
+    <div class="team-score-side team-a" id="tsb-a">
+      <span class="team-score-name" id="tsb-a-name">Team A</span>
+      <span class="team-score-pts" id="tsb-a-pts">0</span>
+    </div>
+    <div class="team-score-divider">VS</div>
+    <div class="team-score-side team-b" id="tsb-b">
+      <span class="team-score-name" id="tsb-b-name">Team B</span>
+      <span class="team-score-pts" id="tsb-b-pts">0</span>
+    </div>
+  </div>
+
+  <!-- PROGRESS STRIP -->
+  <div class="game-progress-track z1" style="width:100%">
+    <div class="game-progress-fill" id="game-progress" style="width:0%"></div>
+  </div>
+  <p class="game-phase-label z1" id="game-phase-label">QUESTION LIVE</p>
+
+  <!-- TIMER RING -->
+  <div class="timer-wrap z1" id="timer-wrap" style="visibility:hidden">
+    <svg class="timer-svg" viewBox="0 0 80 80">
+      <circle class="timer-bg-circle" cx="40" cy="40" r="35"/>
+      <circle class="timer-fg-circle" id="timer-circle" cx="40" cy="40" r="35"/>
+    </svg>
+    <span class="timer-number" id="timer-number">—</span>
+  </div>
+
+  <!-- QUESTION CARD -->
+  <div class="game-question-card z1" id="game-question-card">
+    <div class="game-loading">
+      <div class="big-emoji">🤖</div>
+      <div class="dot-loader" style="justify-content:center">
+        <span></span><span></span><span></span>
+      </div>
+      <p class="game-loading-text">AI IS GENERATING<br>YOUR QUIZ...</p>
+    </div>
+  </div>
+
+  <!-- ANSWER OPTIONS -->
+  <div class="game-options-grid z1" id="game-options-grid" style="visibility:hidden"></div>
+  <!-- LEAVE GAME MODAL -->
+  <div id="leave-modal" style="
+    display:none; position:fixed; inset:0; z-index:500;
+    background:rgba(9,15,80,0.92); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; padding:24px;
+  ">
+    <div style="
+      width:100%; max-width:340px; border-radius:var(--radius-lg);
+      background:rgba(13,27,142,0.98); border:1px solid rgba(255,255,255,0.15);
+      padding:28px 24px; display:flex; flex-direction:column; gap:20px;
+    ">
+      <div style="text-align:center;">
+        <div style="font-size:40px; margin-bottom:12px;">🚪</div>
+        <p style="font-family:var(--font-pixel); font-size:11px; color:var(--white); line-height:1.7;">LEAVE GAME?</p>
+        <p style="font-family:var(--font-body); font-size:14px; font-weight:700; color:rgba(255,255,255,0.6); margin-top:6px;">This cannot be undone.</p>
+      </div>
+
+      <div id="leave-warning-box" style="
+        background:rgba(239,35,60,0.12); border:1px solid rgba(239,35,60,0.35);
+        border-radius:var(--radius-md); padding:16px; display:flex; flex-direction:column; gap:10px;
+      ">
+        <p style="font-family:var(--font-pixel); font-size:8px; color:var(--red); margin-bottom:4px;">YOU WILL LOSE:</p>
+        <div id="leave-warning-items" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="leaveModalClose()">
+          ← KEEP PLAYING
+        </button>
+        <button class="btn btn-danger" style="flex:1;" onclick="leaveModalConfirm()">
+          LEAVE
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LEADERBOARD OVERLAY (between rounds) -->
+<div class="leaderboard-overlay" id="lb-overlay" aria-hidden="true">
+  <p class="lb-title" id="lb-title">🏅 LEADERBOARD</p>
+
+  <!-- Team totals (team mode only) -->
+  <div class="team-lb-section" id="lb-team-section" style="display:none;">
+    <div class="team-lb-cards" id="lb-team-cards"></div>
+  </div>
+
+  <div class="lb-list" id="lb-list"></div>
+  <div class="lb-next-btn">
+    <div class="dot-loader" style="justify-content:center;margin-top:8px">
+      <span></span><span></span><span></span>
+    </div>
+    <p id="lb-next-label" style="font-family:var(--font-pixel);font-size:8px;color:rgba(255,255,255,0.4);
+              text-align:center;margin-top:10px;letter-spacing:0.5px;">
+      NEXT QUESTION LOADING...
+    </p>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   GAME SCREEN LOGIC
+   ═══════════════════════════════════════════════════════════ */
+
+const OPTION_LETTERS = ['A','B','C','D'];
+const TIME_LIMIT_MS  = 20000;
+const CIRCUMFERENCE  = 220;
+
+let _timerInterval  = null;
+let _timerStart     = null;
+let _answered       = false;
+let _chosenIndex    = null;
+let _qIndex         = 0;
+let _lbShowTimer    = null;
+let _lbHideTimer    = null;
+let _latestScores   = null;
+let _lastTickSecond = -1;
+let _myStreak       = 0;       // local streak mirror (updated from server broadcasts)
+let _streakTimeout  = null;    // used to time the shatter → hide transition
+
+/** Called by router when screen becomes active */
+function onGameShow() {
+  Sound.stopBgMusic();
+  const starsEl = document.getElementById('game-stars');
+  if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
+
+  const topicEl = document.getElementById('game-topic-label');
+  if (topicEl) {
+    const modeLabel = (State.mode || 'medium').toUpperCase();
+    topicEl.textContent = State.topic ? `${State.topic} · ${modeLabel}` : modeLabel;
+  }
+
+  // Team banner setup
+  const isTeam = State.playMode === 'team';
+  const teamBanner = document.getElementById('team-score-banner');
+  if (teamBanner) teamBanner.style.display = isTeam ? 'flex' : 'none';
+  if (isTeam) _updateTeamBanner({});
+
+  // Reset local state
+  _answered = false;
+  _qIndex   = 0;
+  _myStreak = 0;
+  _clearLeaderboardTimers();
+  _hideLB();
+  _hideStreak(true);
+
+  WS.on('QUESTION',                _onQuestion);
+  WS.on('ANSWER_REVEAL',           _onAnswerReveal);
+  WS.on('INTERMISSION_LEADERBOARD',_onIntermissionLeaderboard);
+  WS.on('GAME_OVER',               _onGameOver);
+  WS.on('ERROR', (d)               => Toast.error(d.message || 'Error'));
+}
+
+/* ── STREAK UI ──────────────────────────────────────────── */
+
+/**
+ * Show or update the streak badge.
+ * @param {number} streak  — current consecutive correct count (≥1)
+ */
+function _showStreak(streak) {
+  const badge    = document.getElementById('streak-badge');
+  const countEl  = document.getElementById('streak-count');
+  const labelEl  = document.getElementById('streak-label');
+  const glow     = document.getElementById('streak-edge-glow');
+  if (!badge) return;
+
+  // Clear any pending shatter/hide timeout
+  clearTimeout(_streakTimeout);
+  badge.classList.remove('shatter');
+
+  countEl.textContent = `×${streak}`;
+
+  // Label text by milestone
+  if (streak >= 12) {
+    labelEl.textContent = 'GODLIKE!';
+  } else if (streak >= 9) {
+    labelEl.textContent = 'UNSTOPPABLE!';
+  } else if (streak >= 6) {
+    labelEl.textContent = 'ON FIRE!';
+  } else if (streak >= 3) {
+    labelEl.textContent = 'COMBO!';
+  } else {
+    labelEl.textContent = `${streak} IN A ROW`;
+  }
+
+  badge.classList.toggle('mega', streak >= 5);
+  badge.classList.add('active');
+
+  // Edge glow at 5+
+  if (glow) glow.classList.toggle('active', streak >= 5);
+
+  // Spawn fire particles at 3+
+  if (streak >= 3) _spawnFireParticles(streak);
+}
+
+/**
+ * Hide the streak badge.
+ * @param {boolean} instant — skip animation (used on screen reset)
+ */
+function _hideStreak(instant) {
+  const badge = document.getElementById('streak-badge');
+  const glow  = document.getElementById('streak-edge-glow');
+  clearTimeout(_streakTimeout);
+  if (!badge) return;
+  if (instant) {
+    badge.classList.remove('active', 'mega', 'shatter');
+    if (glow) glow.classList.remove('active');
+    return;
+  }
+  // Shatter animation, then fully hide after it completes
+  badge.classList.add('shatter');
+  if (glow) glow.classList.remove('active');
+  _streakTimeout = setTimeout(() => {
+    badge.classList.remove('active', 'mega', 'shatter');
+  }, 450);
+}
+
+/** Spawn floating fire particles around the badge position */
+function _spawnFireParticles(streak) {
+  const badge = document.getElementById('streak-badge');
+  if (!badge) return;
+  const rect = badge.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const count = Math.min(streak, 8);
+
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'fire-particle';
+    const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
+    const dist  = 30 + Math.random() * 30;
+    const fx    = Math.cos(angle) * dist;
+    const fy    = -40 - Math.random() * 40;
+    const colors = ['#FF6B00','#FF8C00','#FFD93D','#FF4500'];
+    el.style.cssText = `
+      left:${cx}px; top:${cy}px;
+      background:${colors[i % colors.length]};
+      --fx:${fx}px; --fy:${fy}px;
+      --fdur:${0.6 + Math.random() * 0.5}s;
+      --fdelay:${Math.random() * 0.2}s;
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1200);
+  }
+}
+
+/* ── QUESTION ────────────────────────────────────────────── */
+
+function _onQuestion(data) {
+  _answered    = false;
+  _chosenIndex = null;
+  _qIndex      = data.index;
+  State.phase  = data.phase || 'question';
+  State.currentQ = data;
+  _setPhaseLabel('QUESTION LIVE');
+
+  _clearLeaderboardTimers();
+  _hideLB();
+  const lbList = document.getElementById('lb-list');
+  if (lbList) lbList.innerHTML = '';
+
+  // Update team banner if in team mode
+  if (data.team_scores) _updateTeamBanner(data);
+
+  const timerWrap = document.getElementById('timer-wrap');
+  if (timerWrap) timerWrap.style.visibility = 'visible';
+
+  const total = State.totalQ;
+  const pct   = (data.index / total) * 100;
+  const progressEl = document.getElementById('game-progress');
+  if (progressEl) progressEl.style.width = `${pct}%`;
+  const counterEl = document.getElementById('game-q-counter');
+  if (counterEl) counterEl.textContent = `Q ${data.index + 1} / ${total}`;
+
+  const card = document.getElementById('game-question-card');
+  if (card) {
+    card.innerHTML = `
+      <p class="game-question-number">QUESTION ${data.index + 1}</p>
+      <p class="game-question-text">${_escHtml(data.text)}</p>
+    `;
+    card.style.animation = 'none';
+    void card.offsetWidth;
+    card.style.animation = 'fade-up 0.3s ease';
+  }
+
+  const grid = document.getElementById('game-options-grid');
+  if (grid) {
+    grid.style.visibility = 'visible';
+    grid.innerHTML = data.options.map((opt, i) => `
+      <button class="option-btn" data-idx="${i}" onclick="gameAnswer(${i})">
+        <span class="option-letter">${OPTION_LETTERS[i]}</span>
+        <span class="option-text">${_escHtml(opt)}</span>
+      </button>
+    `).join('');
+  }
+
+  const roundLimitMs = data.time_limit_ms || State.timeLimitMs || TIME_LIMIT_MS;
+  State.timeLimitMs = roundLimitMs;
+  _startTimer(roundLimitMs, data._receivedAt);
+}
+
+/* ── TIMER ───────────────────────────────────────────────── */
+
+function _startTimer(limitMs, receivedAt = null) {
+  _stopTimer();
+  _lastTickSecond = -1;
+  
+  // Use receivedAt to sync with server time if the message was queued during animations
+  const now = Date.now();
+  const queueDelay = receivedAt ? (now - receivedAt) : 0;
+  _timerStart = now - queueDelay;
+
+  const totalSecs = limitMs / 1000;
+
+  const circleEl = document.getElementById('timer-circle');
+  const numberEl = document.getElementById('timer-number');
+  if (!circleEl || !numberEl) return;
+  numberEl.textContent = Math.ceil(totalSecs);
+  circleEl.style.strokeDashoffset = 0;
+  circleEl.classList.remove('urgent');
+  numberEl.classList.remove('urgent');
+
+  _timerInterval = setInterval(() => {
+    const elapsed   = Date.now() - _timerStart;
+    const remaining = Math.max(0, limitMs - elapsed);
+    const secsLeft  = Math.ceil(remaining / 1000);
+    const progress  = elapsed / limitMs;
+
+    numberEl.textContent = secsLeft;
+    circleEl.style.strokeDashoffset = Math.min(1, progress) * CIRCUMFERENCE;
+
+    if (remaining > 0 && remaining <= 5000 && secsLeft !== _lastTickSecond) {
+      _lastTickSecond = secsLeft;
+      Sound.tick();
+    }
+    if (remaining > 0 && remaining <= 5000) {
+      circleEl.classList.add('urgent');
+      numberEl.classList.add('urgent');
+    }
+    if (remaining <= 0) {
+      _stopTimer();
+      // Added 500ms client-side "soft" buffer to avoid racing the server's grace period.
+      // If we haven't answered, we wait for the server to force the reveal.
+      if (!_answered) {
+        // We don't force _answered = true here immediately to allow a late-arrival
+        // ANSWER_REVEAL message to take precedence, but we disable interaction.
+        _disableOptions();
+      }
+    }
+  }, 200);
+}
+
+function _stopTimer() {
+  if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+}
+
+/* ── ANSWER ──────────────────────────────────────────────── */
+
+function gameAnswer(choiceIndex) {
+  if (_answered) return;
+  Sound.click();
+  _answered    = true;
+  _chosenIndex = choiceIndex;
+  _stopTimer();
+
+  const timeMs = Date.now() - (_timerStart || Date.now());
+  WS.send({ action: 'answer', choice: choiceIndex, time_ms: timeMs });
+  _disableOptions(choiceIndex);
+}
+
+function _disableOptions(chosenIdx = null) {
+  document.querySelectorAll('.option-btn').forEach((btn, i) => {
+    btn.setAttribute('disabled', 'true');
+    if (chosenIdx !== null && i !== chosenIdx) {
+      btn.style.opacity   = '0.45';
+      btn.style.transform = 'scale(0.97)';
+    }
+  });
+}
+
+/* ── ANSWER REVEAL ──────────────────────────────────────── */
+
+function _onAnswerReveal(data) {
+  _stopTimer();
+  _clearLeaderboardTimers();
+  _hideLB();
+  State.phase = data.phase || 'answer_reveal';
+  _setPhaseLabel('ANSWER REVEAL');
+
+  const correctIdx = data.correct_index;
+  const isCorrect  = _chosenIndex === correctIdx;
+  const didAnswer  = _chosenIndex !== null;
+
+  // Update local streak from server source-of-truth
+  const serverStreak = (data.streaks && data.streaks[State.playerName]) ?? _myStreak;
+  _myStreak = serverStreak;
+
+  // Sound
+  if (didAnswer) {
+    if (isCorrect) Sound.correct();
+    else           Sound.wrong();
+  }
+
+  // Streak badge update
+  if (isCorrect && _myStreak >= 1) {
+    _showStreak(_myStreak);
+  } else if (!isCorrect || !didAnswer) {
+    // Wrong answer or timeout → shatter badge if it was showing
+    if (document.getElementById('streak-badge')?.classList.contains('active')) {
+      _hideStreak(false);   // ← FIX: shatter animation, then disappear
+    }
+  }
+
+  // Green screen burst on correct answer
+  if (isCorrect) {
+    const burst = document.createElement('div');
+    burst.className = 'correct-burst';
+    document.body.appendChild(burst);
+    setTimeout(() => burst.remove(), 400);
+  }
+
+  _latestScores = data.scores || _latestScores;
+
+  document.querySelectorAll('.option-btn').forEach((btn, i) => {
+    btn.setAttribute('disabled', 'true');
+    btn.style.opacity   = '';
+    btn.style.transform = '';
+    btn.classList.remove('wrong','dimmed','chosen-wrong','reveal-correct','correct');
+
+    if (i === correctIdx) {
+      btn.classList.add('reveal-correct');
+      const oldIcon = btn.querySelector('.option-result-icon');
+      if (oldIcon) oldIcon.remove();
+      const icon = document.createElement('span');
+      icon.className   = 'option-result-icon';
+      icon.textContent = '✓';
+      btn.appendChild(icon);
+    } else if (i === _chosenIndex) {
+      btn.classList.add('chosen-wrong');
+    } else {
+      btn.classList.add('dimmed');
+    }
+  });
+
+  const myScore = (_latestScores && _latestScores[State.playerName]) || 0;
+  State.scores  = _latestScores || State.scores;
+  const scoreEl = document.getElementById('game-my-score');
+  if (scoreEl) scoreEl.textContent = myScore.toLocaleString();
+
+  // Update team banner
+  if (data.team_scores) _updateTeamBanner(data);
+}
+
+/* ── LEADERBOARD ─────────────────────────────────────────── */
+
+function _onIntermissionLeaderboard(data) {
+  _stopTimer();
+  _clearLeaderboardTimers();
+  _latestScores = data.scores || _latestScores;
+  State.phase   = data.phase || 'intermission_leaderboard';
+  _setPhaseLabel('ROUND STANDINGS');
+
+  const myScore = (_latestScores && _latestScores[State.playerName]) || 0;
+  State.scores  = _latestScores || State.scores;
+  const scoreEl = document.getElementById('game-my-score');
+  if (scoreEl) scoreEl.textContent = myScore.toLocaleString();
+
+  const nextLabel = document.getElementById('lb-next-label');
+  if (nextLabel) {
+    nextLabel.textContent = data.is_final ? 'FINAL RESULTS LOADING...' : 'NEXT QUESTION LOADING...';
+  }
+
+  // ── Team score cards ──
+  const teamSection = document.getElementById('lb-team-section');
+  if (data.team_scores && data.team_names) {
+    teamSection.style.display = 'block';
+    const scores    = data.team_scores;
+    const names     = data.team_names;
+    const scoreA    = scores['A'] || 0;
+    const scoreB    = scores['B'] || 0;
+    const leadingA  = scoreA >= scoreB;
+    document.getElementById('lb-team-cards').innerHTML = `
+      <div class="team-lb-card team-a ${leadingA ? 'leading' : ''}">
+        <p class="team-lb-card-name">${_escHtml(names['A'] || 'Team A')}</p>
+        <p class="team-lb-card-score">${scoreA.toLocaleString()}</p>
+        ${leadingA ? '<p class="team-lb-card-label">LEADING</p>' : ''}
+      </div>
+      <div class="team-lb-card team-b ${!leadingA ? 'leading' : ''}">
+        <p class="team-lb-card-name">${_escHtml(names['B'] || 'Team B')}</p>
+        <p class="team-lb-card-score">${scoreB.toLocaleString()}</p>
+        ${!leadingA ? '<p class="team-lb-card-label">LEADING</p>' : ''}
+      </div>
+    `;
+    // Update banner
+    if (data.team_scores) _updateTeamBanner(data);
+  } else {
+    teamSection.style.display = 'none';
+  }
+
+  // ── Player leaderboard rows ──
+  const sorted = Object.entries(_latestScores || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const lbList = document.getElementById('lb-list');
+  if (lbList) {
+    const medals   = ['🥇','🥈','🥉'];
+    const streaks  = data.streaks || {};
+    const teams    = data.teams || {};
+    const teamNames= data.team_names || {};
+    lbList.innerHTML = sorted.map(([name, score], i) => {
+      const rank    = i + 1;
+      const isYou   = name === State.playerName;
+      const rankCls = rank <= 3 ? `rank-${rank}` : '';
+      const medal   = rank <= 3 ? medals[i] : `${rank}`;
+      const points  = (data.points_gained && data.points_gained[name]) || 0;
+      const streak  = streaks[name] || 0;
+      const streakHtml = streak >= 2
+        ? `<span class="lb-streak visible">🔥</span>`
+        : '';
+      // Small team tag
+      const teamId  = teams[name];
+      const teamTag = teamId ? `<small style="font-family:var(--font-pixel);font-size:6px;color:rgba(255,255,255,0.45);margin-left:4px;">[${teamNames[teamId] || teamId}]</small>` : '';
+      return `
+        <div class="lb-row ${rankCls}">
+          <span class="lb-rank ${rankCls}">${medal}</span>
+          <span class="lb-name ${isYou ? 'is-you' : ''}">${streakHtml}${_escHtml(name)}${teamTag}${isYou ? ' ★' : ''}</span>
+          <span class="lb-score">${score.toLocaleString()}<small class="lb-gain">+${points}</small></span>
+        </div>`;
+    }).join('');
+  }
+
+  _showLB();
+}
+
+/* ── TEAM BANNER ─────────────────────────────────────────── */
+
+function _updateTeamBanner(data) {
+  const nameA  = document.getElementById('tsb-a-name');
+  const ptsA   = document.getElementById('tsb-a-pts');
+  const nameB  = document.getElementById('tsb-b-name');
+  const ptsB   = document.getElementById('tsb-b-pts');
+  const sideA  = document.getElementById('tsb-a');
+  const sideB  = document.getElementById('tsb-b');
+
+  const names  = data.team_names || State.teamNames || {};
+  const scores = data.team_scores || {};
+  const myTeam = (data.teams || State.teams || {})[State.playerName];
+
+  if (nameA) nameA.textContent = names['A'] || 'Team A';
+  if (nameB) nameB.textContent = names['B'] || 'Team B';
+  if (ptsA)  ptsA.textContent  = (scores['A'] || 0).toLocaleString();
+  if (ptsB)  ptsB.textContent  = (scores['B'] || 0).toLocaleString();
+
+  if (sideA) sideA.classList.toggle('my-team', myTeam === 'A');
+  if (sideB) sideB.classList.toggle('my-team', myTeam === 'B');
+
+  // Cache in State for next render
+  if (names['A']) { State.teamNames = names; }
+  if (data.teams) { State.teams = data.teams; }
+}
+
+function _showLB() {
+  const overlay = document.getElementById('lb-overlay');
+  if (overlay) { overlay.classList.add('visible'); overlay.setAttribute('aria-hidden','false'); }
+}
+function _hideLB() {
+  const overlay = document.getElementById('lb-overlay');
+  if (overlay) { overlay.classList.remove('visible'); overlay.setAttribute('aria-hidden','true'); }
+}
+function _clearLeaderboardTimers() {
+  if (_lbShowTimer) { clearTimeout(_lbShowTimer); _lbShowTimer = null; }
+  if (_lbHideTimer) { clearTimeout(_lbHideTimer); _lbHideTimer = null; }
+}
+
+/* ── GAME OVER ───────────────────────────────────────────── */
+
+async function _onGameOver(data) {
+  _stopTimer();
+  _clearLeaderboardTimers();
+  _hideLB();
+  _hideStreak(true);
+  State.scores    = data.final_scores;
+  State.playMode  = data.play_mode || State.playMode || 'classic';
+  State.resultStats = data;
+  State.phase     = 'complete';
+  if (data.economy && data.economy[State.playerName]) {
+    try {
+      await applyUserEconomy(data.economy[State.playerName]);
+    } catch (e) {
+      console.warn('[Results] Economy sync failed:', e);
+    }
+  }
+  if (data.team_scores)  State.teamScores  = data.team_scores;
+  if (data.team_names)   State.teamNames   = data.team_names;
+  if (data.teams)        State.teams       = data.teams;
+  goTo('results');
+}
+
+/* ── UTILS ───────────────────────────────────────────────── */
+function _setPhaseLabel(label) {
+  const el = document.getElementById('game-phase-label');
+  if (el) el.textContent = label;
+}
+function _escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── LEAVE MODAL ────────────────────────────────────────── */
+function leaveModalOpen() {
+  const isSolo = State.playMode === 'solo';
+  const isMulti = State.playMode === 'classic' || State.playMode === 'team';
+
+  const items = [];
+
+  if (isMulti && State.user) {
+    items.push('💰 25 coin entry fee (not refunded)');
+  }
+  items.push('📊 All score progress this round');
+  if (isSolo) {
+    items.push('🏆 Trophy changes for this session');
+  }
+  if (isMulti) {
+    items.push('🏆 Your spot in the winner pool');
+  }
+
+  const box = document.getElementById('leave-warning-items');
+  box.innerHTML = items.map(t => `
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-family:var(--font-body); font-size:14px; font-weight:700;
+                   color:rgba(255,100,100,0.9);">${t}</span>
+    </div>
+  `).join('');
+
+  const modal = document.getElementById('leave-modal');
+  modal.style.display = 'flex';
+}
+
+function leaveModalClose() {
+  document.getElementById('leave-modal').style.display = 'none';
+}
+
+function leaveModalConfirm() {
+  leaveModalClose();
+  _stopTimer();
+  _clearLeaderboardTimers();
+  _hideStreak(true);
+  WS.off('QUESTION');
+  WS.off('ANSWER_REVEAL');
+  WS.off('INTERMISSION_LEADERBOARD');
+  WS.off('GAME_OVER');
+  if (State.ws) { State.ws.close(); State.ws = null; }
+  goTo('home');
+}
+</script>

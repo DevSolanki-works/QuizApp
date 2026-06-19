@@ -1,0 +1,630 @@
+<!--
+  HOME SCREEN
+  Two flows: Host (create room) | Guest (join with code) | Solo
+  Team mode is selected INSIDE the lobby after joining, not here.
+-->
+<style>
+  .home-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; padding: 0 24px 32px;
+  }
+  @media (min-width: 1024px) {
+    .home-wrap {
+      display: grid;
+      grid-template-columns: minmax(300px, 400px) minmax(320px, 400px);
+      grid-template-rows: auto auto;
+      justify-content: center; align-content: start;
+      gap: 28px 40px; padding: 42px 40px 36px;
+    }
+  }
+  .home-hero {
+    width: 100%; display: flex; flex-direction: column;
+    align-items: center; padding: 52px 0 36px; gap: 14px;
+  }
+  @media (min-width: 1024px) {
+    .home-hero { grid-column:1; grid-row:1; padding:0; max-width:400px; align-self:center; }
+  }
+  .home-trophy {
+    font-size: 64px;
+    line-height: 1;
+    filter: drop-shadow(0 4px 20px rgba(255,217,61,0.4));
+    animation: home-trophy-bob 3s ease-in-out infinite;
+  }
+  @keyframes home-trophy-bob {
+    0%,100% { transform: translateY(0) rotate(-2deg); }
+    50%      { transform: translateY(-8px) rotate(2deg); }
+  }
+  .home-title {
+    font-family: var(--font-pixel); font-size: 26px;
+    color: var(--white); letter-spacing: 2px;
+    text-align: center; line-height: 1.5;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.4);
+  }
+  .home-title-accent { color: var(--yellow); font-size: 12px; }
+  .home-tagline {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.5); text-align: center;
+    letter-spacing: 1px; line-height: 2;
+  }
+  .home-live-badge {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: var(--radius-pill);
+    background: rgba(6,214,160,0.12); border: 1px solid rgba(6,214,160,0.3);
+    margin-top: 4px;
+  }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 8px var(--green);
+    animation: pulse-dot 1.5s infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:0.4; transform:scale(0.75); }
+  }
+  .live-text {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: var(--green); letter-spacing: 0.5px; white-space: nowrap;
+  }
+  .home-card {
+    width: 100%; padding: 28px 22px;
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.16);
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  @media (min-width: 1024px) {
+    .home-card { grid-column:2; grid-row:1; max-width:400px; }
+  }
+  .card-heading {
+    font-family: var(--font-pixel); font-size: 9px;
+    color: var(--yellow); letter-spacing: 0.8px; text-align: center;
+  }
+  .code-input {
+    text-align: center !important; text-transform: uppercase;
+    letter-spacing: 10px !important; font-size: 24px !important;
+    font-weight: 900 !important; color: var(--yellow) !important;
+  }
+  .code-input::placeholder {
+    letter-spacing: 4px !important; font-size: 18px !important;
+    color: rgba(255,255,255,0.2) !important;
+  }
+  .home-features {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    justify-content: center; margin-top: 24px; width: 100%;
+  }
+  @media (min-width: 1024px) {
+    .home-features { grid-column: 1 / -1; grid-row: 2; margin-top: 0; }
+  }
+  .feature-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: var(--radius-pill);
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.5); letter-spacing: 0.3px;
+  }
+  .app-only-note {
+    width: 100%;
+    max-width: 520px;
+    margin-top: 14px;
+    padding: 14px 18px;
+    border-radius: var(--radius-md);
+    background: rgba(6,214,160,0.12);
+    border: 1px solid rgba(6,214,160,0.28);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.78);
+    text-align: center;
+    line-height: 1.65;
+  }
+  .feature-pill .fi { font-size: 13px; }
+  .btn .icon { font-size: 1.4em; vertical-align: middle; }
+  .mode-description {
+    margin-top: -10px; text-align: center;
+    font-family: var(--font-body); font-size: 13px; font-weight: 700;
+    color: rgba(255,255,255,0.58);
+  }
+  .input-field.error {
+    border-color: var(--red) !important;
+    box-shadow: 0 0 0 4px rgba(239,35,60,0.18) !important;
+    animation: shake 0.3s ease;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25%      { transform: translateX(-6px); }
+    75%      { transform: translateX(6px); }
+  }
+  .btn-loading { opacity: 0.65 !important; pointer-events: none !important; }
+
+  /* Google auth */
+  .google-auth-container {
+    width: 100%; display: flex; flex-direction: column;
+    align-items: center; gap: 12px; margin-bottom: 8px;
+  }
+  .auth-help-wrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .auth-toggle {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.78);
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .auth-toggle:active {
+    transform: scale(0.96);
+  }
+  .auth-toggle.open {
+    background: rgba(255,217,61,0.14);
+    color: var(--yellow);
+  }
+  .auth-note {
+    display: none;
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.5;
+    text-align: center;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+  }
+  .user-profile-badge {
+    display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--radius-pill); font-family: var(--font-body);
+    font-weight: 700; font-size: 14px; color: var(--white);
+  }
+  .user-balance-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; flex-wrap: wrap;
+  }
+  .user-balance-pill {
+    font-family: var(--font-pixel); font-size: 7px;
+    padding: 6px 10px; border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.12);
+    border: 1px solid rgba(255,217,61,0.3);
+    color: var(--yellow);
+  }
+  .user-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2px solid var(--yellow); object-fit: cover;
+  }
+  .btn-logout {
+    font-family: var(--font-pixel); font-size: 7px; color: var(--yellow);
+    background: none; border: none; cursor: pointer;
+    text-decoration: underline; opacity: 0.7;
+  }
+
+  /* Back-to-landing link */
+  .home-back-link {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,255,255,0.3); text-decoration: none;
+    letter-spacing: 0.4px; margin-top: 8px;
+    transition: color 0.15s;
+    cursor: pointer; background: none; border: none;
+  }
+  .home-back-link:hover { color: rgba(255,255,255,0.55); }
+
+  /* Top-left actions stack (Leaderboard + Chai) */
+  .top-left-actions {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .lb-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    height: 38px;
+    border-radius: var(--radius-pill);
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.22);
+    text-decoration: none;
+    transition: background 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .lb-pill:active { transform: scale(0.97); }
+  .lb-pill-icon { font-size: 18px; }
+  .lb-pill-text {
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    color: var(--white);
+    letter-spacing: 0.5px;
+  }
+
+  .chai-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    padding: 8px 24px;
+    border-radius: 12px;
+    text-decoration: none;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+  }
+  .chai-link:active { transform: scale(0.97); }
+  .chai-link img { height: 28px; object-fit: contain; }
+
+  @media (max-width: 1024px) {
+    .top-left-actions { top: 12px; left: 12px; gap: 8px; }
+    .lb-pill { height: 32px; padding: 0 12px; }
+    .lb-pill-icon { font-size: 14px; }
+    .lb-pill-text { font-size: 7px; }
+    .chai-link { padding: 6px 16px; }
+    .chai-link img { height: 20px; }
+  }
+
+  /* Chai support row */
+  .chai-support-row {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 4px;
+  }
+  .chai-support-row.bottom {
+    margin-top: 32px;
+    margin-bottom: 24px;
+  }
+</style>
+
+<div class="home-wrap">
+  <div class="confetti-bg" id="home-confetti"></div>
+  <div class="stars-bg"    id="home-stars"></div>
+
+  <!-- TOP LEFT ACTIONS (Leaderboard + Support) -->
+  <div class="top-left-actions">
+    <a href="/leaderboard.html" target="_blank" rel="noopener" class="lb-pill" aria-label="View leaderboards">
+      <span class="lb-pill-icon">🏆</span>
+      <span class="lb-pill-text">LEADERBOARDS</span>
+    </a>
+
+    <a href="https://chai4.me/devsolankiworks" target="_blank"
+       title="Support devsolankiworks on Chai4Me"
+       rel="noopener noreferrer"
+       class="chai-link"
+       data-web-only>
+      <img src="https://chai4.me/icons/wordmark.png" alt="Chai4Me" />
+    </a>
+  </div>
+
+  <!-- HERO -->
+  <div class="home-hero z1">
+    <div class="home-trophy" aria-hidden="true">🏆</div>
+    <h1 class="home-title">
+      FORGE<br>
+      <span class="home-title-accent">AI TRIVIA SHOWDOWN</span>
+    </h1>
+    <p class="home-tagline">TYPE ANY TOPIC · AI BUILDS YOUR QUIZ · PLAY LIVE</p>
+    <div class="home-live-badge">
+      <div class="live-dot"></div>
+      <span class="live-text" id="home-status-text">CONNECTING...</span>
+    </div>
+    <button class="home-back-link" onclick="goTo('landing')" aria-label="Back to game overview">← ABOUT FORGE</button>
+  </div>
+
+  <!-- ACTION CARD -->
+  <div class="home-card z1">
+    <p class="card-heading">✦ LET'S PLAY ✦</p>
+
+    <div class="google-auth-container" id="google-auth-area">
+      <div id="google-signin-btn"></div>
+      <div id="user-profile" style="display:none;">
+        <div class="user-profile-badge">
+          <img id="user-img" class="user-avatar" src="" alt="">
+          <span id="user-name-display"></span>
+        </div>
+        <div class="user-balance-row">
+          <span class="user-balance-pill">COINS <span id="user-coins-display">200</span></span>
+          <span class="user-balance-pill">TROPHIES <span id="user-trophies-display">50</span></span>
+        </div>
+        <button class="btn-logout" onclick="homeLogout()">LOGOUT</button>
+      </div>
+    </div>
+    <div class="auth-help-wrap" id="auth-help-wrap">
+      <button class="auth-toggle" id="auth-help-toggle" type="button" aria-expanded="false" aria-controls="auth-help-note" onclick="toggleAuthHelp()">⌄</button>
+      <p class="auth-note" id="auth-help-note">You can play without signing in. Google sign-in only saves your coins, trophies, and leaderboard progress.</p>
+    </div>
+
+    <div>
+      <label class="input-label" for="input-name">YOUR NAME</label>
+      <input id="input-name" class="input-field" type="text"
+        placeholder="e.g. QuizMaster99" maxlength="20"
+        autocomplete="off" autocorrect="off" spellcheck="false" />
+    </div>
+
+    <div class="divider-text">SOLO MODE</div>
+    <button class="btn btn-primary" id="btn-solo" onclick="homeStartSolo()">
+      🎯 &nbsp;SOLO PLAY
+    </button>
+    <p class="mode-description">Play alone and chase your high score.</p>
+
+    <div class="divider-text">MULTIPLAYER</div>
+    <button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()">
+      <span class="icon">🎮</span> &nbsp;CREATE ROOM
+    </button>
+    <p class="mode-description">Classic or Team — choose after friends join.</p>
+
+    <div class="divider-text">JOIN A ROOM</div>
+    <div>
+      <label class="input-label" for="input-code">ROOM CODE</label>
+      <input id="input-code" class="input-field code-input" type="text"
+        placeholder="XXXX" maxlength="4"
+        autocomplete="off" autocorrect="off" spellcheck="false" />
+    </div>
+    <button class="btn btn-secondary" id="btn-join" onclick="homeJoinRoom()">
+      <span class="icon">🚀</span> &nbsp;JOIN ROOM
+    </button>
+  </div>
+
+  <!-- FEATURE PILLS + CHAI SUPPORT -->
+  <div class="home-features z1">
+    <div class="feature-pill"><span class="fi">🤖</span> AI-GENERATED</div>
+    <div class="feature-pill"><span class="fi">⚡</span> REAL-TIME</div>
+    <div class="feature-pill"><span class="fi">🌐</span> ANY TOPIC</div>
+    <div class="feature-pill"><span class="fi">👥</span> MULTIPLAYER</div>
+    <div class="feature-pill"><span class="fi">⚔️</span> TEAM BATTLE</div>
+    <div class="feature-pill"><span class="fi">🔥</span> STREAK COMBOS</div>
+    <div class="app-only-note" data-app-only>
+      App build lane active. Future mobile-only modes, AdMob rewards, and Play Store features can be added here without changing the public website.
+    </div>
+  </div>
+</div>
+
+<script>
+function onHomeShow() {
+  Sound.startBgMusic();
+  const confettiEl = document.getElementById('home-confetti');
+  const starsEl    = document.getElementById('home-stars');
+  if (confettiEl) { confettiEl.innerHTML = ''; spawnConfetti(confettiEl); }
+  if (starsEl)    { starsEl.innerHTML    = ''; spawnStars(starsEl); }
+  _homeUpdateStatus();
+  _initGoogleSignIn();
+
+  const nameInput = document.getElementById('input-name');
+  if (nameInput && State.playerName) nameInput.value = State.playerName;
+
+  const codeInput = document.getElementById('input-code');
+  if (codeInput) {
+    codeInput.addEventListener('input', () => {
+      codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
+    codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') homeJoinRoom(); });
+  }
+  if (nameInput) {
+    nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') homeCreateRoom(); });
+  }
+}
+
+function _initGoogleSignIn() {
+  const btnArea     = document.getElementById('google-signin-btn');
+  const profileArea = document.getElementById('user-profile');
+  if (State.user) {
+    btnArea.style.display     = 'none';
+    profileArea.style.display = 'block';
+    const helpWrap = document.getElementById('auth-help-wrap');
+    if (helpWrap) helpWrap.style.display = 'none';
+    document.getElementById('user-img').src = State.user.picture;
+    document.getElementById('user-name-display').textContent = State.user.name;
+    document.getElementById('user-coins-display').textContent = formatCoins(State.user.coins);
+    document.getElementById('user-trophies-display').textContent = Number(State.user.trophies || 0).toLocaleString();
+    const nameInput = document.getElementById('input-name');
+    if (nameInput && !nameInput.value.trim()) {
+      nameInput.value  = State.user.name;
+      State.playerName = State.user.name;
+    }
+  } else {
+    btnArea.style.display     = 'block';
+    profileArea.style.display = 'none';
+    const helpWrap = document.getElementById('auth-help-wrap');
+    if (helpWrap) helpWrap.style.display = 'flex';
+    const helpNote = document.getElementById('auth-help-note');
+    const helpToggle = document.getElementById('auth-help-toggle');
+    if (helpNote) helpNote.style.display = 'none';
+    if (helpToggle) {
+      helpToggle.classList.remove('open');
+      helpToggle.textContent = '⌄';
+      helpToggle.setAttribute('aria-expanded', 'false');
+    }
+    if (window.google) {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleLogin,
+        auto_select: true,
+      });
+      google.accounts.id.renderButton(btnArea, {
+        theme: 'outline', size: 'large', shape: 'pill', width: 280,
+      });
+    }
+  }
+}
+
+async function handleGoogleLogin(response) {
+  try {
+    const user = await API.verifyGoogleToken(response.credential);
+ 
+    // Store the raw token so syncProfile() can use it for authenticated calls
+    user._credential = response.credential;
+ 
+    // SYNC: Fetch fresh data from Supabase on first login to this device
+    try {
+      const fresh = await lbFetchProfile(user.id);
+      if (fresh) {
+        user.coins    = fresh.coins;
+        user.trophies = fresh.trophies;
+        API.syncProfile(user.id, fresh.coins, fresh.trophies);
+      }
+    } catch (e) { console.warn('[Login] Sync failed:', e); }
+ 
+    const localKey = `forge_economy_${user.id}`;
+    try {
+      const savedLocal = JSON.parse(localStorage.getItem(localKey) || '{}');
+      if ((savedLocal.coins    ?? 0) > (user.coins    ?? 0)) user.coins    = savedLocal.coins;
+      if ((savedLocal.trophies ?? 0) > (user.trophies ?? 0)) user.trophies = savedLocal.trophies;
+    } catch (_) {}
+ 
+    State.user       = user;
+    State.playerName = user.name;
+ 
+    const nameInput = document.getElementById('input-name');
+    if (nameInput) nameInput.value = user.name;
+    Session.save();
+    _initGoogleSignIn();
+    Toast.success(`Signed in as ${user.name}`);
+  } catch (e) {
+    console.error(e);
+    Toast.error('Google Sign-In failed.');
+  }
+}
+
+function homeLogout() {
+  State.user = null; Session.save(); _initGoogleSignIn(); Toast.info('Signed out');
+}
+
+function toggleAuthHelp() {
+  const note = document.getElementById('auth-help-note');
+  const toggle = document.getElementById('auth-help-toggle');
+  if (!note || !toggle) return;
+  const open = note.style.display === 'block';
+  note.style.display = open ? 'none' : 'block';
+  toggle.classList.toggle('open', !open);
+  toggle.textContent = open ? '⌄' : '⌃';
+  toggle.setAttribute('aria-expanded', String(!open));
+}
+
+async function _homeUpdateStatus() {
+  const badge = document.getElementById('home-status-text');
+  if (!badge) return;
+  try {
+    const d = await API.health();
+    badge.textContent = `${d.active_rooms ?? 0} ROOMS ACTIVE`;
+  } catch {
+    badge.textContent = IS_LOCAL_DEV ? 'START LOCAL BACKEND' : 'SERVER OFFLINE';
+  }
+}
+
+function _validateName() {
+  const el  = document.getElementById('input-name');
+  const val = el?.value.trim();
+  if (!val) { _shakeEl(el); Toast.error('Enter your name first!'); return null; }
+  return val;
+}
+function _shakeEl(el) {
+  if (!el) return;
+  el.classList.add('error');
+  setTimeout(() => el.classList.remove('error'), 800);
+}
+function _setLoading(id, on) {
+  const b = document.getElementById(id);
+  if (b) { b.classList.toggle('btn-loading', on); b.disabled = on; }
+}
+
+/* ── CREATE ROOM ── */
+async function homeCreateRoom() {
+  Sound.click();
+  const name = _validateName(); if (!name) return;
+  _setLoading('btn-create', true);
+  try {
+    const data = await API.createRoom(name, 'classic');
+    State.playerName  = name;
+    State.roomCode    = data.room_code;
+    State.isHost      = true;
+    State.playMode    = 'classic';
+    State.resultStats = null;
+    State.players     = [name];
+    State.teams       = {};
+    State.teamNames   = { A: 'Red Dragons', B: 'Blue Phoenix' };
+    State.teamScores  = {};
+    Session.save();
+    WS.connect(State.roomCode, State.playerName);
+    await goTo('lobby');
+  } catch (e) {
+    console.error(e);
+    const msg = e.message.includes('{') ? JSON.parse(e.message).detail : e.message;
+    Toast.error(msg || 'Could not create room. Try again.');
+  } finally {
+    _setLoading('btn-create', false);
+  }
+}
+
+/* ── SOLO ── */
+async function homeStartSolo() {
+  Sound.click();
+  const name = _validateName(); if (!name) return;
+  _setLoading('btn-solo', true);
+  try {
+    const data = await API.createRoom(name, 'solo');
+    State.playerName  = name;
+    State.roomCode    = data.room_code;
+    State.isHost      = true;
+    State.playMode    = 'solo';
+    State.resultStats = null;
+    State.players     = [name];
+    State.teams       = {};
+    State.teamNames   = { A: 'Red Dragons', B: 'Blue Phoenix' };
+    State.teamScores  = {};
+    Session.save();
+    WS.connect(State.roomCode, State.playerName);
+    await goTo('lobby');
+  } catch (e) {
+    console.error(e);
+    const msg = e.message.includes('{') ? JSON.parse(e.message).detail : e.message;
+    Toast.error(msg || 'Could not start solo game. Try again.');
+  } finally {
+    _setLoading('btn-solo', false);
+  }
+}
+
+/* ── JOIN ROOM ── */
+async function homeJoinRoom() {
+  Sound.click();
+  const name   = _validateName(); if (!name) return;
+  const codeEl = document.getElementById('input-code');
+  const code   = codeEl?.value.trim().toUpperCase();
+  if (!code || code.length !== 4) {
+    _shakeEl(codeEl); Toast.error('Enter a 4-digit room code!'); return;
+  }
+  _setLoading('btn-join', true);
+  try {
+    const room = await API.getRoom(code);
+    if (room.play_mode === 'solo') { Toast.error('Solo rooms are private.'); return; }
+    State.playerName  = name;
+    State.roomCode    = code;
+    State.isHost      = false;
+    State.playMode    = room.play_mode || 'classic';
+    State.resultStats = null;
+    State.teams       = room.teams      || {};
+    State.teamNames   = room.team_names || { A: 'Red Dragons', B: 'Blue Phoenix' };
+    State.teamScores  = {};
+    Session.save();
+    WS.connect(State.roomCode, State.playerName);
+    await goTo('lobby');
+  } catch (e) {
+    console.error(e); _shakeEl(codeEl); Toast.error('Room not found. Check the code!');
+  } finally {
+    _setLoading('btn-join', false);
+  }
+}
+</script>

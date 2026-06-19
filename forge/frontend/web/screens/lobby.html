@@ -1,0 +1,1222 @@
+<!--
+  LOBBY SCREEN
+  Host: toggle between CLASSIC and TEAM mode at the top.
+    CLASSIC → topic input + difficulty + Start
+    TEAM    → team name setup, player self-assign, topic per team, Randomize & Start
+  Guest: see mode, join a team if host switched to TEAM, wait for host.
+  Solo: just topic + difficulty, no code shown.
+-->
+<style>
+  .lobby-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; padding: 0 24px 40px;
+  }
+
+  /* ── TOP BAR ── */
+  .lobby-topbar {
+    width: 100%; display: flex;
+    align-items: center; justify-content: space-between;
+    padding: 20px 0 0;
+  }
+  .lobby-back-btn {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: var(--radius-pill); color: var(--white);
+    font-family: var(--font-pixel); font-size: 8px; padding: 8px 14px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.15s;
+  }
+  .lobby-back-btn:active { background: rgba(255,255,255,0.18); }
+  .lobby-screen-label {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.4); letter-spacing: 1px;
+  }
+
+  /* ── ROOM CODE ── */
+  .lobby-code-section {
+    width: 100%; text-align: center; padding: 28px 0 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .lobby-code-label {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: rgba(255,255,255,0.5); letter-spacing: 2px;
+  }
+  .lobby-code-box { display: flex; align-items: center; gap: 6px; }
+  .lobby-code-digit {
+    width: 56px; height: 64px; background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.25); border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-pixel); font-size: 26px; color: var(--yellow);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.25);
+    animation: digit-pop 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  .lobby-code-digit:nth-child(2) { animation-delay: 0.05s; }
+  .lobby-code-digit:nth-child(3) { animation-delay: 0.10s; }
+  .lobby-code-digit:nth-child(4) { animation-delay: 0.15s; }
+  @keyframes digit-pop {
+    from { transform: scale(0.5) translateY(10px); opacity: 0; }
+    to   { transform: scale(1)   translateY(0);    opacity: 1; }
+  }
+  .lobby-copy-btn {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16);
+    border-radius: var(--radius-pill); color: rgba(255,255,255,0.6);
+    font-family: var(--font-pixel); font-size: 7px; padding: 7px 16px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .lobby-copy-btn:active { color: var(--yellow); border-color: var(--yellow); }
+
+  /* ── MODE TOGGLE (host only, non-solo) ── */
+  .mode-toggle-wrap {
+    width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 8px;
+  }
+  .mode-toggle-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .mode-toggle-label {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--yellow); letter-spacing: 0.5px;
+  }
+  .lock-status-badge {
+    font-family: var(--font-pixel); font-size: 6px;
+    padding: 4px 8px; border-radius: var(--radius-pill);
+    background: rgba(239,35,60,0.15); border: 1px solid rgba(239,35,60,0.4);
+    color: var(--red);
+  }
+  .lock-status-badge.is-locked {
+    background: rgba(6,214,160,0.15); border: 1px solid rgba(6,214,160,0.4);
+    color: var(--green);
+  }
+  .mode-toggle {
+    display: grid; grid-template-columns: 1fr 1fr;
+    background: rgba(0,0,0,0.25); border-radius: var(--radius-pill);
+    padding: 4px; gap: 4px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .mode-toggle-btn {
+    height: 44px; border-radius: var(--radius-pill);
+    border: none; cursor: pointer; font-family: var(--font-pixel);
+    font-size: 8px; letter-spacing: 0.3px;
+    background: transparent; color: rgba(255,255,255,0.45);
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mode-toggle-btn.active-classic {
+    background: var(--yellow); color: var(--text-dark);
+    box-shadow: 0 2px 8px rgba(255,217,61,0.35);
+  }
+  .mode-toggle-btn.active-team {
+    background: linear-gradient(135deg, #7B2FBE, #9B5DE5);
+    color: #fff; box-shadow: 0 2px 8px rgba(155,93,229,0.4);
+  }
+  .mode-toggle-btn:disabled {
+    opacity: 0.3; cursor: not-allowed;
+  }
+
+  .z1 { position: relative; z-index: 10; pointer-events: auto; }
+
+  .btn-lock {
+    margin-top: 8px; height: 36px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+    color: var(--white); font-family: var(--font-pixel); font-size: 7px;
+    border-radius: var(--radius-pill); cursor: pointer;
+    pointer-events: auto !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-lock:hover {
+    background: rgba(255,255,255,0.12);
+  }
+  .btn-lock.is-locked {
+    background: rgba(6,214,160,0.12); border-color: var(--green);
+    color: var(--green);
+  }
+  .btn-lock.is-locked:hover {
+    background: rgba(6,214,160,0.2);
+  }
+
+  /* Guest mode badge */
+  .guest-mode-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border-radius: var(--radius-pill);
+    font-family: var(--font-pixel); font-size: 8px;
+    margin-top: 8px;
+  }
+  .guest-mode-badge.classic {
+    background: rgba(255,217,61,0.12); border: 1px solid rgba(255,217,61,0.3);
+    color: var(--yellow);
+  }
+  .guest-mode-badge.team {
+    background: rgba(155,93,229,0.15); border: 1px solid rgba(155,93,229,0.4);
+    color: #c4a0ff;
+  }
+
+  /* ── CLASSIC PLAYER LIST ── */
+  .lobby-players-card {
+    width: 100%; padding: 20px; border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .players-card-header { display: flex; align-items: center; justify-content: space-between; }
+  .players-card-title { font-family: var(--font-pixel); font-size: 9px; color: var(--white); }
+  .players-count-badge {
+    font-family: var(--font-pixel); font-size: 8px; padding: 4px 10px;
+    border-radius: var(--radius-pill); background: rgba(255,217,61,0.18);
+    border: 1px solid rgba(255,217,61,0.35); color: var(--yellow);
+  }
+  .player-list { display: flex; flex-direction: column; gap: 8px; }
+  @media (min-width: 1024px) {
+    .player-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 12px; }
+  }
+  .player-row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    border-radius: var(--radius-md); background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    animation: player-slide-in 0.3s ease both;
+  }
+  @keyframes player-slide-in {
+    from { opacity:0; transform:translateX(-12px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+  .player-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .player-name { flex:1; font-family: var(--font-body); font-size: 16px; font-weight:700; color: var(--white); }
+  .player-you-tag  { font-family:var(--font-pixel); font-size:7px; color:var(--yellow); padding:3px 8px; border-radius:var(--radius-pill); background:rgba(255,217,61,0.15); border:1px solid rgba(255,217,61,0.3); }
+  .player-host-tag { font-family:var(--font-pixel); font-size:7px; color:#4FC3F7; padding:3px 8px; border-radius:var(--radius-pill); background:rgba(79,195,247,0.12); border:1px solid rgba(79,195,247,0.3); }
+  .player-empty    { text-align:center; padding:16px 0; font-family:var(--font-pixel); font-size:8px; color:rgba(255,255,255,0.3); line-height:2; }
+
+  /* ── HOST CLASSIC CONTROLS ── */
+  .lobby-host-controls { width:100%; display:flex; flex-direction:column; gap:16px; }
+  .topic-char-count    { font-family:var(--font-pixel); font-size:7px; color:rgba(255,255,255,0.35); text-align:right; margin-top:-10px; }
+  .difficulty-selector { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .mode-pill {
+    min-height:52px; border-radius:var(--radius-md);
+    border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.08);
+    color:rgba(255,255,255,0.75); font-family:var(--font-pixel); font-size:8px;
+    line-height:1.5; cursor:pointer;
+    transition:transform 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mode-pill:active { transform:scale(0.98); }
+  .mode-pill.selected { background:rgba(255,217,61,0.18); border-color:rgba(255,217,61,0.45); color:var(--yellow); }
+  .start-hint { font-family:var(--font-pixel); font-size:7px; color:rgba(255,255,255,0.35); text-align:center; line-height:2; }
+  .btn-start:disabled { opacity:0.45 !important; pointer-events:none !important; }
+  .btn-loading        { opacity:0.65 !important; pointer-events:none !important; }
+  .topic-suggestions  { display:flex; flex-wrap:wrap; gap:8px; }
+  .topic-chip {
+    padding:6px 12px; border-radius:var(--radius-pill);
+    background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14);
+    font-family:var(--font-body); font-size:13px; font-weight:700;
+    color:rgba(255,255,255,0.7); cursor:pointer; transition:background 0.15s, color 0.15s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .topic-chip:active, .topic-chip.selected {
+    background:rgba(255,217,61,0.2); border-color:rgba(255,217,61,0.5); color:var(--yellow);
+  }
+
+  /* ── TEAM PANEL ── */
+  .team-panel { width:100%; display:flex; flex-direction:column; gap:16px; }
+
+  /* Team name inputs */
+  .team-names-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .team-name-group { display:flex; flex-direction:column; gap:5px; }
+  .team-name-label-a { font-family:var(--font-pixel); font-size:7px; color:#ff8a90; }
+  .team-name-label-b { font-family:var(--font-pixel); font-size:7px; color:#90caff; }
+  .team-name-input {
+    height:44px; padding:0 12px; border-radius:var(--radius-md);
+    background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.15);
+    color:var(--white); font-family:var(--font-body); font-size:15px; font-weight:900;
+    outline:none; transition:border-color 0.15s; width:100%;
+  }
+  .team-name-input:focus { border-color:rgba(255,217,61,0.5); }
+
+  /* Two team columns */
+  .team-columns { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .team-col {
+    border-radius:var(--radius-lg); padding:16px 12px;
+    display:flex; flex-direction:column; gap:10px;
+    border:2px solid transparent; transition:border-color 0.2s, box-shadow 0.2s;
+  }
+  .team-col.col-a { background:rgba(230,57,70,0.1);  border-color:rgba(230,57,70,0.35); }
+  .team-col.col-b { background:rgba(33,150,243,0.1); border-color:rgba(33,150,243,0.35); }
+  .team-col.my-team.col-a { border-color:rgba(230,57,70,0.8);  box-shadow:0 0 16px rgba(230,57,70,0.2); }
+  .team-col.my-team.col-b { border-color:rgba(33,150,243,0.8); box-shadow:0 0 16px rgba(33,150,243,0.2); }
+
+  .team-col-header { text-align:center; }
+  .team-col-emoji  { font-size:22px; }
+  .team-col-name   { font-family:var(--font-pixel); font-size:7px; margin-top:4px; letter-spacing:0.3px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .col-a .team-col-name { color:#ff8a90; }
+  .col-b .team-col-name { color:#90caff; }
+
+  /* Member list */
+  .team-member-list { display:flex; flex-direction:column; gap:3px; min-height:24px; }
+  .team-member-chip { font-family:var(--font-body); font-size:13px; font-weight:800; color:rgba(255,255,255,0.8); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .team-member-chip.is-you { color:var(--yellow); }
+  .team-empty-note  { font-family:var(--font-pixel); font-size:6px; color:rgba(255,255,255,0.25); text-align:center; line-height:1.8; }
+
+  /* Join button inside col */
+  .team-join-btn {
+    width:100%; height:36px; border-radius:var(--radius-pill); border:none;
+    cursor:pointer; font-family:var(--font-pixel); font-size:7px;
+    -webkit-tap-highlight-color:transparent; transition:transform 0.1s, opacity 0.15s;
+  }
+  .team-join-btn:active:not([disabled]) { transform:scale(0.97); }
+  .team-join-btn.btn-a { background:var(--red); color:#fff; box-shadow:0 3px 0 #8b0011; }
+  .team-join-btn.btn-b { background:var(--opt-b); color:#fff; box-shadow:0 3px 0 #0d5fa3; }
+  .team-join-btn.joined { opacity:0.55; pointer-events:none; cursor:default; }
+
+  /* Topic input inside team col */
+  .team-topic-wrap { display:flex; flex-direction:column; gap:4px; }
+  .team-topic-sublabel { font-family:var(--font-pixel); font-size:6px; color:rgba(255,255,255,0.35); }
+  .team-topic-input {
+    width:100%; height:40px; padding:0 8px;
+    background:rgba(0,0,0,0.2); border-radius:var(--radius-md);
+    border:1px solid rgba(255,255,255,0.12);
+    color:var(--white); font-family:var(--font-body); font-size:12px; font-weight:700;
+    outline:none; transition:border-color 0.15s;
+  }
+  .team-topic-input::placeholder { color:rgba(255,255,255,0.2); font-size:11px; font-weight:400; }
+  .col-a .team-topic-input:focus { border-color:rgba(230,57,70,0.6); }
+  .col-b .team-topic-input:focus { border-color:rgba(33,150,243,0.6); }
+
+  /* ── GUEST WAITING ── */
+  .lobby-waiting { display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px 0 4px; }
+  .lobby-waiting-text { font-family:var(--font-pixel); font-size:8px; color:rgba(255,255,255,0.5); text-align:center; line-height:2; }
+
+  /* ══════════════════════════════════════════════════════════
+     TOPIC RANDOMIZER OVERLAY
+  ══════════════════════════════════════════════════════════ */
+  #topic-randomizer-overlay {
+    position: fixed; inset: 0; z-index: 800;
+    background: rgba(9,15,80,0.97);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 28px;
+    opacity: 0; pointer-events: none; visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s;
+  }
+  #topic-randomizer-overlay.visible {
+    opacity: 1; pointer-events: auto; visibility: visible;
+  }
+  .rng-title {
+    font-family: var(--font-pixel); font-size: 11px;
+    color: rgba(255,255,255,0.6); letter-spacing: 1px; text-align: center;
+  }
+  /* Slot machine */
+  .rng-slot-outer {
+    width: min(320px, 88vw); position: relative;
+    border-radius: var(--radius-md); overflow: hidden;
+    border: 2px solid rgba(255,217,61,0.35);
+    background: rgba(0,0,0,0.35);
+  }
+  /* fade edges */
+  .rng-slot-outer::before, .rng-slot-outer::after {
+    content:''; position:absolute; left:0; right:0; height:24px; z-index:2; pointer-events:none;
+  }
+  .rng-slot-outer::before { top:0; background:linear-gradient(rgba(9,15,80,0.85),transparent); }
+  .rng-slot-outer::after  { bottom:0; background:linear-gradient(transparent,rgba(9,15,80,0.85)); }
+  /* centre highlight line */
+  .rng-slot-highlight {
+    position:absolute; top:50%; left:0; right:0; height:80px;
+    transform:translateY(-50%);
+    border-top:2px solid rgba(255,217,61,0.5);
+    border-bottom:2px solid rgba(255,217,61,0.5);
+    z-index:1; pointer-events:none;
+  }
+  .rng-slot-viewport { height:80px; overflow:hidden; }
+  .rng-slot-track { display:flex; flex-direction:column; }
+  .rng-slot-item {
+    height:80px; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-body); font-size:17px; font-weight:900;
+    color:var(--white); padding:0 16px; text-align:center;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%;
+    flex-shrink:0;
+  }
+  /* Result section */
+  .rng-result {
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+    text-align:center;
+  }
+  .rng-chosen-label  { font-family:var(--font-pixel); font-size:8px; color:rgba(255,255,255,0.45); letter-spacing:1px; }
+  .rng-chosen-topic  {
+    font-family:var(--font-pixel); font-size:13px; color:var(--yellow);
+    letter-spacing:1px; line-height:1.6; max-width:min(320px,88vw);
+    animation:rng-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes rng-pop {
+    from { transform:scale(0.5); opacity:0; }
+    to   { transform:scale(1); opacity:1; }
+  }
+  .rng-team-winner {
+    font-family:var(--font-pixel); font-size:9px; padding:7px 18px;
+    border-radius:var(--radius-pill);
+    animation:rng-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.15s both;
+  }
+  .rng-team-winner.team-a { background:rgba(230,57,70,0.25); color:#ff8a90; border:1px solid rgba(230,57,70,0.6); }
+  .rng-team-winner.team-b { background:rgba(33,150,243,0.25); color:#90caff; border:1px solid rgba(33,150,243,0.6); }
+  .rng-countdown { font-family:var(--font-pixel); font-size:8px; color:rgba(255,255,255,0.4); letter-spacing:0.5px; }
+</style>
+
+<!-- RANDOMIZER OVERLAY (outside lobby-wrap so it covers full screen) -->
+<div id="topic-randomizer-overlay">
+  <p class="rng-title" id="rng-title">🎲 THE RANDOMIZER DECIDES...</p>
+
+  <!-- Slot machine (shown during spin) -->
+  <div class="rng-slot-outer" id="rng-slot-outer">
+    <div class="rng-slot-highlight"></div>
+    <div class="rng-slot-viewport">
+      <div class="rng-slot-track" id="rng-track"></div>
+    </div>
+  </div>
+
+  <!-- Result (shown after spin) -->
+  <div class="rng-result" id="rng-result" style="display:none;">
+    <p class="rng-chosen-label">TONIGHT'S TOPIC IS</p>
+    <p class="rng-chosen-topic" id="rng-chosen-topic">—</p>
+    <p class="rng-team-winner"  id="rng-team-winner"></p>
+    <p class="rng-countdown"    id="rng-countdown">STARTING IN 3...</p>
+  </div>
+</div>
+
+<!-- LOBBY WRAP -->
+<div class="lobby-wrap">
+  <div class="stars-bg" id="lobby-stars"></div>
+
+  <!-- TOP BAR -->
+  <div class="lobby-topbar z1">
+    <button class="lobby-back-btn" onclick="lobbyGoHome()">← BACK</button>
+    <span class="lobby-screen-label" id="lobby-screen-label">LOBBY</span>
+    <div style="width:64px"></div>
+  </div>
+
+  <!-- ROOM CODE (hidden solo / team) -->
+  <div class="lobby-code-section z1" id="lobby-code-section">
+    <p class="lobby-code-label">ROOM CODE</p>
+    <div class="lobby-code-box" id="lobby-code-box"></div>
+    <button class="lobby-copy-btn" onclick="lobbyCopyCode()">📋 &nbsp;COPY CODE</button>
+  </div>
+
+  <!-- MODE TOGGLE — host only, non-solo -->
+  <div class="mode-toggle-wrap z1" id="mode-toggle-wrap" style="display:none;">
+    <div class="mode-toggle-header">
+      <p class="mode-toggle-label">GAME MODE</p>
+      <div id="lock-status" class="lock-status-badge">🔓 OPEN</div>
+    </div>
+    <div class="mode-toggle">
+      <button class="mode-toggle-btn active-classic" id="toggle-classic" onclick="lobbySetMode('classic')">
+        🎮 CLASSIC
+      </button>
+      <button class="mode-toggle-btn" id="toggle-team" onclick="lobbySetMode('team')" disabled>
+        ⚔️ TEAM
+      </button>
+    </div>
+    <button id="btn-lock-room" class="btn-lock" onclick="lobbyLockRoom()">🔒 LOCK ROOM TO ENABLE TEAMS</button>
+  </div>
+
+  <!-- Guest mode indicator -->
+  <div id="guest-mode-indicator" class="z1" style="display:none;margin-top:12px;">
+    <div class="guest-mode-badge classic" id="guest-mode-badge">🎮 CLASSIC MODE</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       CLASSIC PANEL (player list + topic + diff)
+  ═══════════════════════════════════════════ -->
+  <div id="classic-panel" class="z1" style="width:100%;">
+
+    <!-- Player list (hidden in solo) -->
+    <div class="lobby-players-card" id="lobby-players-card" style="margin-top:20px;">
+      <div class="players-card-header">
+        <span class="players-card-title">👥 PLAYERS</span>
+        <span class="players-count-badge" id="lobby-player-count">0 / ∞</span>
+      </div>
+      <div class="player-list" id="lobby-player-list">
+        <div class="player-empty">Waiting for players to join...<br>Share the room code!</div>
+      </div>
+    </div>
+
+    <!-- Host controls -->
+    <div class="lobby-host-controls" id="lobby-host-controls" style="display:none;margin-top:20px;">
+      <div>
+        <label class="input-label" for="input-topic">QUIZ TOPIC</label>
+        <input id="input-topic" class="input-field" type="text"
+          placeholder="e.g. Marvel Movies, Space, Cricket..."
+          maxlength="60" autocomplete="off" autocorrect="off"
+          oninput="lobbyOnTopicInput()" />
+        <p class="topic-char-count"><span id="topic-char-count">0</span>/60</p>
+      </div>
+      <div>
+        <label class="input-label">DIFFICULTY</label>
+        <div class="difficulty-selector" id="difficulty-selector">
+          <button class="mode-pill" data-mode="easy"   onclick="lobbyPickDifficulty('easy',this)">EASY<br>30 SEC</button>
+          <button class="mode-pill selected" data-mode="medium" onclick="lobbyPickDifficulty('medium',this)">MEDIUM<br>20 SEC</button>
+          <button class="mode-pill" data-mode="hard"   onclick="lobbyPickDifficulty('hard',this)">HARD<br>10 SEC</button>
+        </div>
+      </div>
+      <div>
+        <label class="input-label">QUICK PICKS</label>
+        <div class="topic-suggestions" id="topic-chips"></div>
+      </div>
+      <button class="btn btn-primary btn-start" id="btn-start-classic"
+              onclick="lobbyStartClassic()" disabled>
+        ⚡ &nbsp;START GAME
+      </button>
+      <p class="start-hint">NEED AT LEAST 1 PLAYER · TOPIC REQUIRED</p>
+    </div>
+
+    <!-- Guest waiting (classic) -->
+    <div class="lobby-waiting" id="lobby-guest-waiting" style="display:none;margin-top:24px;">
+      <div class="dot-loader"><span></span><span></span><span></span></div>
+      <p class="lobby-waiting-text">WAITING FOR HOST<br>TO START THE GAME...</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       TEAM PANEL
+  ═══════════════════════════════════════════ -->
+  <div id="team-panel" class="z1" style="display:none;width:100%;margin-top:20px;">
+
+    <!-- Team name inputs (host only) -->
+    <div id="team-name-editor" style="display:none;margin-bottom:16px;">
+      <label class="input-label">TEAM NAMES</label>
+      <div class="team-names-row">
+        <div class="team-name-group">
+          <span class="team-name-label-a">🔴 TEAM A</span>
+          <input id="team-name-a" class="team-name-input" type="text"
+            value="Red Dragons" maxlength="20" autocomplete="off"
+            oninput="lobbyPushTeamInfo()" />
+        </div>
+        <div class="team-name-group">
+          <span class="team-name-label-b">🔵 TEAM B</span>
+          <input id="team-name-b" class="team-name-input" type="text"
+            value="Blue Phoenix" maxlength="20" autocomplete="off"
+            oninput="lobbyPushTeamInfo()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Difficulty for team mode (host only) -->
+    <div id="team-difficulty-wrap" style="display:none;margin-bottom:16px;">
+      <label class="input-label">DIFFICULTY</label>
+      <div class="difficulty-selector" id="team-difficulty-selector">
+        <button class="mode-pill" data-mode="easy"   onclick="lobbyPickDifficulty('easy',this)">EASY<br>30 SEC</button>
+        <button class="mode-pill selected" data-mode="medium" onclick="lobbyPickDifficulty('medium',this)">MEDIUM<br>20 SEC</button>
+        <button class="mode-pill" data-mode="hard"   onclick="lobbyPickDifficulty('hard',this)">HARD<br>10 SEC</button>
+      </div>
+    </div>
+
+    <!-- Team columns (all players see this) -->
+    <div class="team-columns" id="team-columns">
+      <!-- populated by _renderTeamColumns() -->
+    </div>
+
+    <!-- Host start button -->
+    <div id="team-host-footer" style="display:none;margin-top:16px;display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-primary btn-start" id="btn-start-team"
+              onclick="lobbyStartTeam()" style="background:linear-gradient(135deg,#7B2FBE,#9B5DE5);box-shadow:0 6px 0 #4a1a82;" disabled>
+        🎲 &nbsp;RANDOMIZE &amp; START
+      </button>
+      <p class="start-hint">EACH TEAM PICKS A TOPIC · RANDOMIZER PICKS ONE</p>
+    </div>
+
+    <!-- Guest waiting in team mode -->
+    <div class="lobby-waiting" id="team-guest-waiting" style="display:none;margin-top:16px;">
+      <div class="dot-loader"><span></span><span></span><span></span></div>
+      <p class="lobby-waiting-text">WAITING FOR HOST<br>TO START THE GAME...</p>
+    </div>
+  </div>
+
+</div><!-- end .lobby-wrap -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   LOBBY SCREEN LOGIC
+   ═══════════════════════════════════════════════════════════ */
+
+const TOPIC_SUGGESTIONS = [
+  '🎬 Marvel Movies','🚀 Space & Astronomy','🏏 Cricket',
+  '🎮 Video Games','🌍 World Geography','🧪 Science',
+  '🎵 Music','⚽ Football','🍕 Food & Cuisine',
+  '🤖 AI & Tech','📚 Harry Potter','🦁 Animals',
+];
+const AVATAR_COLOURS = ['#E63946','#2196F3','#06D6A0','#9B5DE5','#FF9F1C','#4FC3F7','#FFD93D','#FF6B9D'];
+const AVATARS        = ['😀','🤩','🧠','🦊','🐼','🦁','🐯','🤖','👾','🎩','🦄','🐸'];
+
+/* Local lobby state — kept in sync with server via PLAYER_JOINED broadcasts */
+let _teams      = State.teams || {};     // { name → 'A'|'B' }
+let _teamNames  = State.teamNames || { A:'Red Dragons', B:'Blue Phoenix' };
+let _teamTopics = { A:'', B:'' };
+let _myTeamId   = (_teams[State.playerName]) || null;
+let _lobbyMode  = State.playMode || 'classic'; // 'classic' | 'team'
+let _isLocked   = false;  // Room lock state
+let _pushTimer  = null;   // Debounce for set_team_info
+
+/* ─────────────────────────────────────────────────────────── */
+function onLobbyShow() {
+  Sound.startBgMusic();
+  const starsEl = document.getElementById('lobby-stars');
+  if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
+
+  // Sync from global State (handles late joins correctly)
+  _teams      = State.teams || {};
+  _teamNames  = State.teamNames || { A:'Red Dragons', B:'Blue Phoenix' };
+  _teamTopics = { A:'', B:'' }; //Topics usually only come via WS
+  _myTeamId   = _teams[State.playerName] || null;
+  _lobbyMode  = State.playMode === 'solo' ? 'classic' : (State.playMode || 'classic');
+  _isLocked   = false; // Default to open, will be synced by PLAYER_JOINED
+  if (_pushTimer) { clearTimeout(_pushTimer); _pushTimer = null; }
+
+  const isSolo = State.playMode === 'solo';
+
+  /* Labels & visibility */
+  const screenLabel = document.getElementById('lobby-screen-label');
+  if (screenLabel) screenLabel.textContent = isSolo ? 'SOLO SETUP' : 'LOBBY';
+
+  // Room code — shown for multiplayer only
+  const codeSection = document.getElementById('lobby-code-section');
+  if (codeSection) codeSection.style.display = isSolo ? 'none' : 'flex';
+  _renderCodeBoxes(State.roomCode);
+
+  // Mode toggle — host + non-solo only
+  const toggleWrap = document.getElementById('mode-toggle-wrap');
+  if (toggleWrap) toggleWrap.style.display = (!isSolo && State.isHost) ? 'flex' : 'none';
+
+  // Guest mode indicator — guest + non-solo only
+  const guestInd = document.getElementById('guest-mode-indicator');
+  if (guestInd) guestInd.style.display = (!isSolo && !State.isHost) ? 'block' : 'none';
+
+  // Player list — hide for solo
+  const playersCard = document.getElementById('lobby-players-card');
+  if (playersCard) playersCard.style.display = isSolo ? 'none' : 'flex';
+
+  // Render initial classic view
+  _applyModeUI();
+
+  // Topic chips + initial player list
+  _renderTopicChips();
+  _renderPlayerList(State.players);
+  _syncDifficultyButtons();
+
+  /* ── WebSocket subscriptions ── */
+  WS.on('PLAYER_JOINED', (data) => {
+    State.players = data.players;
+    if (State.playMode === 'solo') {
+      _lobbyMode = 'classic';
+      _teams = {};
+      _teamTopics = { A:'', B:'' };
+      _myTeamId = null;
+      _applyModeUI();
+      _renderPlayerList(data.players);
+      _updateStartBtns();
+      return;
+    }
+    if (data.locked !== undefined) _isLocked = data.locked;
+
+    // Absorb any team state the server echoes back
+    if (data.teams) {
+      _teams = data.teams;
+      // Sync our local team assignment from the server's truth
+      if (data.teams[State.playerName]) {
+        _myTeamId = data.teams[State.playerName];
+      }
+    }
+    if (data.team_names)  _teamNames  = data.team_names;
+    if (data.team_topics) _teamTopics = data.team_topics;
+    
+    // Always update mode from server
+    if (data.lobby_mode) {
+      _lobbyMode = data.lobby_mode;
+    }
+
+    _applyModeUI();
+    _renderPlayerList(data.players);
+    if (_lobbyMode === 'team') _renderTeamColumns();
+    _updateStartBtns();
+    Sound.playerJoin();
+  });
+
+  WS.on('LOBBY_MODE_CHANGED', (data) => {
+    // Host switched mode — guests need to react
+    _lobbyMode = data.mode;
+    if (data.locked !== undefined) _isLocked = data.locked;
+    if (data.teams)      _teams     = data.teams;
+    if (data.team_names) _teamNames = data.team_names;
+    _applyModeUI();
+    _renderTeamColumns();
+    _updateGuestModeBadge();
+  });
+
+  WS.on('GAME_STARTING', (data) => {
+    State.topic       = data.topic;
+    State.playMode    = data.play_mode    || 'classic';
+    State.mode        = data.mode         || 'medium';
+    State.timeLimitMs = data.time_limit_ms|| 20000;
+    State.totalQ      = data.total_questions;
+    State.phase       = 'question';
+    if (data.teams)      State.teams     = data.teams;
+    if (data.team_names) State.teamNames = data.team_names;
+
+    if (_lobbyMode === 'team' && !State.isHost && data.chosen_team_id != null) {
+      // Guests see randomizer reveal then navigate
+      _showRandomizerResult(data.topic, data.chosen_team_id, data.team_names, () => goTo('game'));
+    } else {
+      goTo('game');
+    }
+  });
+
+  WS.on('ERROR', (data) => Toast.error(data.message || 'Something went wrong.'));
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* MODE TOGGLE                                                  */
+/* ─────────────────────────────────────────────────────────── */
+
+/**
+ * Host taps Classic or Team button.
+ * Sends set_team_info so server & guests know the mode changed.
+ */
+function lobbySetMode(mode) {
+  if (_lobbyMode === mode) return;
+  _lobbyMode = mode;
+
+  // Sync team name inputs into local state before pushing
+  const nameA = document.getElementById('team-name-a')?.value.trim() || 'Red Dragons';
+  const nameB = document.getElementById('team-name-b')?.value.trim() || 'Blue Phoenix';
+  _teamNames = { A: nameA, B: nameB };
+
+  // Tell server: this also acts as a lobby-mode broadcast to guests
+  WS.send({
+    action: 'set_lobby_mode',
+    mode,
+    name_a: _teamNames.A,
+    name_b: _teamNames.B,
+  });
+
+  _applyModeUI();
+  _renderTeamColumns();
+  _updateStartBtns();
+}
+
+/** Host toggles the room lock — prevents/allows further joins */
+function lobbyLockRoom() {
+  try { Sound.click(); } catch(e){}
+  if (_isLocked) {
+    WS.send({ action: 'unlock_room' });
+    _isLocked = false;
+    _lobbyMode = 'classic';
+  } else {
+    WS.send({ action: 'lock_room' });
+    _isLocked = true;
+  }
+  _applyModeUI();
+}
+
+/**
+ * Show/hide the correct panel (classic vs team) based on _lobbyMode.
+ * Also updates toggle button styles and lock state.
+ */
+function _applyModeUI() {
+  const classicPanel = document.getElementById('classic-panel');
+  const teamPanel    = document.getElementById('team-panel');
+  const hostControls = document.getElementById('lobby-host-controls');
+  const guestWaiting = document.getElementById('lobby-guest-waiting');
+  const teamNameEd   = document.getElementById('team-name-editor');
+  const teamDiff     = document.getElementById('team-difficulty-wrap');
+  const teamHostFoot = document.getElementById('team-host-footer');
+  const teamGuestWait= document.getElementById('team-guest-waiting');
+  const isSolo = State.playMode === 'solo';
+
+  if (isSolo) {
+    _lobbyMode = 'classic';
+    _teams = {};
+    _teamTopics = { A:'', B:'' };
+    _myTeamId = null;
+  }
+
+  // Lock status UI
+  const lockBadge = document.getElementById('lock-status');
+  if (lockBadge) {
+    lockBadge.className = 'lock-status-badge' + (_isLocked ? ' is-locked' : '');
+    lockBadge.textContent = _isLocked ? '🔒 LOCKED' : '🔓 OPEN';
+  }
+  const lockBtn = document.getElementById('btn-lock-room');
+  if (lockBtn) {
+    lockBtn.className = 'btn-lock' + (_isLocked ? ' is-locked' : '');
+    lockBtn.textContent = _isLocked ? '🔓 UNLOCK ROOM' : '🔒 LOCK ROOM TO ENABLE TEAMS';
+    lockBtn.disabled = false;
+  }
+
+  // Toggle button styles
+  const btnClassic = document.getElementById('toggle-classic');
+  const btnTeam    = document.getElementById('toggle-team');
+  if (btnClassic) {
+    btnClassic.className = 'mode-toggle-btn' + (_lobbyMode === 'classic' ? ' active-classic' : '');
+  }
+  if (btnTeam) {
+    btnTeam.className = 'mode-toggle-btn' + (_lobbyMode === 'team' ? ' active-team' : '');
+    // TEAM mode only clickable if room is locked
+    btnTeam.disabled = !_isLocked;
+  }
+
+  if (isSolo || _lobbyMode === 'classic') {
+    classicPanel.style.display = 'block';
+    teamPanel.style.display    = 'none';
+
+    if (State.isHost || isSolo) {
+      hostControls.style.display = 'flex';
+      guestWaiting.style.display = 'none';
+    } else {
+      hostControls.style.display = 'none';
+      guestWaiting.style.display = 'flex';
+    }
+  } else {
+    // Team mode
+    classicPanel.style.display = 'none';
+    teamPanel.style.display    = 'block';
+
+    if (State.isHost) {
+      teamNameEd.style.display  = 'block';
+      teamDiff.style.display    = 'block';
+      teamHostFoot.style.display= 'flex';
+      teamGuestWait.style.display='none';
+    } else {
+      teamNameEd.style.display  = 'none';
+      teamDiff.style.display    = 'none';
+      teamHostFoot.style.display= 'none';
+      teamGuestWait.style.display='flex';
+    }
+  }
+
+  _updateGuestModeBadge();
+}
+
+function _updateGuestModeBadge() {
+  const badge = document.getElementById('guest-mode-badge');
+  if (!badge) return;
+  if (_lobbyMode === 'team') {
+    badge.className = 'guest-mode-badge team';
+    badge.textContent = '⚔️ TEAM MODE';
+  } else {
+    badge.className = 'guest-mode-badge classic';
+    badge.textContent = '🎮 CLASSIC MODE';
+  }
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* PLAYER LIST (classic)                                        */
+/* ─────────────────────────────────────────────────────────── */
+function _renderPlayerList(players) {
+  const listEl  = document.getElementById('lobby-player-list');
+  const countEl = document.getElementById('lobby-player-count');
+  if (!listEl) return;
+  if (!players || players.length === 0) {
+    listEl.innerHTML = `<div class="player-empty">Waiting for players to join...<br>Share the room code!</div>`;
+    if (countEl) countEl.textContent = '0 / ∞';
+    _updateStartBtns(); return;
+  }
+  listEl.innerHTML = players.map((name, i) => {
+    const isYou  = name === State.playerName;
+    const isHost = i === 0;
+    const col    = AVATAR_COLOURS[i % AVATAR_COLOURS.length];
+    const emoji  = AVATARS[i % AVATARS.length];
+    const tag = isYou  ? '<span class="player-you-tag">YOU</span>'
+              : isHost ? '<span class="player-host-tag">HOST</span>' : '';
+    return `
+      <div class="player-row">
+        <div class="player-avatar" style="background:${col}22;border:2px solid ${col}66;">${emoji}</div>
+        <span class="player-name">${_escHtml(name)}</span>${tag}
+      </div>`;
+  }).join('');
+  if (countEl) countEl.textContent = `${players.length} JOINED`;
+  _updateStartBtns();
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* TEAM COLUMNS                                                 */
+/* ─────────────────────────────────────────────────────────── */
+
+/** Helper to find the first joined player for a team (the 'Team Host') */
+function _getTeamHost(tid) {
+  if (!State.players) return null;
+  for (const name of State.players) {
+    if (_teams[name] === tid) return name;
+  }
+  return null;
+}
+
+function _renderTeamColumns() {
+  const container = document.getElementById('team-columns');
+  if (!container) return;
+
+  // 1. Capture focused element state to prevent "typing glitch"
+  const focusedEl = document.activeElement;
+  const focusedId = focusedEl?.id;
+  const selectionStart = focusedEl?.selectionStart;
+  const selectionEnd = focusedEl?.selectionEnd;
+  const valBefore = focusedEl?.value;
+
+  let html = '';
+
+  ['A','B'].forEach(tid => {
+    const isA       = tid === 'A';
+    const colClass  = isA ? 'col-a' : 'col-b';
+    const myCol     = _myTeamId === tid;
+    const emoji     = isA ? '🔴' : '🔵';
+    const name      = _teamNames[tid] || `Team ${tid}`;
+    const btnClass  = isA ? 'btn-a' : 'btn-b';
+    const members   = Object.entries(_teams).filter(([,t]) => t === tid).map(([n]) => n);
+    
+    const teamHost  = _getTeamHost(tid);
+    const isTeamHost = (State.playerName === teamHost);
+
+    const memberHtml= members.length
+      ? members.map(n => {
+          const isYou = n === State.playerName;
+          const isTH  = n === teamHost;
+          return `<div class="team-member-chip ${isYou?'is-you':''}">${_escHtml(n)}${isTH?' <span style="font-size:7px;color:var(--yellow);vertical-align:middle;">(HOST)</span>':''}</div>`;
+        }).join('')
+      : `<p class="team-empty-note">NO PLAYERS YET</p>`;
+
+    // Topic input: visible ONLY to that team's host
+    const canEditTopic = isTeamHost;
+    const topicVal  = _teamTopics[tid] || '';
+    const inputId   = `team-topic-input-${tid}`;
+
+    const topicHtml = canEditTopic ? `
+      <div class="team-topic-wrap">
+        <span class="team-topic-sublabel">TOPIC SUGGESTION</span>
+        <input id="${inputId}" class="team-topic-input ${colClass}" type="text"
+          placeholder="e.g. Bollywood..."
+          maxlength="60" value="${_escHtml(topicVal)}"
+          oninput="lobbyTeamTopicInput('${tid}',this.value)"
+          autocomplete="off" autocorrect="off"/>
+      </div>` : (topicVal
+        ? `<p style="font-family:var(--font-pixel);font-size:6px;color:rgba(255,255,255,0.3);text-align:center;">${_escHtml(topicVal)}</p>`
+        : (teamHost ? `<p class="team-empty-note">WAITING FOR ${teamHost.toUpperCase()}<br>TO PICK A TOPIC</p>` : ''));
+
+    // Join button: show if not yet in any team; show "✓ JOINED" if on this team
+    // SWAP TEAM button: show if joined other team AND NOT that team's host
+    let joinHtml = '';
+    if (_myTeamId === null) {
+      joinHtml = `<button class="team-join-btn ${btnClass}" onclick="lobbyJoinTeam('${tid}')">JOIN TEAM</button>`;
+    } else if (myCol) {
+      const label = isTeamHost ? '✓ TEAM HOST' : '✓ JOINED';
+      joinHtml = `<button class="team-join-btn ${btnClass} joined" disabled>${label}</button>`;
+    } else {
+      // We are in the other team. Can we swap?
+      // Only if we are NOT the host of our CURRENT team.
+      const currentTeamHost = _getTeamHost(_myTeamId);
+      const isHostOfCurrent = (State.playerName === currentTeamHost);
+      if (!isHostOfCurrent) {
+        joinHtml = `<button class="team-join-btn ${btnClass}" onclick="lobbySwapTeam('${tid}')">SWAP TEAM</button>`;
+      }
+    }
+
+    html += `
+      <div class="team-col ${colClass}${myCol?' my-team':''}">
+        <div class="team-col-header">
+          <span class="team-col-emoji">${emoji}</span>
+          <span class="team-col-name">${_escHtml(name)}</span>
+        </div>
+        <div class="team-member-list" id="team-members-${tid}">${memberHtml}</div>
+        ${joinHtml}
+        ${topicHtml}
+      </div>`;
+  });
+
+  container.innerHTML = html;
+
+  // 2. Restore focus and cursor position
+  if (focusedId && focusedId.startsWith('team-topic-input')) {
+    const el = document.getElementById(focusedId);
+    if (el) {
+      el.focus();
+      el.value = valBefore; // Keep what the user was typing locally
+      if (selectionStart !== null) el.setSelectionRange(selectionStart, selectionEnd);
+    }
+  }
+
+  _updateStartBtns();
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* TEAM ACTIONS                                                 */
+/* ─────────────────────────────────────────────────────────── */
+
+/** Player (or Host) taps "JOIN TEAM" */
+function lobbyJoinTeam(teamId) {
+  if (_myTeamId) return;
+  Sound.click();
+  _myTeamId = teamId;
+  _teams[State.playerName] = teamId;
+  WS.send({ action: 'join_team', team_id: teamId });
+  _renderTeamColumns();
+}
+
+/** Player (if not Team Host) swaps to the other team */
+function lobbySwapTeam(newTeamId) {
+  Sound.click();
+  _myTeamId = newTeamId;
+  _teams[State.playerName] = newTeamId;
+  WS.send({ action: 'join_team', team_id: newTeamId });
+  _renderTeamColumns();
+}
+
+/** Host or joined guest edits their team's topic */
+function lobbyTeamTopicInput(teamId, value) {
+  _teamTopics[teamId] = value;
+  lobbyPushTeamInfo();
+  _updateStartBtns();
+}
+
+/** Push team names + topics to server (debounced to avoid typing glitches) */
+function lobbyPushTeamInfo() {
+  if (_pushTimer) clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(() => {
+    const nameA = document.getElementById('team-name-a')?.value.trim() || 'Red Dragons';
+    const nameB = document.getElementById('team-name-b')?.value.trim() || 'Blue Phoenix';
+    _teamNames = { A: nameA, B: nameB };
+    WS.send({
+      action: 'set_team_info',
+      name_a: nameA, name_b: nameB,
+      topic_a: _teamTopics.A, topic_b: _teamTopics.B,
+    });
+    _pushTimer = null;
+  }, 400); // 400ms debounce
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* DIFFICULTY                                                   */
+/* ─────────────────────────────────────────────────────────── */
+function lobbyPickDifficulty(mode, el) {
+  State.mode = mode;
+  document.querySelectorAll('.mode-pill').forEach(b => b.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+}
+function _syncDifficultyButtons() {
+  const mode = State.mode || 'medium';
+  document.querySelectorAll('.mode-pill').forEach(b => {
+    b.classList.toggle('selected', b.dataset.mode === mode);
+  });
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* CLASSIC TOPIC CONTROLS                                       */
+/* ─────────────────────────────────────────────────────────── */
+function _renderTopicChips() {
+  const c = document.getElementById('topic-chips');
+  if (!c) return;
+  c.innerHTML = TOPIC_SUGGESTIONS.map(t =>
+    `<div class="topic-chip" onclick="lobbyPickTopic(this,'${t}')">${t}</div>`
+  ).join('');
+}
+function lobbyOnTopicInput() {
+  const input = document.getElementById('input-topic');
+  const count = document.getElementById('topic-char-count');
+  if (count) count.textContent = (input?.value||'').length;
+  document.querySelectorAll('.topic-chip').forEach(c => c.classList.remove('selected'));
+  _updateStartBtns();
+}
+function lobbyPickTopic(el, topic) {
+  const clean = topic.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{27FF}]\s*/u, '');
+  const input = document.getElementById('input-topic');
+  if (input) { input.value = clean; const cnt = document.getElementById('topic-char-count'); if (cnt) cnt.textContent = clean.length; }
+  document.querySelectorAll('.topic-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _updateStartBtns();
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* START BUTTON STATE                                           */
+/* ─────────────────────────────────────────────────────────── */
+function _updateStartBtns() {
+  // Classic / solo
+  const classicBtn = document.getElementById('btn-start-classic');
+  if (classicBtn) {
+    const topic   = document.getElementById('input-topic')?.value.trim();
+    const hasPlrs = State.players.length >= 1;
+    classicBtn.disabled = !(hasPlrs && topic);
+  }
+  // Team
+  const teamBtn = document.getElementById('btn-start-team');
+  if (teamBtn) {
+    const hasAny = _teamTopics.A.trim() || _teamTopics.B.trim();
+    const hasPlrs= State.players.length >= 1;
+    // Host MUST have joined a team to start
+    const hostJoined = _myTeamId !== null;
+    teamBtn.disabled = !(hasAny && hasPlrs && hostJoined);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* START GAME                                                   */
+/* ─────────────────────────────────────────────────────────── */
+
+/** Classic / Solo start */
+function lobbyStartClassic() {
+  const topic = document.getElementById('input-topic')?.value.trim();
+  if (!topic) { Toast.error('Enter a topic first!'); return; }
+  const btn = document.getElementById('btn-start-classic');
+  if (btn) { btn.textContent = '⏳ GENERATING...'; btn.disabled = true; }
+  Sound.gameStart();
+  const playMode = State.playMode === 'solo' ? 'solo' : 'classic';
+  WS.send({ action:'start_game', topic, mode: State.mode||'medium', play_mode: playMode });
+  Toast.info('Generating your quiz...');
+}
+
+/** Team start — run randomizer animation then fire start_game */
+function lobbyStartTeam() {
+  const candidates = [
+    _teamTopics.A.trim() && { topic:_teamTopics.A.trim(), teamId:'A' },
+    _teamTopics.B.trim() && { topic:_teamTopics.B.trim(), teamId:'B' },
+  ].filter(Boolean);
+  if (!candidates.length) { Toast.error('At least one team needs a topic!'); return; }
+
+  const btn = document.getElementById('btn-start-team');
+  if (btn) { btn.textContent='🎲 ROLLING...'; btn.disabled=true; }
+
+  Sound.gameStart();
+
+  // Pick locally for animation (server does its own pick — usually matches)
+  const winner = candidates[Math.floor(Math.random() * candidates.length)];
+
+  _runRandomizerSpin(
+    [_teamTopics.A.trim(), _teamTopics.B.trim()].filter(Boolean),
+    winner.topic,
+    winner.teamId,
+    _teamNames,
+    () => {
+      WS.send({ action:'start_game', mode: State.mode||'medium', play_mode:'team' });
+    }
+  );
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* RANDOMIZER OVERLAY                                           */
+/* ─────────────────────────────────────────────────────────── */
+
+/**
+ * Slot-machine spin → result reveal → countdown → onDone().
+ * @param {string[]} allTopics  - All candidate topic strings (for spin items)
+ * @param {string}   chosen     - The winning topic (last item in spin)
+ * @param {string}   winTeamId  - 'A' | 'B' | null
+ * @param {object}   teamNames  - { A: string, B: string }
+ * @param {function} onDone     - Called when countdown reaches 0
+ */
+function _runRandomizerSpin(allTopics, chosen, winTeamId, teamNames, onDone) {
+  const overlay  = document.getElementById('topic-randomizer-overlay');
+  const track    = document.getElementById('rng-track');
+  const slotOuter= document.getElementById('rng-slot-outer');
+  const resultEl = document.getElementById('rng-result');
+  const chosenEl = document.getElementById('rng-chosen-topic');
+  const winnerEl = document.getElementById('rng-team-winner');
+  const cntEl    = document.getElementById('rng-countdown');
+  if (!overlay || !track) { onDone && onDone(); return; }
+
+  // Build spin list: repeat topics many times, end on chosen
+  const items = [];
+  for (let i = 0; i < 28; i++) items.push(allTopics[i % allTopics.length]);
+  items.push(chosen);
+
+  track.innerHTML = items.map(t =>
+    `<div class="rng-slot-item">${_escHtml(t)}</div>`
+  ).join('');
+  slotOuter.style.display = 'block';
+  resultEl.style.display  = 'none';
+  overlay.classList.add('visible');
+
+  // Animate
+  let idx = 0; let speed = 55;
+  const ITEM_H = 80;
+
+  function spin() {
+    if (idx >= items.length - 1) {
+      track.style.transform = `translateY(-${(items.length-1)*ITEM_H}px)`;
+      setTimeout(showResult, 250);
+      return;
+    }
+    idx++;
+    track.style.transform = `translateY(-${idx * ITEM_H}px)`;
+    // Slow down in last 10 items
+    if (idx > items.length - 11) speed = Math.min(speed + 20, 300);
+    setTimeout(spin, speed);
+  }
+  spin();
+
+  function showResult() {
+    slotOuter.style.display = 'none';
+    resultEl.style.display  = 'flex';
+    if (chosenEl) chosenEl.textContent = chosen;
+    if (winnerEl && winTeamId) {
+      const wName = (teamNames && teamNames[winTeamId]) || `Team ${winTeamId}`;
+      winnerEl.className   = `rng-team-winner team-${winTeamId.toLowerCase()}`;
+      winnerEl.textContent = `${winTeamId==='A'?'🔴':'🔵'} ${wName}'S TOPIC WINS!`;
+      winnerEl.style.display = 'block';
+    } else if (winnerEl) {
+      winnerEl.style.display = 'none';
+    }
+    let secs = 3;
+    const tick = () => {
+      if (cntEl) cntEl.textContent = `STARTING IN ${secs}...`;
+      if (secs <= 0) { overlay.classList.remove('visible'); onDone && onDone(); return; }
+      secs--; setTimeout(tick, 1000);
+    };
+    tick();
+  }
+}
+
+/**
+ * Guests: server already picked the topic; just show the result card.
+ */
+function _showRandomizerResult(topic, winTeamId, teamNames, onDone) {
+  const overlay  = document.getElementById('topic-randomizer-overlay');
+  const slotOuter= document.getElementById('rng-slot-outer');
+  const resultEl = document.getElementById('rng-result');
+  const chosenEl = document.getElementById('rng-chosen-topic');
+  const winnerEl = document.getElementById('rng-team-winner');
+  const cntEl    = document.getElementById('rng-countdown');
+  if (!overlay) { onDone && onDone(); return; }
+
+  if (slotOuter) slotOuter.style.display = 'none';
+  if (resultEl)  resultEl.style.display  = 'flex';
+  if (chosenEl)  chosenEl.textContent    = topic;
+  if (winnerEl && winTeamId && teamNames) {
+    const wName = teamNames[winTeamId] || `Team ${winTeamId}`;
+    winnerEl.className   = `rng-team-winner team-${winTeamId.toLowerCase()}`;
+    winnerEl.textContent = `${winTeamId==='A'?'🔴':'🔵'} ${wName}'S TOPIC WINS!`;
+    winnerEl.style.display = 'block';
+  } else if (winnerEl) { winnerEl.style.display = 'none'; }
+
+  overlay.classList.add('visible');
+  let secs = 3;
+  const tick = () => {
+    if (cntEl) cntEl.textContent = `STARTING IN ${secs}...`;
+    if (secs <= 0) { overlay.classList.remove('visible'); onDone && onDone(); return; }
+    secs--; setTimeout(tick, 1000);
+  };
+  tick();
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* SHARED UTILS                                                 */
+/* ─────────────────────────────────────────────────────────── */
+function _renderCodeBoxes(code) {
+  const box = document.getElementById('lobby-code-box');
+  if (!box || !code) return;
+  box.innerHTML = code.split('').map(ch => `<div class="lobby-code-digit">${ch}</div>`).join('');
+}
+function lobbyCopyCode() {
+  Sound.click();
+  navigator.clipboard?.writeText(State.roomCode)
+    .then(() => Toast.success(`Code ${State.roomCode} copied!`))
+    .catch(() => Toast.info(`Room code: ${State.roomCode}`));
+}
+function lobbyGoHome() {
+  Sound.click();
+  if (State.ws) { State.ws.close(); State.ws = null; }
+  State.roomCode=''; State.isHost=false; State.playMode='classic'; State.players=[];
+  WS.off('PLAYER_JOINED'); WS.off('GAME_STARTING'); WS.off('ERROR'); WS.off('LOBBY_MODE_CHANGED');
+  goTo('home');
+}
+function _escHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+</script>

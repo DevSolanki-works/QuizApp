@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <meta name="theme-color" content="#1B2EAD" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="description" content="Forge is a free AI trivia game where you create live quizzes on any topic, play solo or with friends, and compete through real-time multiplayer rooms." />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="https://forgetrivia.online/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Forge - AI Trivia Showdown" />
+  <meta property="og:description" content="Create a fresh AI-powered trivia quiz on any topic and compete live with friends." />
+  <meta property="og:url" content="https://forgetrivia.online/" />
+
+  <title>Forge - Free AI Trivia Game and Multiplayer Quiz Rooms</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <script src="platform.js"></script>
+  <script>window.ForgePlatform && window.ForgePlatform.loadAdSense();</script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Forge: AI Trivia Showdown",
+    "url": "https://forgetrivia.online/",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Web, Android",
+    "description": "A free AI trivia game that creates multiplayer quiz rooms from any topic.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "creator": {
+      "@type": "Person",
+      "name": "Dev Solanki"
+    }
+  }
+  </script>
+
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Forge Supabase helpers — defer so it doesn't block render -->
+  <script src="supabase-client.js" defer></script>
+
+  <style>
+    /* ══════════════════════════════════════════════════════
+       CSS VARIABLES — FORGE QUIZ THEME
+       ══════════════════════════════════════════════════════ */
+    :root {
+      --bg:           #0D1B8E;
+      --bg-mid:       #1B2EAD;
+      --bg-light:     #2540CC;
+      --white:        #FFFFFF;
+      --off-white:    #EEF2FF;
+      --text-dark:    #1A1A2E;
+
+      --yellow:       #FFD93D;
+      --yellow-dark:  #E6B800;
+      --green:        #06D6A0;
+      --red:          #EF233C;
+      --purple:       #9B5DE5;
+
+      --opt-a:        #E63946;
+      --opt-b:        #2196F3;
+      --opt-c:        #06D6A0;
+      --opt-d:        #9B5DE5;
+
+      --font-pixel:   'Press Start 2P', monospace;
+      --font-body:    'Nunito', sans-serif;
+
+      --max-w:        430px;
+      --desktop-w:    1024px;
+      --radius-sm:    8px;
+      --radius-md:    14px;
+      --radius-lg:    20px;
+      --radius-pill:  999px;
+
+      --footer-h:     32px;
+      --header-h:     0px;
+    }
+
+    @media (min-width: 1024px) {
+      :root { --max-w: 900px; }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: var(--font-body);
+      color: var(--white);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── APP SHELL ──────────────────────────────────────── */
+    #app {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      background: var(--bg);
+      background-image:
+        radial-gradient(circle at 10% 10%, rgba(37,64,204,0.2) 0%, transparent 40%),
+        radial-gradient(circle at 90% 90%, rgba(37,64,204,0.2) 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 0%, #1B2EAD 0%, #0D1B8E 70%);
+      padding: 0;
+      position: fixed;
+      inset: 0;
+    }
+
+    @media (min-width: 1024px) {
+      #app { padding: 40px; }
+    }
+
+    .screen {
+      width: 100%;
+      max-width: var(--max-w);
+      height: calc(100% - var(--footer-h) - var(--header-h));
+      margin-top: var(--header-h);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+      background: rgba(13,27,142,0.4);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-right: 1px solid rgba(255,255,255,0.05);
+      border-left:  1px solid rgba(255,255,255,0.05);
+    }
+
+    @media (min-width: 1024px) {
+      .screen {
+        height: calc(100% - var(--footer-h) - var(--header-h));
+        max-height: 900px;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-bottom: none;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      }
+    }
+    .screen.active { display: flex; }
+
+    .initial-landing-copy {
+      width: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 18px;
+      padding: 42px 24px 72px;
+      text-align: center;
+    }
+    .initial-landing-copy h1 {
+      font-family: var(--font-pixel);
+      font-size: clamp(18px, 5vw, 30px);
+      color: var(--yellow);
+      line-height: 1.5;
+    }
+    .initial-landing-copy p {
+      max-width: 660px;
+      margin: 0 auto;
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.8;
+      color: rgba(255,255,255,0.78);
+    }
+    .initial-landing-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .initial-landing-links a {
+      color: var(--yellow);
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      text-decoration: none;
+      border: 1px solid rgba(255,217,61,0.35);
+      border-radius: var(--radius-pill);
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.06);
+    }
+
+    /* ── BUTTONS ─────────────────────────────────────────── */
+    .btn {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; width: 100%; min-height: 56px;
+      border: none; border-radius: var(--radius-pill);
+      font-family: var(--font-pixel); font-size: 10px;
+      letter-spacing: 0.5px; cursor: pointer;
+      transition: transform 0.1s ease;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: var(--yellow); color: var(--text-dark);
+      box-shadow: 0 6px 0 var(--yellow-dark), 0 8px 20px rgba(255,217,61,0.35);
+    }
+    .btn-primary:active { box-shadow: 0 2px 0 var(--yellow-dark); transform: translateY(4px); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.12); color: var(--white);
+      border: 2px solid rgba(255,255,255,0.3);
+      box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+    }
+    .btn-secondary:active { box-shadow: none; transform: translateY(4px); }
+    .btn-danger { background: var(--red); color: var(--white); box-shadow: 0 6px 0 #9B0019; }
+    .btn-danger:active { box-shadow: 0 2px 0 #9B0019; transform: translateY(4px); }
+
+    /* ── INPUTS ──────────────────────────────────────────── */
+    .input-label {
+      font-family: var(--font-pixel); font-size: 8px;
+      color: var(--yellow); letter-spacing: 0.5px;
+      margin-bottom: 6px; display: block;
+    }
+    .input-field {
+      width: 100%; height: 56px;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: var(--radius-md);
+      color: var(--white); font-family: var(--font-body);
+      font-size: 18px; font-weight: 700;
+      padding: 0 18px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-field::placeholder { color: rgba(255,255,255,0.3); font-weight: 400; }
+    .input-field:focus {
+      border-color: var(--yellow);
+      box-shadow: 0 0 0 4px rgba(255,217,61,0.18);
+    }
+
+    /* ── CARD ────────────────────────────────────────────── */
+    .card {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: var(--radius-lg);
+    }
+
+    /* ── BADGE ───────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 14px; border-radius: var(--radius-pill);
+      font-family: var(--font-pixel); font-size: 8px;
+    }
+    .badge-yellow { background: rgba(255,217,61,0.18); color: var(--yellow); border: 1px solid rgba(255,217,61,0.4); }
+    .badge-green  { background: rgba(6,214,160,0.18);  color: var(--green);  border: 1px solid rgba(6,214,160,0.4); }
+    .badge-white  { background: rgba(255,255,255,0.12); color: var(--white); border: 1px solid rgba(255,255,255,0.25); }
+
+    /* ── DIVIDER ─────────────────────────────────────────── */
+    .divider-text {
+      display: flex; align-items: center; gap: 12px;
+      color: rgba(255,255,255,0.4);
+      font-family: var(--font-pixel); font-size: 8px; width: 100%;
+    }
+    .divider-text::before, .divider-text::after {
+      content: ''; flex: 1; height: 1px;
+      background: rgba(255,255,255,0.15);
+    }
+
+    /* ── TOAST ───────────────────────────────────────────── */
+    #toast-container {
+      position: fixed; top: 16px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999; display: flex;
+      flex-direction: column; gap: 8px;
+      pointer-events: none;
+      width: calc(min(var(--max-w), 100vw) - 32px);
+    }
+    .toast {
+      padding: 12px 18px; border-radius: var(--radius-md);
+      font-family: var(--font-pixel); font-size: 8px; line-height: 1.8;
+      animation: toast-in 0.25s ease forwards; pointer-events: all;
+    }
+    .toast-error   { background: var(--red);    color: #fff; }
+    .toast-success { background: var(--green);  color: #003; }
+    .toast-info    { background: var(--yellow); color: #1A1A2E; }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── DOT LOADER ──────────────────────────────────────── */
+    .dot-loader { display: flex; gap: 6px; align-items: center; }
+    .dot-loader span {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--yellow);
+      animation: dot-bounce 1.2s infinite ease-in-out;
+    }
+    .dot-loader span:nth-child(2) { animation-delay: 0.2s; }
+    .dot-loader span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot-bounce {
+      0%,80%,100% { transform: scale(0.7); opacity: 0.5; }
+      40%          { transform: scale(1.1); opacity: 1; }
+    }
+
+    /* ── DECORATIVE BG ELEMENTS ──────────────────────────── */
+    .confetti-bg, .stars-bg {
+      position: absolute; inset: 0;
+      pointer-events: none; overflow: hidden; z-index: 0;
+    }
+    .confetti-piece {
+      position: absolute; border-radius: 3px;
+      animation: confetti-fall var(--dur,8s) linear var(--delay,0s) infinite;
+      opacity: 0.15;
+    }
+    @keyframes confetti-fall {
+      0%   { transform: translateY(-20px) rotate(0deg);   opacity: 0; }
+      10%  { opacity: 0.15; }
+      90%  { opacity: 0.15; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+    .star {
+      position: absolute; border-radius: 50%;
+      background: rgba(255,255,255,0.6);
+      animation: twinkle var(--dur,3s) infinite ease-in-out var(--delay,0s);
+    }
+    @keyframes twinkle {
+      0%,100% { opacity: 0.2; transform: scale(1); }
+      50%      { opacity: 0.9; transform: scale(1.4); }
+    }
+
+    /* ── UTILS ───────────────────────────────────────────── */
+    .z1 { position: relative; z-index: 1; }
+    .pixel { font-family: var(--font-pixel) !important; }
+    .text-center { text-align: center; }
+    .fade-up { animation: fade-up 0.35s ease forwards; }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+    /* ── PERSISTENT FOOTER NAV ───────────────────────────── */
+    #app-footer {
+      position: fixed; bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 100%; max-width: var(--max-w);
+      height: var(--footer-h); z-index: 400;
+      display: flex; align-items: center;
+      justify-content: flex-start; gap: 14px; padding: 0 16px;
+      background: rgba(9,19,100,0.92);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      transition: opacity 0.25s ease;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    #app-footer::-webkit-scrollbar { display: none; }
+    #app-footer a, #app-footer span {
+      font-family: var(--font-pixel); font-size: 6px;
+      color: rgba(255,255,255,0.38); text-decoration: none;
+      letter-spacing: 0.3px; white-space: nowrap; transition: color 0.15s;
+    }
+    #app-footer a:hover { color: var(--yellow); }
+    #app-footer .footer-dot {
+      width: 3px; height: 3px; border-radius: 50%;
+      background: rgba(255,255,255,0.2); flex-shrink: 0;
+    }
+    #app-footer.game-active { opacity: 0; pointer-events: none; }
+
+    /* ── COOKIE CONSENT BANNER ───────────────────────────── */
+    #cookie-banner {
+      position: fixed;
+      bottom: var(--footer-h, 32px);
+      left: 50%; transform: translateX(-50%) translateY(110%);
+      width: 100%; max-width: var(--max-w, 430px);
+      z-index: 9990;
+      background: rgba(9,19,100,0.97);
+      border: 1px solid rgba(255,217,61,0.28);
+      border-bottom: none; border-radius: 16px 16px 0 0;
+      padding: 16px 18px 14px;
+      display: flex; flex-direction: column; gap: 12px;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 -4px 30px rgba(0,0,0,0.35);
+      transition: transform 0.45s cubic-bezier(0.22,1,0.36,1), visibility 0.45s;
+      visibility: hidden; pointer-events: none;
+    }
+    #cookie-banner.visible {
+      transform: translateX(-50%) translateY(0);
+      visibility: visible; pointer-events: auto;
+    }
+    .cookie-text {
+      font-family: 'Nunito', sans-serif; font-size: 13px;
+      font-weight: 700; color: rgba(255,255,255,0.8); line-height: 1.65;
+    }
+    .cookie-text a { color: #FFD93D; text-decoration: underline; text-underline-offset: 2px; }
+    .cookie-actions { display: flex; gap: 9px; }
+    .cookie-btn {
+      flex: 1; height: 38px; border: none; border-radius: 999px;
+      font-family: 'Press Start 2P', monospace; font-size: 6.5px;
+      letter-spacing: 0.3px; cursor: pointer;
+      transition: transform 0.1s, opacity 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cookie-btn:active { transform: scale(0.97); }
+    .cookie-accept { background: #FFD93D; color: #1A1A2E; box-shadow: 0 3px 0 #b89a00; }
+    .cookie-accept:hover { opacity: 0.92; }
+    .cookie-decline {
+      background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.55);
+      border: 1px solid rgba(255,255,255,0.18) !important; font-size: 5.5px;
+    }
+    .cookie-decline:hover { background: rgba(255,255,255,0.14); }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="toast-container"></div>
+
+  <!-- Persistent mute toggle -->
+  <button id="mute-btn"
+    onclick="Sound.toggleMute()"
+    aria-label="Toggle sound"
+    style="
+      position:fixed; top:calc(var(--header-h) + 12px); right:12px; z-index:500;
+      width:40px; height:40px; border-radius:50%;
+      background:rgba(255,255,255,0.12);
+      border:1px solid rgba(255,255,255,0.22);
+      font-size:18px; cursor:pointer; display:flex;
+      align-items:center; justify-content:center;
+      -webkit-tap-highlight-color:transparent;
+      transition:background 0.15s;
+    ">🔊</button>
+
+  <header id="app-header" style="
+    position:fixed; top:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:var(--max-w); height:var(--header-h);
+    z-index:1000; display:none;
+  "></header>
+
+  <section id="screen-landing" class="screen active">
+    <main class="initial-landing-copy" aria-label="Forge overview">
+      <h1>Forge: AI Trivia Showdown</h1>
+      <p>
+        Forge is a free AI trivia game for solo practice, live multiplayer quiz
+        rooms, team battles, and fast knowledge challenges. Enter any topic,
+        choose a difficulty, and the game creates a fresh question set for your
+        room in real time.
+      </p>
+      <p>
+        The public website explains the rules, scoring, privacy practices,
+        contact route, and leaderboard system so players can understand the
+        service before signing in or starting a game.
+      </p>
+      <nav class="initial-landing-links" aria-label="Helpful pages">
+        <a href="/how-to-play.html">How to Play</a>
+        <a href="/topic-guide.html">Topic Guide</a>
+        <a href="/trivia-tips.html">Trivia Tips</a>
+        <a href="/multiplayer-quiz-guide.html">Quiz Night Guide</a>
+        <a href="/ai-trivia-questions.html">How AI Works</a>
+        <a href="/dev-log.html">Dev Log</a>
+        <a href="/about.html">About</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="/contact.html">Contact</a>
+      </nav>
+    </main>
+  </section>
+  <section id="screen-home"    class="screen"></section>
+  <section id="screen-lobby"   class="screen"></section>
+  <section id="screen-game"    class="screen"></section>
+  <section id="screen-results" class="screen"></section>
+
+  <nav id="app-footer" role="navigation" aria-label="Site links">
+    <a href="/about.html">ABOUT</a>
+    <div class="footer-dot"></div>
+    <a href="/how-to-play.html">HOW TO PLAY</a>
+    <div class="footer-dot"></div>
+    <a href="/topic-guide.html">TOPICS</a>
+    <div class="footer-dot"></div>
+    <a href="/trivia-tips.html">TRIVIA TIPS</a>
+    <div class="footer-dot"></div>
+    <a href="/multiplayer-quiz-guide.html">QUIZ NIGHT GUIDE</a>
+    <div class="footer-dot"></div>
+    <a href="/ai-trivia-questions.html">HOW AI WORKS</a>
+    <div class="footer-dot"></div>
+    <a href="/dev-log.html">DEV LOG</a>
+    <div class="footer-dot"></div>
+    <a href="/privacy.html">PRIVACY POLICY</a>
+    <div class="footer-dot"></div>
+    <a href="/terms.html">TERMS</a>
+    <div class="footer-dot"></div>
+    <a href="/contact.html">CONTACT</a>
+    <div class="footer-dot"></div>
+    <span>© 2026 FORGE</span>
+  </nav>
+
+  <div id="cookie-banner" role="dialog" aria-modal="false" aria-label="Cookie consent">
+    <p class="cookie-text">
+      We use cookies and browser storage to save your high scores, mute settings,
+      and game preferences<span data-web-only>, and to serve contextual ads via
+      <a href="/privacy.html" target="_blank" rel="noopener">Google AdSense</a></span><span data-app-only>. Native app builds use the separate app monetization path described in our policy</span>.
+      By continuing to play you agree to our
+      <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.
+    </p>
+    <div class="cookie-actions">
+      <button class="cookie-btn cookie-accept"  onclick="cookieAccept()">✓ &nbsp;GOT IT</button>
+      <button class="cookie-btn cookie-decline" onclick="cookieDecline()">NON-PERSONALISED ADS</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   CONFIG
+   ══════════════════════════════════════════════════════════ */
+const PLATFORM = window.FORGE_PLATFORM || {};
+const IS_NATIVE_APP = !!PLATFORM.isNativeApp;
+const IS_APP_TARGET = PLATFORM.target === 'app';
+const IS_LOCAL_DEV = !!PLATFORM.isLocalDev;
+
+const API_BASE = PLATFORM.backendHttp || (
+  IS_LOCAL_DEV
+    ? 'http://127.0.0.1:8000'
+    : 'https://forge-backend-878124462453.us-central1.run.app'
+);
+const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
+
+const GOOGLE_CLIENT_ID = '878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com';
+
+/* ══════════════════════════════════════════════════════════
+   SESSION PERSISTENCE
+   ══════════════════════════════════════════════════════════ */
+const Session = {
+  KEY: 'forge_session_v1',
+  save() {
+    const data = {
+      playerName: State.playerName,
+      roomCode:   State.roomCode,
+      isHost:     State.isHost,
+      playMode:   State.playMode,
+      user:       State.user,
+    };
+    localStorage.setItem(this.KEY, JSON.stringify(data));
+  },
+  load() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch { return null; }
+  },
+  clear() { localStorage.removeItem(this.KEY); },
+};
+
+/* ══════════════════════════════════════════════════════════
+   GLOBAL STATE
+   ══════════════════════════════════════════════════════════ */
+const State = {
+  playerName : '',
+  roomCode   : '',
+  isHost     : false,
+  playMode   : 'classic',
+  topic      : '',
+  mode       : 'medium',
+  timeLimitMs: 20000,
+  phase      : 'lobby',
+  ws         : null,
+  players    : [],
+  currentQ   : null,
+  scores     : {},
+  resultStats: null,
+  totalQ     : 10,
+  user       : null,
+  teams      : {},
+  teamNames  : { A: 'Team A', B: 'Team B' },
+  teamScores : {},
+};
+
+function formatCoins(value) {
+  const n = Number(value || 0);
+  return Number.isInteger(n) ? n.toLocaleString() : n.toFixed(2);
+}
+
+async function applyUserEconomy(economy) {
+  if (!State.user || !economy) return;
+  if (economy.coins    !== undefined) State.user.coins    = economy.coins;
+  if (economy.trophies !== undefined) State.user.trophies = economy.trophies;
+  Session.save();
+  try {
+    const localKey = `forge_economy_${State.user.id}`;
+    localStorage.setItem(localKey, JSON.stringify({
+      coins:    State.user.coins,
+      trophies: State.user.trophies,
+    }));
+  } catch (_) {}
+
+  const syncTasks = [API.syncProfile(State.user.id, State.user.coins, State.user.trophies)];
+  if (typeof lbUpsertPlayer === 'function') {
+    syncTasks.push(
+      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies)
+        .catch(e => console.warn('[LB] Upsert failed silently:', e))
+    );
+  }
+  await Promise.allSettled(syncTasks);
+}
+
+// Restore session state on boot
+const _savedSession = Session.load();
+if (_savedSession) {
+  State.playerName = _savedSession.playerName || '';
+  State.roomCode   = _savedSession.roomCode   || '';
+  State.isHost     = !!_savedSession.isHost;
+  State.playMode   = _savedSession.playMode   || 'classic';
+  State.user       = _savedSession.user       || null;
+  if (State.user) {
+    if (State.user.coins    === undefined) State.user.coins    = 200;
+    if (State.user.trophies === undefined) State.user.trophies = 50;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   ROUTER
+   ══════════════════════════════════════════════════════════ */
+const Screens = {
+  landing : { id: 'screen-landing', file: 'screens/landing.html' },
+  home    : { id: 'screen-home',    file: 'screens/home.html'    },
+  lobby   : { id: 'screen-lobby',   file: 'screens/lobby.html'   },
+  game    : { id: 'screen-game',    file: 'screens/game.html'    },
+  results : { id: 'screen-results', file: 'screens/results.html' },
+};
+
+/*
+ * Screen guards — each returns true if navigation to that screen is valid.
+ * Prevents direct URL access to mid-game screens (e.g. /#results, /#game).
+ * landing and home are always accessible (no guard needed).
+ */
+const SCREEN_GUARDS = {
+  lobby  : () => !!(State.roomCode && State.playerName),
+  game   : () => !!(State.roomCode && State.playerName && State.ws),
+  results: () => !!(State.scores && Object.keys(State.scores).length > 0),
+};
+
+async function goTo(name, skipHash = false) {
+  // Guard check — redirect if required state is missing
+  const guard = SCREEN_GUARDS[name];
+  if (guard && !guard()) {
+    const fallback = State.playerName ? 'home' : 'landing';
+    console.warn(`[Router] Guard blocked '${name}' → redirecting to '${fallback}'`);
+    if (name !== fallback) return goTo(fallback, skipHash);
+    return;
+  }
+
+  const cfg = Screens[name];
+  if (!cfg) return;
+  const el = document.getElementById(cfg.id);
+  if (!el) return;
+
+  // Load screen HTML if not already loaded
+  if (!el.dataset.loaded) {
+    try {
+      const res  = await fetch(cfg.file);
+      if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${cfg.file}`);
+      const html = await res.text();
+      el.innerHTML = html;
+      el.dataset.loaded = 'true';
+      // Re-execute any <script> blocks inside the loaded HTML
+      el.querySelectorAll('script').forEach(old => {
+        const s = document.createElement('script');
+        s.textContent = old.textContent;
+        document.body.appendChild(s);
+      });
+    } catch (e) {
+      console.error('[Router] Failed to load screen:', name, e);
+      Toast.error('Failed to load screen. Please refresh.');
+      return;
+    }
+  }
+
+  // Activate screen
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  if (!skipHash) window.location.hash = name;
+
+  // Hide footer during gameplay
+  const footer = document.getElementById('app-footer');
+  if (footer) footer.classList.toggle('game-active', name === 'game');
+
+  // Call screen lifecycle hook if defined
+  const hook = `on${name.charAt(0).toUpperCase() + name.slice(1)}Show`;
+  if (typeof window[hook] === 'function') window[hook]();
+}
+
+// Single hashchange listener — guarded via goTo()
+window.addEventListener('hashchange', () => {
+  const h = window.location.hash.replace('#', '') || 'landing';
+  goTo(h, true);
+});
+
+/* ══════════════════════════════════════════════════════════
+   TOAST
+   ══════════════════════════════════════════════════════════ */
+const Toast = {
+  _show(msg, cls, dur = 3000) {
+    const c = document.getElementById('toast-container');
+    if (!c) return;
+    const d = document.createElement('div');
+    d.className   = `toast ${cls}`;
+    d.textContent = msg;
+    c.appendChild(d);
+    setTimeout(() => d.remove(), dur);
+  },
+  error  (m) { this._show(m, 'toast-error');   },
+  success(m) { this._show(m, 'toast-success'); },
+  info   (m) { this._show(m, 'toast-info');    },
+};
+
+/* ══════════════════════════════════════════════════════════
+   API
+   ══════════════════════════════════════════════════════════ */
+const API = {
+  async createRoom(hostName, playMode = 'classic') {
+    const r = await fetch(`${API_BASE}/rooms/create`, {
+      method  : 'POST',
+      headers : { 'Content-Type': 'application/json' },
+      body    : JSON.stringify({
+        host_name : hostName,
+        play_mode : playMode,
+        user_id   : State.user?.id || null,
+      }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async getRoom(code) {
+    const r = await fetch(`${API_BASE}/rooms/${code}`);
+    if (!r.ok) throw new Error('Room not found');
+    return r.json();
+  },
+
+  async health() {
+    return (await fetch(`${API_BASE}/health`)).json();
+  },
+
+  async verifyGoogleToken(credential) {
+    const r = await fetch(`${API_BASE}/auth/google`, {
+      method  : 'POST',
+      headers : { 'Content-Type': 'application/json' },
+      body    : JSON.stringify({ credential }),
+    });
+    if (!r.ok) throw new Error('Auth failed');
+    return r.json();
+  },
+
+  /*
+   * Sync backend profile store with Supabase state.
+   * Requires a live Google ID token (only available in the same browser session
+   * as sign-in). On page reload, _credential is gone — sync is skipped silently.
+   * The Supabase boot-sync path handles cross-device/cross-session consistency.
+   */
+  async syncProfile(userId, coins, trophies) {
+    const credential = State.user?._credential;
+    if (!credential) {
+      console.debug('[API] syncProfile: no live credential, skipping backend sync');
+      return;
+    }
+    return fetch(`${API_BASE}/economy/sync`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: userId, coins, trophies }),
+    }).catch(e => console.warn('[API] Sync failed:', e));
+  },
+};
+
+/* ══════════════════════════════════════════════════════════
+   WEBSOCKET
+   ══════════════════════════════════════════════════════════ */
+const WS = {
+  connect(roomCode, playerName) {
+    if (State.ws) { State.ws.close(); State.ws = null; }
+    const params = State.user?.id
+      ? `?user_id=${encodeURIComponent(State.user.id)}`
+      : '';
+    const url = `${WS_BASE}/ws/${roomCode}/${encodeURIComponent(playerName)}${params}`;
+    State.ws = new WebSocket(url);
+    State.ws.onopen    = () => console.log('[WS] Connected');
+    State.ws.onmessage = (e) => {
+      let msg; try { msg = JSON.parse(e.data); } catch { return; }
+      console.log('[WS] ←', msg.type, msg.data);
+      this._dispatch(msg);
+    };
+    State.ws.onerror = () => Toast.error('Connection error.');
+    State.ws.onclose = () => console.log('[WS] Closed');
+  },
+  send(payload) {
+    if (State.ws?.readyState === WebSocket.OPEN)
+      State.ws.send(JSON.stringify(payload));
+  },
+  _handlers: {},
+  _pending: {},
+  on(type, fn) {
+    this._handlers[type] = fn;
+    const queued = this._pending[type] || [];
+    delete this._pending[type];
+    queued.forEach(data => fn(data));
+  },
+  off(type) { delete this._handlers[type]; },
+  _dispatch(msg) {
+    const handler = this._handlers[msg.type];
+    if (msg.data && typeof msg.data === 'object') msg.data._receivedAt = Date.now();
+    if (handler) { handler(msg.data); return; }
+    if (!this._pending[msg.type]) this._pending[msg.type] = [];
+    this._pending[msg.type].push(msg.data);
+  },
+};
+
+/* ══════════════════════════════════════════════════════════
+   DECORATION HELPERS
+   ══════════════════════════════════════════════════════════ */
+function spawnConfetti(container) {
+  const cols = ['#FFD93D','#06D6A0','#4FC3F7','#EF233C','#9B5DE5','#FF9F1C'];
+  for (let i = 0; i < 28; i++) {
+    const el    = document.createElement('div');
+    el.className = 'confetti-piece';
+    const size  = 6 + Math.random() * 10;
+    const col   = cols[Math.floor(Math.random() * cols.length)];
+    const dur   = 7 + Math.random() * 8;
+    const delay = Math.random() * -12;
+    el.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;background:${col};border-radius:${[2,4,6][Math.floor(Math.random()*3)]}px;--dur:${dur}s;--delay:${delay}s;`;
+    container.appendChild(el);
+  }
+}
+
+function spawnStars(container) {
+  for (let i = 0; i < 35; i++) {
+    const el    = document.createElement('div');
+    el.className = 'star';
+    const size  = 1.5 + Math.random() * 2.5;
+    const dur   = 2 + Math.random() * 4;
+    const delay = Math.random() * -5;
+    el.style.cssText = `width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${dur}s;--delay:${delay}s;`;
+    container.appendChild(el);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   SOUND ENGINE
+   ══════════════════════════════════════════════════════════ */
+const Sound = {
+  _ctx: null, _masterGain: null, _bgInterval: null, muted: false,
+  init() {
+    if (this._ctx) return;
+    try {
+      this._ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this._masterGain = this._ctx.createGain();
+      this._masterGain.connect(this._ctx.destination);
+      try { this.muted = localStorage.getItem('forge_muted') === 'true'; } catch {}
+      this._masterGain.gain.value = this.muted ? 0 : 1;
+      _updateMuteBtn();
+    } catch (e) { console.warn('[Sound] Web Audio API unavailable:', e); }
+  },
+  _safe() {
+    this.init();
+    if (!this._ctx) return null;
+    if (this._ctx.state === 'suspended') this._ctx.resume();
+    return this._ctx;
+  },
+  _tone(freq, type, duration, volume, startTime) {
+    const ctx = this._ctx; if (!ctx) return;
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(volume, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain); gain.connect(this._masterGain);
+    osc.start(startTime); osc.stop(startTime + duration + 0.02);
+  },
+  click()      { const ctx = this._safe(); if (!ctx) return; this._tone(700,'sine',0.06,0.22,ctx.currentTime); },
+  tick()       { const ctx = this._safe(); if (!ctx) return; this._tone(1050,'square',0.04,0.18,ctx.currentTime); },
+  playerJoin() { const ctx = this._safe(); if (!ctx) return; const t=ctx.currentTime; this._tone(880,'sine',0.12,0.28,t); this._tone(1100,'sine',0.18,0.22,t+0.10); },
+  correct() {
+    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
+    this._tone(523,'sine',0.15,0.45,t); this._tone(659,'sine',0.15,0.45,t+0.10);
+    this._tone(784,'sine',0.20,0.45,t+0.20); this._tone(1047,'sine',0.35,0.40,t+0.32);
+  },
+  wrong() {
+    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
+    this._tone(220,'sawtooth',0.18,0.35,t); this._tone(155,'sawtooth',0.22,0.28,t+0.18);
+  },
+  gameStart() {
+    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
+    [523,659,784,1047].forEach((f,i) => this._tone(f,'square',0.14,0.28,t+i*0.14));
+  },
+  combo() {
+    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
+    this._tone(523,'square',0.12,0.40,t); this._tone(659,'square',0.12,0.40,t+0.09);
+    this._tone(784,'square',0.12,0.40,t+0.18); this._tone(1047,'square',0.18,0.50,t+0.27);
+    this._tone(1319,'sine',0.28,0.55,t+0.39);
+  },
+  gameOver() {
+    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
+    const notes=[523,659,523,784,659,1047], times=[0,0.14,0.28,0.40,0.54,0.68];
+    notes.forEach((f,i) => this._tone(f,'sine',0.22,0.40,t+times[i]));
+  },
+  startBgMusic() {
+    this.stopBgMusic();
+    const ctx = this._safe(); if (!ctx) return;
+    const notes=[261,329,392,440,523,392,329,261]; let i=0;
+    this._bgInterval = setInterval(() => {
+      const c=this._safe(); if (!c) return;
+      const t=c.currentTime;
+      const osc=c.createOscillator(), gain=c.createGain();
+      osc.type='triangle'; osc.frequency.value=notes[i%notes.length];
+      gain.gain.setValueAtTime(0.325,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.55);
+      osc.connect(gain); gain.connect(this._masterGain);
+      osc.start(t); osc.stop(t+0.58); i++;
+    }, 500);
+  },
+  stopBgMusic() { clearInterval(this._bgInterval); this._bgInterval = null; },
+  toggleMute() {
+    this.muted = !this.muted;
+    if (this._masterGain && this._ctx)
+      this._masterGain.gain.setTargetAtTime(this.muted ? 0 : 1, this._ctx.currentTime, 0.05);
+    try { localStorage.setItem('forge_muted', String(this.muted)); } catch {}
+    _updateMuteBtn();
+    return this.muted;
+  },
+};
+
+function _updateMuteBtn() {
+  const btn = document.getElementById('mute-btn');
+  if (btn) btn.textContent = Sound.muted ? '🔇' : '🔊';
+}
+
+['click','touchstart'].forEach(ev =>
+  document.addEventListener(ev, () => Sound.init(), { once: true })
+);
+
+/* ══════════════════════════════════════════════════════════
+   COOKIE CONSENT
+   ══════════════════════════════════════════════════════════ */
+const CookieConsent = {
+  STORAGE_KEY: 'forge_cookie_consent',
+  BANNER_ID:   'cookie-banner',
+  getDecision() { try { return localStorage.getItem(this.STORAGE_KEY); } catch { return null; } },
+  setDecision(v) { try { localStorage.setItem(this.STORAGE_KEY, v); } catch {} },
+  init() {
+    if (this.getDecision()) return;
+    setTimeout(() => {
+      const el = document.getElementById(this.BANNER_ID);
+      if (el) el.classList.add('visible');
+    }, 1800);
+  },
+  accept()  { this.setDecision('accepted');  this._dismiss(); if (typeof window.__adsenseNPA !== 'undefined') window.__adsenseNPA = false; },
+  decline() { this.setDecision('declined');  this._dismiss(); if (typeof window.__adsenseNPA !== 'undefined') window.__adsenseNPA = true; },
+  _dismiss() {
+    const el = document.getElementById(this.BANNER_ID);
+    if (!el) return;
+    el.classList.remove('visible');
+    setTimeout(() => el.remove(), 500);
+  },
+};
+function cookieAccept()  { CookieConsent.accept();  }
+function cookieDecline() { CookieConsent.decline(); }
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => CookieConsent.init());
+} else {
+  CookieConsent.init();
+}
+
+/* ══════════════════════════════════════════════════════════
+   GOOGLE LOGIN HANDLER
+   ══════════════════════════════════════════════════════════ */
+async function handleGoogleLogin(response) {
+  try {
+    const user = await API.verifyGoogleToken(response.credential);
+
+    // Store credential so syncProfile() can send authenticated requests
+    user._credential = response.credential;
+
+    // Sync from Supabase if available
+    try {
+      if (typeof lbFetchProfile === 'function') {
+        const fresh = await lbFetchProfile(user.id);
+        if (fresh) {
+          user.coins    = fresh.coins;
+          user.trophies = fresh.trophies;
+          if (fresh.display_name) user.name = fresh.display_name;
+          API.syncProfile(user.id, fresh.coins, fresh.trophies);
+        }
+      }
+    } catch (e) { console.warn('[Login] Supabase sync failed:', e); }
+
+    // localStorage wins if higher (cross-tab safety)
+    const localKey = `forge_economy_${user.id}`;
+    try {
+      const saved = JSON.parse(localStorage.getItem(localKey) || '{}');
+      if ((saved.coins    ?? 0) > (user.coins    ?? 0)) user.coins    = saved.coins;
+      if ((saved.trophies ?? 0) > (user.trophies ?? 0)) user.trophies = saved.trophies;
+    } catch (_) {}
+
+    State.user = user; State.playerName = user.name;
+    const nameInput = document.getElementById('input-name');
+    if (nameInput) nameInput.value = user.name;
+    Session.save();
+    if (typeof _initGoogleSignIn === 'function') _initGoogleSignIn();
+    Toast.success(`Signed in as ${user.name}`);
+  } catch (e) {
+    console.error(e);
+    Toast.error('Google Sign-In failed.');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   SUPABASE READY HELPER
+   Polls until supabase-client.js (deferred) has loaded and
+   exported lbFetchProfile. Resolves false after 5s timeout
+   so boot always continues regardless.
+   ══════════════════════════════════════════════════════════ */
+function waitForSupabase(timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    if (typeof lbFetchProfile === 'function') { resolve(true); return; }
+    const start    = Date.now();
+    const interval = setInterval(() => {
+      if (typeof lbFetchProfile === 'function') {
+        clearInterval(interval); resolve(true);
+      } else if (Date.now() - start >= timeoutMs) {
+        clearInterval(interval);
+        console.warn('[Boot] Supabase not ready after timeout — skipping profile sync.');
+        resolve(false);
+      }
+    }, 50);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   BOOT
+   Always ends with a screen being shown.
+   Order of preference:
+     1. Restore active room session (hash = lobby/game/results)
+     2. Explicit #home hash (returning player)
+     3. Landing page (default — required for AdSense)
+   ══════════════════════════════════════════════════════════ */
+(async () => {
+  try {
+    API.health().catch(() => {});  // warm Cloud Run silently, never block boot
+
+    const hash = window.location.hash.replace('#', '');
+
+    // Cross-device profile sync for returning signed-in users
+    if (State.user && State.user.id) {
+      const supabaseReady = await waitForSupabase();
+      if (supabaseReady) {
+        try {
+          const fresh = await lbFetchProfile(State.user.id);
+          if (fresh) {
+            State.user.coins    = fresh.coins;
+            State.user.trophies = fresh.trophies;
+            if (fresh.display_name) State.user.name = fresh.display_name;
+            Session.save();
+            API.syncProfile(State.user.id, fresh.coins, fresh.trophies);
+            console.log('[Boot] Profile synced from Supabase');
+          }
+        } catch (e) { console.warn('[Boot] Profile sync failed:', e); }
+      }
+    }
+
+    // Case 1: restore active room session
+    if (_savedSession?.roomCode && hash && hash !== 'landing' && hash !== 'home') {
+      try {
+        await API.getRoom(_savedSession.roomCode);
+        if (hash === 'lobby' || hash === 'game' || hash === 'results') {
+          WS.connect(_savedSession.roomCode, _savedSession.playerName);
+        }
+        await goTo(hash, true);
+        return;
+      } catch (e) {
+        console.warn('[Boot] Saved room no longer valid:', e);
+        Session.clear();
+      }
+    }
+
+    // Case 2: explicit #home (returning player skipping landing)
+    if (hash === 'home') {
+      await goTo('home', true);
+      return;
+    }
+
+    // Case 3: default — landing page (AdSense bots land here)
+    await goTo('landing', true);
+
+  } catch (e) {
+    // Absolute safety net — if anything above fails, always show landing
+    console.error('[Boot] Unexpected error, falling back to landing:', e);
+    try {
+      await goTo('landing', true);
+    } catch (fallbackErr) {
+      console.error('[Boot] goTo fallback failed:', fallbackErr);
+      // Last resort: manually activate the screen div
+      const el = document.getElementById('screen-landing');
+      if (el) {
+        el.classList.add('active');
+        // Attempt direct fetch as a final fallback
+        fetch('screens/landing.html')
+          .then(r => r.text())
+          .then(html => {
+            el.innerHTML = html;
+            el.querySelectorAll('script').forEach(old => {
+              const s = document.createElement('script');
+              s.textContent = old.textContent;
+              document.body.appendChild(s);
+            });
+            if (typeof onLandingShow === 'function') onLandingShow();
+          })
+          .catch(() => {
+            el.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#fff"><h1 style="color:#FFD93D;margin-bottom:16px">FORGE</h1><p>Loading failed. Please refresh the page.</p></div>';
+          });
+      }
+    }
+  }
+})();
+</script>
+
+<noscript>
+  <style>
+    body { font-family: 'Nunito', sans-serif; background: #0D1B8E; color: #fff; padding: 24px; }
+    .ns-wrap { max-width: 600px; margin: 40px auto; text-align: center; }
+    .ns-title { font-size: 28px; font-weight: 900; color: #FFD93D; margin-bottom: 16px; }
+    .ns-body { font-size: 16px; line-height: 1.8; opacity: 0.85; margin-bottom: 24px; }
+    .ns-links a { color: #FFD93D; margin: 0 10px; font-weight: 800; }
+  </style>
+  <div class="ns-wrap">
+    <div class="ns-title">🏆 FORGE — AI Trivia Showdown</div>
+    <p class="ns-body">Forge is a free, real-time multiplayer trivia game powered by Google Gemini AI. JavaScript is required to play. Please enable JavaScript in your browser to continue.</p>
+    <div class="ns-links">
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/contact.html">Contact</a>
+      <a href="/terms.html">Terms of Service</a>
+    </div>
+  </div>
+</noscript>
+</body>
+</html>

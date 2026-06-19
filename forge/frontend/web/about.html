@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>About Dev Solanki — The CS Student Who Built Forge: AI Trivia Showdown</title>
+  <meta name="description" content="Meet Dev Solanki, a CS student who built Forge AI Trivia. Learn why he created this real-time AI-powered game, the tech behind it, and his vision for the future." />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="https://forgetrivia.online/about.html" />
+  <meta property="og:type" content="profile" />
+  <meta property="og:title" content="About Dev Solanki — The Student Who Built Forge" />
+  <meta property="og:description" content="A CS student's story of building a real-time AI multiplayer trivia game from scratch." />
+  <meta property="og:url" content="https://forgetrivia.online/about.html" />
+  <script src="platform.js"></script>
+  <script>window.ForgePlatform && window.ForgePlatform.loadAdSense();</script>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(ellipse at 50% 0%, #2540CC 0%, #0D1B8E 100%);
+      min-height: 100vh;
+      font-family: 'Nunito', sans-serif;
+      color: #fff;
+      padding: 0 16px 64px;
+      line-height: 1.8;
+    }
+    header, main, footer { max-width: 820px; margin: 0 auto; }
+    header { padding: 42px 0 28px; text-align: center; }
+    .logo {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 22px;
+      color: #FFD93D;
+      text-decoration: none;
+      letter-spacing: 2px;
+    }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    nav a {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      color: #FFD93D;
+      text-decoration: none;
+      border: 1px solid rgba(255,217,61,0.28);
+      border-radius: 999px;
+      padding: 10px 13px;
+      background: rgba(255,255,255,0.06);
+      transition: background 0.15s;
+    }
+    nav a:hover { background: rgba(255,255,255,0.12); }
+
+    /* AUTHOR HERO */
+    .author-hero {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 40px 32px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    @media (min-width: 600px) {
+      .author-hero { flex-direction: row; align-items: flex-start; gap: 28px; }
+    }
+    .author-avatar {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #FFD93D, #E6B800);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 44px;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 4px rgba(255,217,61,0.25), 0 8px 24px rgba(255,217,61,0.2);
+    }
+    .author-info { flex: 1; }
+    .author-name {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(14px, 3vw, 20px);
+      color: #FFD93D;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .author-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+    }
+    .author-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .author-tag {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
+      color: rgba(255,255,255,0.6);
+    }
+    .author-bio {
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.8);
+      line-height: 1.75;
+    }
+
+    /* SECTIONS */
+    .section-card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 36px 32px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 600px) {
+      .author-hero, .section-card { padding: 24px 18px; }
+    }
+    h2 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 11px;
+      color: #FFD93D;
+      line-height: 1.65;
+      margin-bottom: 18px;
+    }
+    p {
+      font-size: 16px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.84);
+      margin-bottom: 14px;
+      line-height: 1.8;
+    }
+    strong { color: #FFD93D; }
+    a { color: #FFD93D; }
+    a:hover { text-decoration: underline; }
+
+    /* STACK GRID */
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .stack-item {
+      background: rgba(255,217,61,0.07);
+      border: 1px solid rgba(255,217,61,0.18);
+      border-radius: 12px;
+      padding: 16px 14px;
+    }
+    .stack-name {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      color: #FFD93D;
+      margin-bottom: 5px;
+    }
+    .stack-role {
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* MODE CARDS */
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .mode-card {
+      border-radius: 14px;
+      padding: 22px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mode-card.solo    { background: rgba(6,214,160,0.08);   border: 1px solid rgba(6,214,160,0.25); }
+    .mode-card.classic { background: rgba(255,217,61,0.08);  border: 1px solid rgba(255,217,61,0.25); }
+    .mode-card.team    { background: rgba(155,93,229,0.09);  border: 1px solid rgba(155,93,229,0.28); }
+    .mode-emoji { font-size: 28px; }
+    .mode-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      color: #fff;
+    }
+    .mode-desc {
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.65);
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    /* GOALS */
+    .goals-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .goal-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+    }
+    .goal-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+    .goal-text { flex: 1; }
+    .goal-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      color: #FFD93D;
+      margin-bottom: 5px;
+    }
+    .goal-desc {
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.65);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    /* SIGNATURE */
+    .sig-box {
+      background: rgba(255,217,61,0.07);
+      border: 1px solid rgba(255,217,61,0.2);
+      border-radius: 14px;
+      padding: 24px 24px;
+      margin-top: 20px;
+    }
+    .sig-box p { color: rgba(255,255,255,0.78); margin-bottom: 10px; }
+    .sig-box p:last-child { margin: 0; }
+    .sig {
+      font-family: 'Nunito', sans-serif;
+      font-size: 16px;
+      font-weight: 900;
+      color: #FFD93D;
+      font-style: italic;
+      margin-top: 10px !important;
+    }
+
+    /* CTA */
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      padding: 16px 24px;
+      border-radius: 999px;
+      text-decoration: none;
+      transition: transform 0.1s;
+    }
+    .btn:active { transform: translateY(2px); }
+    .btn-primary { background: #FFD93D; color: #0D1B8E; box-shadow: 0 4px 0 #b89a00; }
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.22);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 20px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      color: rgba(255,255,255,0.25);
+      line-height: 2.6;
+    }
+    footer a { color: #FFD93D; text-decoration: none; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">FORGE</a>
+    <nav aria-label="Site navigation">
+      <a href="/">Play</a>
+      <a href="/how-to-play.html">How to Play</a>
+      <a href="/trivia-tips.html">Trivia Tips</a>
+      <a href="/multiplayer-quiz-guide.html">Quiz Night Guide</a>
+      <a href="/topic-guide.html">Topic Guide</a>
+      <a href="/ai-trivia-questions.html">How AI Works</a>
+      <a href="/dev-log.html">Dev Log</a>
+      <a href="/leaderboard.html">Leaderboard</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- AUTHOR HERO -->
+    <div class="author-hero">
+      <div class="author-avatar" aria-hidden="true">👨‍💻</div>
+      <div class="author-info">
+        <h1 class="author-name">Dev Solanki</h1>
+        <p class="author-title">CS STUDENT · AI/ML FOCUS · BUILDER OF FORGE</p>
+        <div class="author-tags">
+          <span class="author-tag">2nd Year CS</span>
+          <span class="author-tag">Python</span>
+          <span class="author-tag">AI / ML</span>
+          <span class="author-tag">FastAPI</span>
+          <span class="author-tag">Google Gemini</span>
+          <span class="author-tag">WebSockets</span>
+        </div>
+        <p class="author-bio">I'm a second-year Computer Science student with a focus on AI and machine learning. I built Forge: AI Trivia Showdown during my semester break as a passion project — and I've been obsessively improving it ever since. This is my story.</p>
+      </div>
+    </div>
+
+    <!-- WHY I BUILT THIS -->
+    <section class="section-card" aria-labelledby="why-heading">
+      <h2 id="why-heading">Why I Built Forge</h2>
+      <p>Let me introduce myself properly. I'm Dev Solanki, and Forge is the kind of thing you build when you're supposed to be relaxing during a vacation but instead find yourself hunched over a laptop at 2 AM, debugging WebSocket connections and muttering at your terminal. I wouldn't have it any other way.</p>
+      <p>I built Forge because I love trivia, but I was tired of playing the same questions on other platforms. You know the feeling — you've seen that question about the capital of Australia three times already, and the answer choices are always in the same predictable order. It stops being fun and starts feeling like memorizing a dusty database. I wanted something that felt <strong>alive</strong>. Something where every round was genuinely new, where I could challenge friends in real time without any lag, and where I could type literally any topic and get a fresh quiz in seconds.</p>
+      <p>But honestly? I also built this because I wanted to see if I <em>could</em>. As a student, there's nothing more thrilling than taking an idea from your notebook and turning it into something that actually works — something that other people can use and enjoy. Forge is my proof of concept that a solo developer can harness modern AI to create a genuinely fun, scalable, real-time game with zero infrastructure budget.</p>
+    </section>
+
+    <!-- WHAT MAKES IT DIFFERENT -->
+    <section class="section-card" aria-labelledby="different-heading">
+      <h2 id="different-heading">What Makes Forge Different</h2>
+      <p>The biggest difference is right in the name — <strong>AI Trivia Showdown</strong>. Every single question you see in Forge is generated on the fly by Google Gemini AI, not pulled from a static list. That means no repeats, no stale facts, and no limits on topics. You want a round about obscure 90s anime? Done. A deep dive into cricket World Cup finals? Absolutely. Questions about a scientific breakthrough from last month? Gemini already knows about it.</p>
+      <p>The second difference is <strong>real-time multiplayer</strong>. When you're playing against friends, everyone answers the exact same questions at the exact same time, with live scoring that updates as soon as you submit. No turn-based waiting, no refresh buttons — just pure, head-to-head speed and knowledge. It feels like being in a quiz hall, even if you're alone in your room.</p>
+      <p>And because the questions are AI-generated, you can choose literally any topic. Movies, science, history, video games, food, coding, Bollywood, cricket, quantum physics — the AI tailors the difficulty and angle based on whatever you ask for. No one else is doing this at zero cost with this level of real-time multiplayer integration.</p>
+    </section>
+
+    <!-- TECH STACK -->
+    <section class="section-card" aria-labelledby="tech-heading">
+      <h2 id="tech-heading">The Technical Challenge</h2>
+      <p>Building a real-time multiplayer game that talks to an AI, keeps everyone's scores in sync, and runs smoothly on the cloud is not a weekend project. As a student working alone with zero budget, I had to make every architectural decision count.</p>
+      <p>The frontend is plain Vanilla JavaScript — no React, no Vue, no frameworks. I wanted to keep it fast, lightweight, and fully portable for the Android wrapper I'm building with CapacitorJS. The backend is FastAPI, a Python framework that handles asynchronous tasks beautifully — crucial for managing dozens of simultaneous WebSocket connections without blocking. Every score update, every timer tick, every answer flows through a persistent WebSocket connection, making the game feel instantaneous.</p>
+      <p>For the AI layer, I integrated Google Gemini and built a carefully engineered prompt system that gets consistent, structured question output. Every AI response is validated with Pydantic before it reaches any player. The infrastructure runs on Google Cloud Run and Vercel — both free tier, both zero cost. The hardest part was glueing it all together while keeping latency low. There were moments I wanted to throw my laptop out the window, especially during WebSocket reconnection bugs. But every problem fixed taught me more than any lecture ever could.</p>
+
+      <div class="stack-grid" role="list" aria-label="Technology stack">
+        <div class="stack-item" role="listitem">
+          <p class="stack-name">GOOGLE GEMINI</p>
+          <p class="stack-role">AI question generation</p>
+        </div>
+        <div class="stack-item" role="listitem">
+          <p class="stack-name">FASTAPI</p>
+          <p class="stack-role">Python async backend</p>
+        </div>
+        <div class="stack-item" role="listitem">
+          <p class="stack-name">WEBSOCKETS</p>
+          <p class="stack-role">Real-time multiplayer sync</p>
+        </div>
+        <div class="stack-item" role="listitem">
+          <p class="stack-name">CLOUD RUN</p>
+          <p class="stack-role">Serverless hosting ($0)</p>
+        </div>
+        <div class="stack-item" role="listitem">
+          <p class="stack-name">VERCEL</p>
+          <p class="stack-role">Frontend CDN ($0)</p>
+        </div>
+        <div class="stack-item" role="listitem">
+          <p class="stack-name">SUPABASE</p>
+          <p class="stack-role">Leaderboard & donations</p>
+        </div>
+        <div class="stack-item" role="listitem">
+          <p class="stack-name">VANILLA JS</p>
+          <p class="stack-role">Zero-framework frontend</p>
+        </div>
+        <div class="stack-item" role="listitem">
+          <p class="stack-name">CAPACITOR</p>
+          <p class="stack-role">Android app packaging</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- GAME MODES -->
+    <section class="section-card" aria-labelledby="modes-heading">
+      <h2 id="modes-heading">Game Modes — Something for Every Mood</h2>
+      <p>I designed Forge with different contexts in mind. Not everyone wants the same kind of trivia experience, so I built three distinct modes:</p>
+
+      <div class="mode-grid" role="list">
+        <div class="mode-card solo" role="listitem">
+          <span class="mode-emoji">🎯</span>
+          <p class="mode-title">SOLO MODE</p>
+          <p class="mode-desc">Your personal practice ground. No pressure, no opponents — just you and the AI. Track your personal best score per difficulty and earn trophies based on your accuracy.</p>
+        </div>
+        <div class="mode-card classic" role="listitem">
+          <span class="mode-emoji">🎮</span>
+          <p class="mode-title">CLASSIC MODE</p>
+          <p class="mode-desc">Real-time free-for-all. Everyone answers the same questions simultaneously. Speed bonuses and streak multipliers make every second count.</p>
+        </div>
+        <div class="mode-card team" role="listitem">
+          <span class="mode-emoji">⚔️</span>
+          <p class="mode-title">TEAM MODE</p>
+          <p class="mode-desc">Two teams battle it out. Each team picks a topic, a randomizer wheel picks one, and the combined scores of each team decide the winner.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- GOALS -->
+    <section class="section-card" aria-labelledby="goals-heading">
+      <h2 id="goals-heading">What I'm Working Toward</h2>
+
+      <div class="goals-list">
+        <div class="goal-item">
+          <span class="goal-icon">💰</span>
+          <div class="goal-text">
+            <p class="goal-title">ADSENSE MONETIZATION</p>
+            <p class="goal-desc">I'm working toward Google AdSense approval so I can keep Forge free for everyone while covering cloud costs. Nothing intrusive — just tasteful ads that let this stay a zero-cost game for players.</p>
+          </div>
+        </div>
+        <div class="goal-item">
+          <span class="goal-icon">📱</span>
+          <div class="goal-text">
+            <p class="goal-title">GOOGLE PLAY STORE</p>
+            <p class="goal-desc">A native Android app is in the works using CapacitorJS. I want Forge to be a one-tap experience on your phone — no browser required.</p>
+          </div>
+        </div>
+        <div class="goal-item">
+          <span class="goal-icon">🤖</span>
+          <div class="goal-text">
+            <p class="goal-title">BETTER AI QUESTIONS</p>
+            <p class="goal-desc">I'm constantly improving the prompt engineering and validation pipeline to produce more accurate, more surprising, and more challenging questions.</p>
+          </div>
+        </div>
+        <div class="goal-item">
+          <span class="goal-icon">🌍</span>
+          <div class="goal-text">
+            <p class="goal-title">A REAL COMMUNITY</p>
+            <p class="goal-desc">Beyond the tech, my true goal is to build a community of trivia lovers who enjoy this game as much as I enjoy building it. That starts with listening to every piece of feedback.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLOSING NOTE -->
+    <div class="sig-box">
+      <p>Forge is my creation, but it's not just mine. Every round you play, every bug you report, every piece of feedback you send — that shapes where this project goes next. I'm genuinely listening.</p>
+      <p>Thank you for being here. Thank you for playing. And most of all, thank you for giving a student's passion project a chance. Now go out there, pick a topic, and show that AI what you're made of.</p>
+      <p class="sig">— Dev Solanki<br>Built with caffeine, curiosity, and a lot of late nights.</p>
+
+      <div class="cta-row">
+        <a href="/" class="btn btn-primary">⚡ PLAY FORGE</a>
+        <a href="/contact.html" class="btn btn-secondary">✉️ SEND FEEDBACK</a>
+        <a href="/dev-log.html" class="btn btn-secondary">📋 READ DEV LOG</a>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    &copy; 2026 FORGE &nbsp;&middot;&nbsp;
+    <a href="/">Home</a> &middot;
+    <a href="/how-to-play.html">How to Play</a> &middot;
+    <a href="/trivia-tips.html">Trivia Tips</a> &middot;
+    <a href="/multiplayer-quiz-guide.html">Quiz Night Guide</a> &middot;
+    <a href="/topic-guide.html">Topic Guide</a> &middot;
+    <a href="/ai-trivia-questions.html">How AI Works</a> &middot;
+    <a href="/dev-log.html">Dev Log</a> &middot;
+    <a href="/privacy.html">Privacy</a> &middot;
+    <a href="/terms.html">Terms</a> &middot;
+    <a href="/contact.html">Contact</a> &middot;
+    forgetrivia.online
+  </footer>
+</body>
+</html>
