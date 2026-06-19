@@ -43,20 +43,21 @@ A real-time multiplayer mobile quiz game. Players enter **ANY** topic $\rightarr
 * **New Visual Identity:** Transitioning to a *Clash Royale*-style mobile game UI.
 * **Feature Pruning:** Heavy feature removals and strict feature-gating (detailed below).
 
-### 📐 Open Technical Decision — NOT YET RESOLVED
+### 📐 Architecture Decision — RESOLVED (June 19, 2026)
 
-Today, the app and web share the *exact same* HTML/CSS/JS, branched only at runtime by `platform.js` using attributes like `data-app-only`, `data-web-only`, and `html[data-forge-target]`.
+Resolved: **Forked frontend.** `frontend/` splits into `frontend/web/` (current site, frozen, untouched) and `frontend/app/` (new Capacitor target, active development). `capacitor.config.json`'s `webDir` points to `frontend/app`. Vercel's build root for the live site points to `frontend/web`.
 
-Before starting the *Clash Royale* UI implementation, choose one of the following architectural approaches:
+This guarantees the website can't be affected by app UI work — separate files, not a shared tree gated by `data-forge-target`. The `platform.js` `data-app-only`/`data-web-only` machinery is retired going forward; a slim app-only variant may remain in `frontend/app/` solely for local-dev backend URL switching.
 
-* **Option (a): Shared codebase, heavier theme-swap** — Keep one unified `frontend/` folder; drive a massive visual fork off `data-forge-target="app"` (injecting new CSS variables, new component skins, and conditionally loaded screens).
-* **Option (b): Forked app-specific frontend** — Split the project structure into `frontend/app/` vs `frontend/web/`. Point `capacitor.config.json`'s `webDir` directly at the app-only folder, duplicating or sharing core application logic (`app.js`, WebSocket client, scoring display, etc.) as needed.
+The **backend stays single and shared** — see "Backend Stays Unified" below. Only the frontend forks.
 
----
+### ⚙️ Backend Stays Unified — No Backend Fork
 
-## 📱 App UI Direction — Clash Royale-Style Overhaul (Milestone 31+)
+The FastAPI backend is never forked or branched by client target. Web and app hit the exact same endpoints and WebSocket protocol. Team Mode and the leaderboard already exist server-side; access to them is gated **exclusively by withholding UI entry points on the website build**, never by backend logic. Do not add target/platform checks to backend code. If a future feature ever needs true server-side gating, treat that as a deliberate, separately-flagged decision — not the default pattern.
 
-The current pixel-arcade/neon-quiz-show look (Press Start 2P font, blue gradients, Kahoot-style flat buttons) stays on the **website only**. The **app** gets a premium visual identity inspired by modern mobile games:
+## 📱 App UI Direction — Mobile-Game-Inspired Overhaul (Milestone 31+)
+
+* **Clarification:** Clash Royale is a reference point for navigation feel — chunky tactile buttons and a clear menu/leaderboard/shop-style navigation pattern — not a visual template to replicate. Blueprint-level inspiration, not a skin clone.
 
 * **Juicy Interactive Elements:** Chunky, glossy, "3D-bevel" buttons featuring strong drop shadows instead of flat pixel elements. Provides larger, clearer tap targets and exaggerated press states.
 * **Card-Based Panels:** Menus (room creation, mode select, results) will migrate toward tactile card/chest panels rather than translucent glassmorphism cards.
@@ -88,6 +89,7 @@ To incentivize app installation, the **app** will be treated as the full-feature
 * **Teaser UX UI:** The web front-end should actively tease locked content (e.g., *"Team Mode & Global Leaderboards are available in the app"* alongside an explicit Play Store badge link) instead of hiding components silently.
 * **Gating Implementation:** Extend the functional `data-app-only` / `appOnlyFeaturesEnabled` pattern within `platform.js`.
 * **Backend Verification:** A future architecture check is required to ensure the WebSocket `set_lobby_mode` action drops or rejects `mode: "team"` server-side if the incoming connection is verified as originating from a web-client agent.
+* **Rationale:** Gating Team Mode and the global leaderboard to the app is the primary install-driver for Play Store downloads, which monetizes better long-term than additional AdSense traffic on the frozen website.
 
 ---
 
@@ -258,34 +260,14 @@ forge/
 │       ├── models/            ← (quiz.py)
 │       ├── routers/           ← (http.py, websocket.py, auth.py)
 │       └── services/          ← (ai.py, profiles.py)
-└── frontend/                  ← Shared front-end assets (Review M31 Open Decisions)
-    ├── index.html             ← Boot routing logic + navigation security guards (M29)
-    ├── platform.js            ← Environment runtime checking + AdSense initialization
-    ├── app.js                 ← Core engine processing & real-time socket events
-    ├── supabase-client.js     ← Database client wrapper (Leaderboard / Donations)
-    ├── ads.txt / app-ads.txt
-    ├── robots.txt / sitemap.xml
-    ├── about.html              ┐
-    ├── contact.html            │
-    ├── privacy.html            │  Website-only static informational pages
-    ├── terms.html              │  (App-only removal candidates - See M32 planning)
-    ├── how-to-play.html        │
-    ├── topic-guide.html        │
-    ├── trivia-tips.html        │
-    ├── ai-trivia-questions.html│
-    └── dev-log.html            ┘
-    ├── leaderboard.html        ← Core ranking display (App exclusivity candidate)
-    ├── assets/                 ← Local typographical configuration & asset packs
-    ├── components/
-    │   ├── leaderboard.js
-    │   └── timer.js
-    └── screens/
-        ├── landing.html        ← Mandatory AdSense landing content node
-        ├── home.html
-        ├── lobby.html
-        ├── game.html
-        └── results.html
-
+└── frontend/
+    ├── web/                      ← Frozen — exact current site, never touched by app work
+    │   ├── index.html, platform.js, supabase-client.js, ads.txt, robots.txt, sitemap.xml...
+    │   └── screens/ (landing, home, lobby, game, results) — unchanged Kahoot/pixel skin
+    └── app/                      ← Active — Capacitor target, new mobile-game-inspired UI
+        ├── index.html
+        ├── platform-app.js       ← trimmed: just local-dev backend URL switching
+        └── screens/ (rebuilt visually, same WS message contracts as backend)
 ```
 
 ---
@@ -492,7 +474,8 @@ final = int(base * multi)
 | **29.5** | Generation and alignment of Master App Branding Graphic Vectors (Icons/Splash screens). | ✅ Done |
 | **29.6** | Submission processing to the Amazon Appstore. | ✅ Done |
 | **30** | AdSense dynamic footprint verification processing expansion (Compliance pages + sitemap). | ✅ Done |
-| **31** | **Strategic Pivot Tracking:** Codebase/Workflow splitting + *Clash Royale* interface definition. | 🔲 **In Progress** |
+| **31** | **Strategic Pivot:** Architecture decision resolved June 19, 2026 — forked frontend (`web/` + `app/`), backend stays unified. | ✅ Resolved |
+| **31.5** | Physical folder split execution: move current `frontend/` → `frontend/web/`, scaffold `frontend/app/`, repoint `capacitor.config.json` and Vercel build root. | 🔲 Next |
 | **32** | App Stream: Removal of out-of-scope compliance assets & Chai4Me logic from native wrapper. | 🔲 Next |
 | **33** | App Stream: Realization of feature-gating routes blocking web access to premier arrays. | 🔲 Next |
 | **34** | App Stream: *Clash Royale*-style asset skinning implementation. | 🔲 Next |
@@ -523,6 +506,7 @@ final = int(base * multi)
 * **Verification Audits:** Donation validations remain fully manual to keep the infrastructure footprint lean. Do not write programmatic webhooks or processing scripts to automate payment validation.
 * **Database Views Execution Bounds:** The `donor_leaderboard` relation is an encapsulated SQL View asset; structural update or insertion tasks target checking rules incorrectly and will fail.
 * **Local Identity Life Cycle Limitations:** Client-side token caches (`State.user._credential`) exist strictly within active browser memory contexts and do not survive page reloads. The initialization block handles profile syncing across page reloads via dedicated Supabase calls instead.
+* **Frontend Fork Decision (June 19, 2026):** Resolved the Milestone 31 architecture question — frontend physically splits into `web/` and `app/`; backend remains single and shared across both targets; gating of premium features (Team mode, leaderboard) is UI-only, never backend-side.
 
 ---
 
