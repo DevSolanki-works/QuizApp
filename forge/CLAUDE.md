@@ -70,7 +70,7 @@ The FastAPI backend is never forked or branched by client target. Web and app hi
 
 ## 🚫 App-Only Removals (Planned, Not Yet Implemented)
 
-* **Removed from app build (Done):** `about.html`, `how-to-play.html`, `topic-guide.html`, `trivia-tips.html`, `multiplayer-quiz-guide.html`, `ai-trivia-questions.html`, `dev-log.html`, `contact.html`, `screens/landing.html`, `ads.txt`, `app-ads.txt`, `robots.txt`, `sitemap.xml`. `index.html` boot logic rewritten to default straight to `home` (no landing/crawler routing needed in-app).
+* **Removed from app build (Done):** `about.html`, `how-to-play.html`, `topic-guide.html`, `trivia-tips.html`, `multiplayer-quiz-guide.html`, `ai-trivia-questions.html`, `dev-log.html`, `contact.html`, `screens/landing.html`, `ads.txt`, `app-ads.txt`, `robots.txt`, `sitemap.xml`, `privacy.html`, `terms.html`. `index.html` boot logic rewritten to default straight to `home`. Privacy/Terms now link out to `forgetrivia.online` directly from the cookie banner instead of bundling local copies — single canonical source, no drift risk.
 * **Chai4Me button:** Removed from `home.html` top-left actions.
 * **Leaderboard:** External `leaderboard.html` page kept (not deleted) but flagged for conversion — Supabase fetch logic (`loadScores`, tab-switching) will be reused, but the standalone-page wrapper, donor/Chai4Me tab, and styling will be rebuilt as an in-app menu screen once the new Clash-Royale-style nav is designed. Corner pill button removed from `home.html` in the meantime.
 * **Footer nav (`#app-footer`):** Removed from `index.html` — it only linked to now-deleted pages.
@@ -268,7 +268,7 @@ forge/
     │   └── screens/ (landing.html, home.html, lobby.html, game.html, results.html)
     └── app/                          ← Active — Capacitor target, mobile-game UI in progress
         ├── index.html, app.js, platform.js, supabase-client.js
-        ├── privacy.html, terms.html   ← kept per Play Store requirement, to become external links
+        |(no local privacy.html/terms.html — cookie banner links out to forgetrivia.online directly)
         ├── leaderboard.html           ← PENDING CONVERSION: Supabase fetch logic reusable,
         │                                wrapper/styling/donor-tab to be rebuilt as in-app menu screen
         ├── components/ (leaderboard.js, timer.js)
