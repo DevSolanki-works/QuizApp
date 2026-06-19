@@ -448,62 +448,10 @@
     z-index:1000; display:none;
   "></header>
 
-  <section id="screen-landing" class="screen active">
-    <main class="initial-landing-copy" aria-label="Forge overview">
-      <h1>Forge: AI Trivia Showdown</h1>
-      <p>
-        Forge is a free AI trivia game for solo practice, live multiplayer quiz
-        rooms, team battles, and fast knowledge challenges. Enter any topic,
-        choose a difficulty, and the game creates a fresh question set for your
-        room in real time.
-      </p>
-      <p>
-        The public website explains the rules, scoring, privacy practices,
-        contact route, and leaderboard system so players can understand the
-        service before signing in or starting a game.
-      </p>
-      <nav class="initial-landing-links" aria-label="Helpful pages">
-        <a href="/how-to-play.html">How to Play</a>
-        <a href="/topic-guide.html">Topic Guide</a>
-        <a href="/trivia-tips.html">Trivia Tips</a>
-        <a href="/multiplayer-quiz-guide.html">Quiz Night Guide</a>
-        <a href="/ai-trivia-questions.html">How AI Works</a>
-        <a href="/dev-log.html">Dev Log</a>
-        <a href="/about.html">About</a>
-        <a href="/privacy.html">Privacy</a>
-        <a href="/terms.html">Terms</a>
-        <a href="/contact.html">Contact</a>
-      </nav>
-    </main>
-  </section>
-  <section id="screen-home"    class="screen"></section>
+  <section id="screen-home"    class="screen active"></section>
   <section id="screen-lobby"   class="screen"></section>
   <section id="screen-game"    class="screen"></section>
   <section id="screen-results" class="screen"></section>
-
-  <nav id="app-footer" role="navigation" aria-label="Site links">
-    <a href="/about.html">ABOUT</a>
-    <div class="footer-dot"></div>
-    <a href="/how-to-play.html">HOW TO PLAY</a>
-    <div class="footer-dot"></div>
-    <a href="/topic-guide.html">TOPICS</a>
-    <div class="footer-dot"></div>
-    <a href="/trivia-tips.html">TRIVIA TIPS</a>
-    <div class="footer-dot"></div>
-    <a href="/multiplayer-quiz-guide.html">QUIZ NIGHT GUIDE</a>
-    <div class="footer-dot"></div>
-    <a href="/ai-trivia-questions.html">HOW AI WORKS</a>
-    <div class="footer-dot"></div>
-    <a href="/dev-log.html">DEV LOG</a>
-    <div class="footer-dot"></div>
-    <a href="/privacy.html">PRIVACY POLICY</a>
-    <div class="footer-dot"></div>
-    <a href="/terms.html">TERMS</a>
-    <div class="footer-dot"></div>
-    <a href="/contact.html">CONTACT</a>
-    <div class="footer-dot"></div>
-    <span>© 2026 FORGE</span>
-  </nav>
 
   <div id="cookie-banner" role="dialog" aria-modal="false" aria-label="Cookie consent">
     <p class="cookie-text">
@@ -633,7 +581,6 @@ if (_savedSession) {
    ROUTER
    ══════════════════════════════════════════════════════════ */
 const Screens = {
-  landing : { id: 'screen-landing', file: 'screens/landing.html' },
   home    : { id: 'screen-home',    file: 'screens/home.html'    },
   lobby   : { id: 'screen-lobby',   file: 'screens/lobby.html'   },
   game    : { id: 'screen-game',    file: 'screens/game.html'    },
@@ -655,9 +602,8 @@ async function goTo(name, skipHash = false) {
   // Guard check — redirect if required state is missing
   const guard = SCREEN_GUARDS[name];
   if (guard && !guard()) {
-    const fallback = State.playerName ? 'home' : 'landing';
-    console.warn(`[Router] Guard blocked '${name}' → redirecting to '${fallback}'`);
-    if (name !== fallback) return goTo(fallback, skipHash);
+    console.warn(`[Router] Guard blocked '${name}' → redirecting to 'home'`);
+    if (name !== 'home') return goTo('home', skipHash);
     return;
   }
 
@@ -703,7 +649,7 @@ async function goTo(name, skipHash = false) {
 
 // Single hashchange listener — guarded via goTo()
 window.addEventListener('hashchange', () => {
-  const h = window.location.hash.replace('#', '') || 'landing';
+  const h = window.location.hash.replace('#', '') || 'home';
   goTo(h, true);
 });
 
@@ -1057,11 +1003,10 @@ function waitForSupabase(timeoutMs = 5000) {
    ══════════════════════════════════════════════════════════ */
 (async () => {
   try {
-    API.health().catch(() => {});  // warm Cloud Run silently, never block boot
+    API.health().catch(() => {});
 
-    const hash = window.location.hash.replace('#', '');
+    const hash = window.location.hash.replace('#', '') || 'home';
 
-    // Cross-device profile sync for returning signed-in users
     if (State.user && State.user.id) {
       const supabaseReady = await waitForSupabase();
       if (supabaseReady) {
@@ -1073,14 +1018,12 @@ function waitForSupabase(timeoutMs = 5000) {
             if (fresh.display_name) State.user.name = fresh.display_name;
             Session.save();
             API.syncProfile(State.user.id, fresh.coins, fresh.trophies);
-            console.log('[Boot] Profile synced from Supabase');
           }
         } catch (e) { console.warn('[Boot] Profile sync failed:', e); }
       }
     }
 
-    // Case 1: restore active room session
-    if (_savedSession?.roomCode && hash && hash !== 'landing' && hash !== 'home') {
+    if (_savedSession?.roomCode && hash !== 'home') {
       try {
         await API.getRoom(_savedSession.roomCode);
         if (hash === 'lobby' || hash === 'game' || hash === 'results') {
@@ -1094,41 +1037,18 @@ function waitForSupabase(timeoutMs = 5000) {
       }
     }
 
-    // Case 2: explicit #home (returning player skipping landing)
-    if (hash === 'home') {
-      await goTo('home', true);
-      return;
-    }
-
-    // Case 3: default — landing page (AdSense bots land here)
-    await goTo('landing', true);
+    await goTo('home', true);
 
   } catch (e) {
-    // Absolute safety net — if anything above fails, always show landing
-    console.error('[Boot] Unexpected error, falling back to landing:', e);
+    console.error('[Boot] Unexpected error, falling back to home:', e);
     try {
-      await goTo('landing', true);
+      await goTo('home', true);
     } catch (fallbackErr) {
       console.error('[Boot] goTo fallback failed:', fallbackErr);
-      // Last resort: manually activate the screen div
-      const el = document.getElementById('screen-landing');
+      const el = document.getElementById('screen-home');
       if (el) {
         el.classList.add('active');
-        // Attempt direct fetch as a final fallback
-        fetch('screens/landing.html')
-          .then(r => r.text())
-          .then(html => {
-            el.innerHTML = html;
-            el.querySelectorAll('script').forEach(old => {
-              const s = document.createElement('script');
-              s.textContent = old.textContent;
-              document.body.appendChild(s);
-            });
-            if (typeof onLandingShow === 'function') onLandingShow();
-          })
-          .catch(() => {
-            el.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#fff"><h1 style="color:#FFD93D;margin-bottom:16px">FORGE</h1><p>Loading failed. Please refresh the page.</p></div>';
-          });
+        el.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#fff"><h1 style="color:#FFD93D;margin-bottom:16px">FORGE</h1><p>Loading failed. Please refresh the app.</p></div>';
       }
     }
   }

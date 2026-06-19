@@ -70,13 +70,10 @@ The FastAPI backend is never forked or branched by client target. Web and app hi
 
 ## 🚫 App-Only Removals (Planned, Not Yet Implemented)
 
-These components exist on the web strictly for monetization, SEO, or compliance reasons that don't apply inside a native wrapper. They will be entirely stripped from the **app build only**:
-
-* **Chai4Me Micro-Donations:** Remove the `chai-link` donation button completely from `home.html`'s top-left actions within the app.
-* **SEO Boilerplate Pages:** Entirely drop pages created to satisfy AdSense's "Low Value Content" criteria (`landing.html` copy, `about.html`, `how-to-play.html`, `topic-guide.html`, `trivia-tips.html`, `multiplayer-quiz-guide.html`, `ai-trivia-questions.html`, `dev-log.html`).
-* **Navigation Pruning:** Strip out the persistent footer navbar (`#app-footer`) linking to the legal/explainer pages.
-* **Legal Redirects:** `privacy.html` and `terms.html` must remain accessible to satisfy Play Store regulations, but should be transformed into clean external links pointing to the website rather than bloating native screens.
-* **Ad Verification:** AdSense scripts are already skipped for `target === "app"` via `platform.js`. Ensure this mechanism remains untouched.
+* **Removed from app build (Done):** `about.html`, `how-to-play.html`, `topic-guide.html`, `trivia-tips.html`, `multiplayer-quiz-guide.html`, `ai-trivia-questions.html`, `dev-log.html`, `contact.html`, `screens/landing.html`, `ads.txt`, `app-ads.txt`, `robots.txt`, `sitemap.xml`. `index.html` boot logic rewritten to default straight to `home` (no landing/crawler routing needed in-app).
+* **Chai4Me button:** Removed from `home.html` top-left actions.
+* **Leaderboard:** External `leaderboard.html` page kept (not deleted) but flagged for conversion — Supabase fetch logic (`loadScores`, tab-switching) will be reused, but the standalone-page wrapper, donor/Chai4Me tab, and styling will be rebuilt as an in-app menu screen once the new Clash-Royale-style nav is designed. Corner pill button removed from `home.html` in the meantime.
+* **Footer nav (`#app-footer`):** Removed from `index.html` — it only linked to now-deleted pages.
 
 ---
 
@@ -261,13 +258,22 @@ forge/
 │       ├── routers/           ← (http.py, websocket.py, auth.py)
 │       └── services/          ← (ai.py, profiles.py)
 └── frontend/
-    ├── web/                      ← Frozen — exact current site, never touched by app work
-    │   ├── index.html, platform.js, supabase-client.js, ads.txt, robots.txt, sitemap.xml...
-    │   └── screens/ (landing, home, lobby, game, results) — unchanged Kahoot/pixel skin
-    └── app/                      ← Active — Capacitor target, new mobile-game-inspired UI
-        ├── index.html
-        ├── platform-app.js       ← trimmed: just local-dev backend URL switching
-        └── screens/ (rebuilt visually, same WS message contracts as backend)
+    ├── web/                          ← Frozen — exact pre-split site, never touched by app work
+    │   ├── index.html, app.js, platform.js, supabase-client.js
+    │   ├── ads.txt, app-ads.txt, robots.txt, sitemap.xml
+    │   ├── about.html, contact.html, dev-log.html, how-to-play.html,
+    │   │   topic-guide.html, trivia-tips.html, multiplayer-quiz-guide.html,
+    │   │   ai-trivia-questions.html, leaderboard.html, privacy.html, terms.html
+    │   ├── components/ (leaderboard.js, timer.js)
+    │   └── screens/ (landing.html, home.html, lobby.html, game.html, results.html)
+    └── app/                          ← Active — Capacitor target, mobile-game UI in progress
+        ├── index.html, app.js, platform.js, supabase-client.js
+        ├── privacy.html, terms.html   ← kept per Play Store requirement, to become external links
+        ├── leaderboard.html           ← PENDING CONVERSION: Supabase fetch logic reusable,
+        │                                wrapper/styling/donor-tab to be rebuilt as in-app menu screen
+        ├── components/ (leaderboard.js, timer.js)
+        └── screens/ (home.html, lobby.html, game.html, results.html)
+            ↳ landing.html removed; index.html boots straight to home
 ```
 
 ---
@@ -476,7 +482,7 @@ final = int(base * multi)
 | **30** | AdSense dynamic footprint verification processing expansion (Compliance pages + sitemap). | ✅ Done |
 | **31** | **Strategic Pivot:** Architecture decision resolved June 19, 2026 — forked frontend (`web/` + `app/`), backend stays unified. | ✅ Resolved |
 | **31.5** | Physical folder split execution: move current `frontend/` → `frontend/web/`, scaffold `frontend/app/`, repoint `capacitor.config.json` and Vercel build root. | 🔲 Next |
-| **32** | App Stream: Removal of out-of-scope compliance assets & Chai4Me logic from native wrapper. | 🔲 Next |
+| **32** | App Stream: Removal of out-of-scope compliance assets & Chai4Me logic from native wrapper. | ✅ Done |
 | **33** | App Stream: Realization of feature-gating routes blocking web access to premier arrays. | 🔲 Next |
 | **34** | App Stream: *Clash Royale*-style asset skinning implementation. | 🔲 Next |
 | **35** | Query management configurations (5/10/15/20 count array filters) + Social Share tooling. | 🔲 Backlog |
@@ -507,7 +513,7 @@ final = int(base * multi)
 * **Database Views Execution Bounds:** The `donor_leaderboard` relation is an encapsulated SQL View asset; structural update or insertion tasks target checking rules incorrectly and will fail.
 * **Local Identity Life Cycle Limitations:** Client-side token caches (`State.user._credential`) exist strictly within active browser memory contexts and do not survive page reloads. The initialization block handles profile syncing across page reloads via dedicated Supabase calls instead.
 * **Frontend Fork Decision (June 19, 2026):** Resolved the Milestone 31 architecture question — frontend physically splits into `web/` and `app/`; backend remains single and shared across both targets; gating of premium features (Team mode, leaderboard) is UI-only, never backend-side.
-
+* **`/mnt/c` WSL Friction (June 2026):** Repo lives at `/mnt/c/QuizApp/forge`. This filesystem bridge has twice caused tooling failures invisible from the Linux side: (1) directory-level `mv`/rename operations hitting silent `Permission denied` with no useful diagnostic, (2) `npx cap sync android` failing with a corrupted `.bin` shim due to broken symlinks (`rm -rf node_modules package-lock.json && npm install` fixed it). If either recurs, suspect the `/mnt/c` bridge before suspecting the command itself. Long-term fix under consideration: relocate repo to `~/forge` on the native Linux filesystem.
 ---
 
 ## 📋 Technical Implementation Guidelines
