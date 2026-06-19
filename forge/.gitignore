@@ -1,1 +1,12 @@
+# Node modules (ignores all dependencies)
+node_modules/
+**/node_modules/
+
+# Environment variables
+.env
 backend/.env
+
+# Capacitior / Android build artifacts and metadata
+**/node_modules/@capacitor/
+**/forge/node_modules/
+forge/node_modules/
