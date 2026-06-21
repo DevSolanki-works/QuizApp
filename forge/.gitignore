@@ -117,3 +117,14 @@ app/src/main/res/xml/config.xml
 
 .jsk
 forge-release.jsk
+android/app/build/
+android/.gradle/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/captmp/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/capacitor.build.gradle
+android/capacitor-cordova-android-plugins/

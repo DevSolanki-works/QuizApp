@@ -7,3 +7,14 @@ forge/android/app/release/
 forge/android/app/build/
 forge/android/build/
 forge/node_modules/
+android/app/build/
+android/.gradle/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/captmp/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/capacitor.build.gradle
+android/capacitor-cordova-android-plugins/

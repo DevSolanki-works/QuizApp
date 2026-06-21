@@ -193,11 +193,6 @@ def _connected_players(room) -> list[Player]:
     return [p for p in room.players.values() if p.websocket is not None]
 
 
-def _missing_profile_names(room) -> list[str]:
-    """Return connected players without a Google profile ID."""
-    return [p.name for p in _connected_players(room) if not p.user_id]
-
-
 def _insufficient_coin_names(room) -> list[str]:
     """Return connected players who cannot pay the room entry fee."""
     names: list[str] = []
