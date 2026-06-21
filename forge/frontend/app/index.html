@@ -972,6 +972,26 @@ async function handleGoogleLogin(response) {
     Toast.error('Google Sign-In failed.');
   }
 }
+let _googleNativeInitialized = false;
+async function nativeGoogleSignIn() {
+  const plugin = window.Capacitor?.Plugins?.GoogleSignIn;
+  if (!plugin) {
+    Toast.error('Google Sign-In is unavailable on this build.');
+    return;
+  }
+  try {
+    if (!_googleNativeInitialized) {
+      await plugin.initialize({ clientId: GOOGLE_CLIENT_ID });
+      _googleNativeInitialized = true;
+    }
+    const result = await plugin.signIn();
+    await handleGoogleLogin({ credential: result.idToken });
+  } catch (e) {
+    console.error('[GoogleSignIn] native sign-in failed:', e);
+    Toast.error('Google Sign-In failed.');
+  }
+}
+window.nativeGoogleSignIn = nativeGoogleSignIn;
 
 /* ══════════════════════════════════════════════════════════
    SUPABASE READY HELPER

@@ -431,6 +431,13 @@ function _initGoogleSignIn() {
       helpToggle.textContent = '⌄';
       helpToggle.setAttribute('aria-expanded', 'false');
     }
+    if (IS_NATIVE_APP) {
+      btnArea.innerHTML = `
+        <button class="btn btn-primary" onclick="nativeGoogleSignIn()" style="max-width:280px;">
+          <span class="icon">🔐</span> &nbsp;SIGN IN WITH GOOGLE
+        </button>`;
+      return;
+    }
     if (window.google) {
       google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
