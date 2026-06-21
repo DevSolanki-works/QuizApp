@@ -746,13 +746,6 @@ async def websocket_endpoint(
                             room.play_mode = PlayMode.CLASSIC
 
                 if room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
-                    missing_profiles = _missing_profile_names(room)
-                    if missing_profiles:
-                        await send_to(websocket, {
-                            "type": "ERROR",
-                            "data": {"message": "All players must sign in with Google before room games."},
-                        })
-                        continue
                     broke_players = _insufficient_coin_names(room)
                     if broke_players:
                         await send_to(websocket, {
