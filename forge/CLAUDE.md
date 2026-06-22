@@ -1,8 +1,7 @@
-Here is your `CLAUDE.md` file content, consolidated into a single block for a single copy-paste:
+Here's the content converted to a clean, readable Markdown format:
 
 ---
 
-```markdown
 # CLAUDE.md — Forge: AI Trivia Showdown
 
 > **Context Routine:** Paste this file at the start of every new conversation so Claude has full context.
@@ -17,6 +16,8 @@ Here is your `CLAUDE.md` file content, consolidated into a single block for a si
 - **Ultimate Goal:** Deploy to Google Play Store + monetize ($0 infrastructure constraint).
 - **Hardware Architecture:** ARM64 machine.
 - **Development Environment:** WSL (Ubuntu) on Windows; Python virtual environment located at `backend/.venv`.
+
+---
 
 ## 🎮 Project Overview: Forge — AI Trivia Showdown
 
@@ -37,15 +38,14 @@ A real-time multiplayer mobile quiz game. Players enter **ANY** topic → AI gen
 ### ❄️ What Stays Frozen (Website Track)
 
 - **Zero Feature Development:** No further feature work will be done on `forgetrivia.online` for the time being.
-- **AdSense Compliance Stability:** Keep all AdSense-required pages exactly as they are:
-  `landing.html`, `about.html`, `privacy.html`, `terms.html`, `contact.html`, `how-to-play.html`, `topic-guide.html`, `trivia-tips.html`, `multiplayer-quiz-guide.html`, `ai-trivia-questions.html`, `dev-log.html`, `sitemap.xml`, `robots.txt`, `ads.txt` / `app-ads.txt`.
+- **AdSense Compliance Stability:** Keep all AdSense-required pages exactly as they are: `landing.html`, `about.html`, `privacy.html`, `terms.html`, `contact.html`, `how-to-play.html`, `topic-guide.html`, `trivia-tips.html`, `multiplayer-quiz-guide.html`, `ai-trivia-questions.html`, `dev-log.html`, `sitemap.xml`, `robots.txt`, `ads.txt` / `app-ads.txt`.
 - **Routing Security:** Do not touch `landing.html` boot routing, cookie consent settings, or AdSense script tags.
 - **Timeline:** The Milestone 30 AdSense resubmission timeline (wait for GSC indexing, then 2–3 weeks) still applies independently of this pivot.
 
 ### 🔥 What Becomes Active (App Track)
 
 - **Targeted UI Overhaul:** A major visual redesign targeted **ONLY** at the Capacitor/Android build (Milestone 31+).
-- **New Visual Identity:** Transitioning to a **Neo-Brutalism** UI — dark charcoal backgrounds, thick black borders, hard offset shadows, and flat color blocking, per the dedicated section below. *(Revised June 20, 2026 — supersedes the original Clash Royale direction.)*
+- **New Visual Identity:** Transitioning to a **Neo-Brutalism** UI — dark charcoal backgrounds, thick black borders, hard offset shadows, and flat color blocking, per the dedicated section below.
 - **Feature Pruning:** Heavy feature removals and strict feature-gating (detailed below).
 
 ### 📐 Architecture Decision — RESOLVED (June 19, 2026)
@@ -64,7 +64,9 @@ The FastAPI backend is never forked or branched by client target. Web and app hi
 
 ## 📱 App UI Direction — Neo-Brutalism Overhaul (Milestone 31+)
 
-> **Reference Pivot (June 20, 2026):** The Clash Royale-inspired direction from the original Milestone 31 plan is **superseded**. The new target aesthetic is **Neo-Brutalism**, modeled directly on a reference mockup (a "BRAIN BOOST QUIZ"-style home screen): dark charcoal backdrop, thick black borders, hard offset shadows with zero blur or glow, flat saturated color blocks, and bold poster-style typography. This is blueprint-level reference only — Forge keeps its own branding, content, and topic-driven gameplay; the mockup is a styling target, not literal content to copy.
+> **Reference Pivot (June 20, 2026):** The Clash Royale-inspired direction from the original Milestone 31 plan is superseded by **Neo-Brutalism**, modeled directly on a reference mockup (a "BRAIN BOOST QUIZ"-style home screen): dark charcoal backdrop, thick black borders, hard offset shadows with zero blur or glow, flat saturated color blocks, and bold poster-style typography. This is blueprint-level reference only — Forge keeps its own branding, content, and topic-driven gameplay; the mockup is a styling target, not literal content to copy.
+>
+> **Home Screen Composition — LOCKED (June 22, 2026):** Three structural directions were mocked up and compared. The locked direction, full code in `forge-neo-brutalism-home-final.html`, supersedes both the original button-stack layout and a zine/collage alternative that was explored and explicitly rejected (see "Decisions Log" below). Treat the structure in the "Locked Home Screen Composition" subsection as the actual target to implement against, not just a style mood board.
 
 ### Why the Switch
 
@@ -72,12 +74,29 @@ Clash Royale's glossy 3D-bevel look fights with Forge's existing flat pixel-arca
 
 ### Core Visual Principles
 
-- **Thick black borders everywhere.** Every interactive surface — buttons, inputs, cards, badges — gets a solid 3–4px black (or near-black) border. No 1px hairlines anywhere in the app track.
-- **Hard offset shadows, zero blur.** Shadows are solid color blocks offset diagonally (e.g. `6px 6px 0 #000`), never blurred or glowing. On press, the element translates toward the shadow and the shadow shrinks to ~1px — extending the press mechanic already used by `.btn-primary` / `.btn-secondary` in `index.html`, just with a diagonal offset instead of a bottom-only one, plus a black border.
+- **Thick black borders everywhere.** Every interactive surface — buttons, inputs, cards, badges — gets a solid 2.5–3px black (or near-black) border. No 1px hairlines anywhere in the app track.
+- **Hard offset shadows, zero blur.** Shadows are solid color blocks offset diagonally (e.g. `6px 6px 0 #000`), never blurred or glowing. On press, the element translates fully into its shadow (shadow collapses to `0 0 0`) rather than just shrinking partway — a harder, more "stamped" press feel than the original `.btn-primary` bottom-only drop.
 - **Flat color blocking, no gradients or glassmorphism.** Backgrounds switch from radial blue gradients + `backdrop-filter: blur()` cards to solid charcoal backgrounds with solid-color (not translucent) panels. No frosted-glass anywhere in the app track.
-- **Blocky corners, not pills.** Buttons move from `var(--radius-pill)` (fully rounded) to a small fixed radius (~6–8px) — rectangular with just-rounded corners, matching the mockup.
-- **Scattered icon badges.** Small square badges (star, trophy, question mark, etc.) with thick borders and hard shadows, randomly rotated a few degrees, used as decorative accents around hero/header content — replacing the current floating confetti/stars background effect on key screens (home, results).
-- **Bold poster typography for hero text.** Large headline text (home screen title, results "GAME OVER" banner) becomes oversized, blocky, and high-contrast. Keep `Press Start 2P` for on-brand pixel continuity by default, but evaluate a heavier display face (e.g. `Archivo Black`) for hero titles if Press Start 2P reads as too thin at large sizes. **Open decision — resolve once the first screen is mocked up, don't pre-decide.**
+- **Blocky corners, not pills.** Buttons and cards move from `var(--radius-pill)` (fully rounded) to a small fixed radius (~6–8px) — rectangular with just-rounded corners. Pill shapes are reserved for two specific cases only: the currency readout and the name-entry field (see below) — not buttons or cards.
+- **Scattered icon badges.** Small square badges (star, question mark, etc.) with thick borders and hard shadows, slightly rotated, used as decorative accents around hero content.
+- **Hierarchy through size and shape, not divider text.** No "SOLO MODE" / "MULTIPLAYER"-style caption dividers anywhere in the action area. A single dominant primary action, a secondary tile row, and a smaller/circular-or-reduced-scale utility row communicate priority on their own — this replaced the original web-track pattern of stacking same-sized buttons with text dividers between them.
+- **Bold poster typography for hero text — RESOLVED.** The home screen's "FORGE" wordmark uses **Archivo Black**, rendered as a duotone stamp effect: green fill, black outline (`-webkit-text-stroke`), with a solid red copy of the same text offset 5px down-right behind it (no blur, hard edge only). This is reserved for the single hero wordmark. **Press Start 2P stays the typeface for every other piece of UI text** — buttons, labels, taglines, badges, footer meta — so the pixel-arcade identity isn't lost, it's just no longer used at poster scale.
+- **Trophy iconography is a deliberate identity anchor, not just a decorative choice.** Trophy imagery already appears throughout the app (results screen, leaderboard, in-game economy) and must stay visually present on the home screen specifically — not folded away into a generic icon. The locked composition gives it its own badge in the hero, separate from (and in addition to) its functional appearance in the currency readout.
+
+### Locked Home Screen Composition (June 22, 2026)
+
+Full implementation reference: `forge-neo-brutalism-home-final.html`. Top to bottom:
+
+1. **Top bar:** one combined currency pill (coins + trophies in a single pill, separated by a thin internal divider) — not two separate boxes.
+2. **Hero zone:** 1–2 small rotated corner badges (star, question mark) → the "FORGE" wordmark (duotone stamp treatment, see above) → a small Press Start 2P tagline line → a dedicated **trophy badge** (cream block, thick border, hard shadow, gentle two-step "thump" bounce — `steps(2)` timing, not a smooth ease, to keep the motion blocky rather than arcade-soft) → a short plain-language subtext line.
+3. **Name entry:** a single slim pill-shaped field, not a boxed labeled input block. Lower visual weight than the actions below it.
+4. **Primary CTA:** one full-width "SOLO PLAY" button — the single biggest, boldest element in the action area.
+5. **Secondary tile row:** "CREATE ROOM" / "JOIN ROOM" as two square-ish tiles side by side (green / red), icon stacked above label inside each — not a vertical list.
+6. **Inline join-by-code capsule:** a compact code input + arrow button sitting directly under the tile row, sized only as large as it needs to be. No separate full bordered input block with its own label for this.
+7. **Utility row:** small, visually de-emphasized icon tiles (Google sign-in, sound toggle) — same border/shadow language as everything above, just smaller scale. Priority is communicated by size alone, no text needed to mark these as secondary.
+8. **Footer:** one short meta line (live room count + version), Press Start 2P, dim.
+
+**Firm rule, not a style preference:** functional inputs (name field, room code field) always stay perfectly level. Any future decorative rotation, collage treatment, or tilt effect applies only to non-interactive/decorative elements and to buttons — never to a field the player has to read or type into.
 
 ### Proposed Design Tokens (App Track Only — `frontend/app/`)
 
@@ -86,14 +105,17 @@ Clash Royale's glossy 3D-bevel look fights with Forge's existing flat pixel-arca
   /* Neo-Brutalism palette — replaces the blue/yellow pixel-arcade tokens for the app track only */
   --nb-bg:         #181818;   /* charcoal background, replaces --bg radial blue */
   --nb-surface:    #1F1F1F;   /* flat panel/card fill, replaces translucent glass cards */
+  --nb-input:      #242424;   /* input field fill — one shade lighter than surface */
   --nb-black:      #0D0D0D;   /* border + shadow color */
-  --nb-cream:      #EDE0C8;   /* primary button fill, headline highlight */
+  --nb-cream:      #EDE0C8;   /* primary button fill, headline highlight, trophy badge fill */
+  --nb-text:       #ECE7DA;   /* default light text on dark backgrounds */
+  --nb-text-dim:   rgba(236,231,218,0.5); /* secondary/dim text */
   --nb-green:      #3F6E52;
   --nb-green-dark: #2C4F3B;
   --nb-red:        #C0392B;
   --nb-red-dark:   #8E2A20;
 
-  --nb-border-w:   3px;
+  --nb-border-w:   3px;        /* 2.5px on smaller elements (badges, pills, inputs) */
   --nb-radius:     8px;
   --nb-shadow-sm:  4px 4px 0 var(--nb-black);
   --nb-shadow-lg:  6px 6px 0 var(--nb-black);
@@ -104,7 +126,7 @@ These are a starting point, not final — confirm exact hex values against the r
 
 ### What Carries Over From the Clash Royale Plan
 
-- **Persistent currency bar:** Still wanted — restyle as a flat brutalist block bar (solid color, thick border, hard shadow) instead of a glossy 3D-bevel pill.
+- **Persistent currency bar:** Still wanted — now a single combined pill rather than two separate boxes (see Locked Composition above), restyled flat brutalist instead of glossy 3D-bevel.
 - **Card-based panels for menus:** Still wanted — but flat-filled cards with thick borders instead of glass/chest-style cards.
 - **Reward-reveal sequence at `GAME_OVER`:** Still under consideration — adapt to a "stamp" or "punch-in" reveal animation (hard snap + shadow pop) instead of a glossy chest-crack animation.
 - **Audio constraint:** Unchanged — Web Audio API synthesized sounds only, $0-cost.
@@ -114,6 +136,7 @@ These are a starting point, not final — confirm exact hex values against the r
 - Glossy 3D-bevel button gradients and soft drop shadows.
 - Arena-style saturated gradient backgrounds — replaced by flat charcoal + color-block panels.
 - Any glassmorphism/blur treatment on cards or panels in the app track.
+- The original web-track pattern of vertically stacking same-sized buttons separated by text dividers ("SOLO MODE" / "MULTIPLAYER" captions) — superseded by the size/shape hierarchy described in Locked Composition above.
 
 ---
 
@@ -245,11 +268,11 @@ uvicorn main:app --reload --port 8000
 │ coins             │             │ status            │
 │ trophies          │             │ amount            │
 └───────────────────┘             └───────────────────┘
-                                              │
-                                              ▼ (SQL VIEW)
-                                   ┌───────────────────┐
-                                   │ donor_leaderboard │
-                                   └───────────────────┘
+         │
+         ▼ (SQL VIEW)
+┌───────────────────┐
+│ donor_leaderboard │
+└───────────────────┘
 ```
 
 | Database Node Object | Structural Intent & Operational Behavior |
@@ -283,7 +306,7 @@ uvicorn main:app --reload --port 8000
 
 ## 📁 Project Structure
 
-```text
+```
 forge/
 ├── CLAUDE.md
 ├── package.json
@@ -312,7 +335,7 @@ forge/
     │   │   ai-trivia-questions.html, leaderboard.html, privacy.html, terms.html
     │   ├── components/ (leaderboard.js, timer.js)
     │   └── screens/ (landing.html, home.html, lobby.html, game.html, results.html)
-    └── app/                          ← Active — Capacitor target, Neo-Brutalism UI in progress
+    └── app/                          ← Active — Capacitor target, Neo-Brutalism home composition locked
         ├── index.html, app.js, platform.js, supabase-client.js
         ├── privacy.html, terms.html   ← kept per Play Store requirement, to become external links
         ├── leaderboard.html           ← PENDING CONVERSION: Supabase fetch logic reusable,
@@ -320,6 +343,8 @@ forge/
         ├── components/ (leaderboard.js, timer.js)
         └── screens/ (home.html, lobby.html, game.html, results.html)
             ↳ landing.html removed; index.html boots straight to home
+            ↳ home.html pending rebuild against the locked composition in
+              "Locked Home Screen Composition" above
 ```
 
 ---
@@ -358,19 +383,19 @@ gcloud run deploy forge-backend \
 
 ```
 [Client] ─── (POST /rooms/create) ───> [Backend HTTP Router]
-    │
+                │
 [Client] <─── (Establishes Connection) ─── [WS /ws/{code}/{name}]
-    │
-    ├── [Host Action Frame] ───> { action: start_game, topic, mode }
-    └── [Player Input Frame] ───> { action: answer, choice, time_ms }
-    │
-    (Game Completion)
-    │
-    ▼
-applyUserEconomy()
-    │
-    ▼
-lbUpsertPlayer() [Supabase]
+                │
+                ├── [Host Action Frame] ───> { action: start_game, topic, mode }
+                └── [Player Input Frame] ───> { action: answer, choice, time_ms }
+                │
+                (Game Completion)
+                │
+                ▼
+         applyUserEconomy()
+                │
+                ▼
+         lbUpsertPlayer() [Supabase]
 ```
 
 ---
@@ -404,10 +429,10 @@ final = int(base * multi)
 | **New Profile Initialization** | +200 | +50 |
 | **Multiplayer Room Entrance Fee** | -25 | — |
 | **Multiplayer Match Champion** | +Collected Pool | — |
-| **Solo Performance (≥5 Correct)** | +10 | — |
+| **Solo Performance (≥ 5 Correct)** | +10 | — |
 | **Solo Performance (4–5 Correct)** | — | +1 |
 | **Solo Performance (6–10 Correct)** | — | +2 per correct answer over baseline 5 |
-| **Solo Performance (<4 Correct)** | — | -2 (Floor constraint enforced at 0) |
+| **Solo Performance (< 4 Correct)** | — | -2 (Floor constraint enforced at 0) |
 
 > **Client State Synchronization:** The operational local database state key `forge_economy_{user_id}` serves as the definitive source of truth across user clients.
 
@@ -525,7 +550,7 @@ final = int(base * multi)
 | **31.5** | Physical folder split execution: move current `frontend/` → `frontend/web/`, scaffold `frontend/app/`, repoint `capacitor.config.json` and Vercel build root. | 🔲 Next |
 | **32** | App Stream: Removal of out-of-scope compliance assets & Chai4Me logic from native wrapper. | ✅ Done |
 | **33** | App Stream: Realization of feature-gating routes blocking web access to premier arrays. | 🔲 Next |
-| **34** | App Stream: Neo-Brutalism visual skin implementation (charcoal background, thick black borders, hard offset shadows, green/red/cream color blocking). *(Revised June 20, 2026 — was Clash Royale-style asset skinning.)* | 🔲 Next |
+| **34** | App Stream: Neo-Brutalism visual skin implementation. Home screen composition **locked** June 22, 2026 (see "Locked Home Screen Composition") — ready to implement against `screens/home.html`. Remaining screens (lobby, game, results) still need their own composition pass before full milestone completion. | 🔄 In Progress |
 | **35** | Query management configurations (5/10/15/20 count array filters) + Social Share tooling. | 🔲 Backlog |
 
 ---
@@ -533,13 +558,12 @@ final = int(base * multi)
 ## 🐛 Defect Registry & Critical Architecture Decisions Log
 
 - **Workflow Split Decision (June 18, 2026):** The website codebase is now entirely frozen. App builds represent the active frontier moving forward.
-- **Open Architecture Question (Blocks Milestone 34):** Decide between a shared codebase with complex theme-swapping, or splitting the project into separate `frontend/app` and `frontend/web` directories. Resolve this before implementing the Neo-Brutalism UI skin. *(Note: the frontend fork itself was resolved June 19, 2026 — see Frontend Fork Decision below. This entry is kept for historical traceability.)*
 - **Amazon Appstore Submission status (June 18, 2026):** Initial package validation phase complete.
 - **Play Store Release Pipeline Requirements:** When compiling the application for production delivery, execute the following actions precisely:
   1. Synchronize the native file layer tree: `npx cap sync android`
   2. Clean and compile the production bundle via Gradle: `./gradlew.bat clean bundleRelease` (Uses local encrypted configuration keys via `keystore.properties`).
   3. Manually verify that the `versionCode` configuration inside `app/build.gradle` has been properly incremented.
-- **Cloud Run Cold Start Penalty:** Inactive infrastructure scales completely down to zero instances, which can cause a ≈2s latency penalty on cold requests. Mitigated by firing a warm-up `/health` ping immediately when the application launches.
+- **Cloud Run Cold Start Penalty:** Inactive infrastructure scales completely down to zero instances, which can cause a ≈ 2s latency penalty on cold requests. Mitigated by firing a warm-up `/health` ping immediately when the application launches.
 - **Volatile Session Memory Behavior:** In-memory application objects are cleared whenever Cloud Run containers recycle. This is an acceptable limitation for the current project MVP.
 - **Cross-Compilation Architecture Guidelines:** When deploying from ARM64 machines, always use buildx platform targets explicitly: `docker buildx --platform linux/amd64 --push`.
 - **JSON Serialization Adjustments:** Exclude `Player.websocket` data properties from JSON transformation tasks to avoid serialization faults.
@@ -552,7 +576,10 @@ final = int(base * multi)
 - **Database Views Execution Bounds:** The `donor_leaderboard` relation is an encapsulated SQL View asset; structural update or insertion tasks target checking rules incorrectly and will fail.
 - **Local Identity Life Cycle Limitations:** Client-side token caches (`State.user._credential`) exist strictly within active browser memory contexts and do not survive page reloads. The initialization block handles profile syncing across page reloads via dedicated Supabase calls instead.
 - **Frontend Fork Decision (June 19, 2026):** Resolved the Milestone 31 architecture question — frontend physically splits into `web/` and `app/`; backend remains single and shared across both targets; gating of premium features (Team mode, leaderboard) is UI-only, never backend-side.
-- **Visual Identity Pivot (June 20, 2026):** The Milestone 31 Clash Royale-inspired UI direction is superseded. New target: Neo-Brutalism, modeled on a reference mockup (dark charcoal background, thick black borders, hard offset shadows, flat green/red/cream color blocking, blocky poster typography for hero text). See "App UI Direction — Neo-Brutalism Overhaul" section above for tokens and principles. Applies to the app track (`frontend/app/`) only; the website track remains frozen on its existing blue/yellow pixel-arcade look.
+- **Visual Identity Pivot (June 20, 2026):** The Milestone 31 Clash Royale-inspired UI direction is superseded. New target: Neo-Brutalism, modeled on a reference mockup (dark charcoal background, thick black borders, hard offset shadows, flat green/red/cream color blocking).
+- **Home Screen Structure Exploration (June 22, 2026):** Three structural directions were mocked up against the Neo-Brutalism palette: (1) a direct reskin of the original stacked-button list with brutalist borders/shadows — rejected, felt like a reskin rather than a real structural change; (2) a restructured version with a single dominant primary CTA, a two-tile Create/Join row, and a de-emphasized utility row — **selected as the base direction**; (3) a zine/collage variant adding a torn zigzag section divider, a giant translucent "?" watermark, taped sticker badges, a ticket-notched CTA, alternating-rotation tiles, and a scrolling marquee footer — explored, but explicitly **not selected**; logged here so it isn't re-proposed from scratch. Direction (2) was finalized with one adjustment: the decorative retro-monitor icon was swapped for a dedicated trophy badge, since trophy iconography is a core identity element used across results, leaderboard, and the economy, and needed to stay visually present on the home hero rather than be replaced by a generic icon. See "Locked Home Screen Composition" above for the final structure and `forge-neo-brutalism-home-final.html` for the implementation reference.
+- **Typography Decision — Hero Wordmark (June 22, 2026):** Resolved the open question from the original Neo-Brutalism plan. Archivo Black is used for the "FORGE" hero wordmark only, with a green-fill/black-stroke/red-offset-shadow duotone stamp treatment. Press Start 2P remains the typeface for every other UI element (buttons, labels, taglines, badges, footer) — it is not being phased out, just no longer used at poster scale.
+- **Usability Rule — No Rotating Functional Inputs (June 22, 2026):** Firm rule, not a style preference: name-entry and room-code fields must always render perfectly level regardless of any decorative rotation/collage treatment applied elsewhere on a screen. This rule should carry forward to lobby, game, and results screens as their own Neo-Brutalism passes happen.
 - **`/mnt/c` WSL Friction (June 2026):** Repo lives at `/mnt/c/QuizApp/forge`. This filesystem bridge has twice caused tooling failures invisible from the Linux side: (1) directory-level `mv`/rename operations hitting silent `Permission denied` with no useful diagnostic, (2) `npx cap sync android` failing with a corrupted `.bin` shim due to broken symlinks (`rm -rf node_modules package-lock.json && npm install` fixed it). If either recurs, suspect the `/mnt/c` bridge before suspecting the command itself. Long-term fix under consideration: relocate repo to `~/forge` on the native Linux filesystem.
 
 ---
@@ -569,7 +596,7 @@ final = int(base * multi)
 8. **Environment Swapping:** Production distributions point directly to active cloud cluster paths; local testing environments switch endpoints automatically based on the host routing origin.
 9. **Visual Design Matrix:**
    - **Website Styling Blueprint:** Blue/White base color schemes, *Press Start 2P* and *Nunito* typography layouts, Accent Gold components (`#FFD93D`), flat Kahoot-style buttons. (Frozen — never touched by app-track style work.)
-   - **App Styling Blueprint (Milestone 31+, revised June 20, 2026):** **Neo-Brutalism.** Charcoal backgrounds, thick black borders (3–4px) on every interactive surface, hard offset drop-shadows with zero blur, flat green/red/cream color blocking (no gradients), blocky low-radius buttons (not pills), and scattered rotated icon badges. See the `--nb-*` design tokens in the "App UI Direction" section above. Supersedes the original Clash Royale plan.
+   - **App Styling Blueprint:** **Neo-Brutalism.** Charcoal backgrounds, thick black borders (2.5–3px) on every interactive surface, hard offset drop-shadows with zero blur, flat green/red/cream color blocking (no gradients), blocky low-radius buttons and tiles (pills reserved only for the currency readout and name field), Archivo Black for the hero wordmark only, Press Start 2P everywhere else. Home screen composition locked — see "Locked Home Screen Composition" above.
 10. **Device Operations:** Execute native terminal commands using Windows PowerShell exclusively.
 11. **Advertising Integrity:** Never integrate low-tier, high-intrusion ad networks.
 12. **Database Protection:** Ensure Row-Level Security (RLS) configurations remain active on all Supabase tables at all times; never disable them.
@@ -577,4 +604,3 @@ final = int(base * multi)
 14. **Context Provision over Drafting:** Provide complete file contents instead of abbreviated code placeholders during context transitions.
 15. **Production Build Protocol:** Always execute a full refresh and synchronization process before submitting software builds to the app stores. This guarantees the latest frontend optimizations match your deployed native runtime layers.
 16. **Website Freeze Rule:** The website branch is frozen as of Milestone 31. Do not introduce feature changes to web-track assets unless explicitly instructed to do so. Treat all general development requests as targeting the app track by default.
-```
