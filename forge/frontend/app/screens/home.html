@@ -411,8 +411,17 @@ function _initGoogleSignIn() {
     if (helpWrap) helpWrap.style.display = 'none';
     document.getElementById('user-img').src = State.user.picture;
     document.getElementById('user-name-display').textContent = State.user.name;
-    document.getElementById('user-coins-display').textContent = formatCoins(State.user.coins);
-    document.getElementById('user-trophies-display').textContent = Number(State.user.trophies || 0).toLocaleString();
+    const coinsEl    = document.getElementById('user-coins-display');
+    const trophiesEl = document.getElementById('user-trophies-display');
+    if (State.user.coins === null || State.user.trophies === null) {
+      coinsEl.textContent    = '—';
+      trophiesEl.textContent = '—';
+      coinsEl.title          = 'Not available — check your connection';
+      trophiesEl.title       = 'Not available — check your connection';
+    } else {
+      coinsEl.textContent    = formatCoins(State.user.coins);
+      trophiesEl.textContent = Number(State.user.trophies || 0).toLocaleString();
+    }
     const nameInput = document.getElementById('input-name');
     if (nameInput && !nameInput.value.trim()) {
       nameInput.value  = State.user.name;

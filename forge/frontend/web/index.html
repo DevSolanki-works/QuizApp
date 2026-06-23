@@ -549,7 +549,14 @@ const Session = {
       roomCode:   State.roomCode,
       isHost:     State.isHost,
       playMode:   State.playMode,
-      user:       State.user,
+      user: State.user ? {
+        id:          State.user.id,
+        name:        State.user.name,
+        email:       State.user.email,
+        picture:     State.user.picture,
+        _credential: State.user._credential,
+        // intentionally omit coins and trophies — always fetched fresh from Supabase
+      } : null,
     };
     localStorage.setItem(this.KEY, JSON.stringify(data));
   },
@@ -597,13 +604,17 @@ async function applyUserEconomy(economy) {
   if (economy.coins    !== undefined) State.user.coins    = economy.coins;
   if (economy.trophies !== undefined) State.user.trophies = economy.trophies;
   Session.save();
-  try {
-    const localKey = `forge_economy_${State.user.id}`;
-    localStorage.setItem(localKey, JSON.stringify({
-      coins:    State.user.coins,
-      trophies: State.user.trophies,
-    }));
-  } catch (_) {}
+  if (typeof lbUpsertPlayer === 'function') {
+    try {
+      await lbUpsertPlayer(
+        State.user.id, State.user.name,
+        State.user.coins, State.user.trophies
+      );
+    } catch (e) {
+      console.warn('[Economy] Supabase upsert failed:', e);
+    }
+  }
+}
 
   const syncTasks = [API.syncProfile(State.user.id, State.user.coins, State.user.trophies)];
   if (typeof lbUpsertPlayer === 'function') {
@@ -988,11 +999,9 @@ if (document.readyState === 'loading') {
 async function handleGoogleLogin(response) {
   try {
     const user = await API.verifyGoogleToken(response.credential);
-
-    // Store credential so syncProfile() can send authenticated requests
     user._credential = response.credential;
 
-    // Sync from Supabase if available
+    // Supabase is the only source of truth
     try {
       if (typeof lbFetchProfile === 'function') {
         const fresh = await lbFetchProfile(user.id);
@@ -1000,20 +1009,23 @@ async function handleGoogleLogin(response) {
           user.coins    = fresh.coins;
           user.trophies = fresh.trophies;
           if (fresh.display_name) user.name = fresh.display_name;
-          API.syncProfile(user.id, fresh.coins, fresh.trophies);
+        } else {
+          // First time this Google account has played — use backend defaults
+          user.coins    = user.coins    ?? 200;
+          user.trophies = user.trophies ?? 50;
         }
+      } else {
+        user.coins    = null; // Supabase not ready
+        user.trophies = null;
       }
-    } catch (e) { console.warn('[Login] Supabase sync failed:', e); }
+    } catch (e) {
+      console.warn('[Login] Supabase unreachable:', e);
+      user.coins    = null;
+      user.trophies = null;
+    }
 
-    // localStorage wins if higher (cross-tab safety)
-    const localKey = `forge_economy_${user.id}`;
-    try {
-      const saved = JSON.parse(localStorage.getItem(localKey) || '{}');
-      if ((saved.coins    ?? 0) > (user.coins    ?? 0)) user.coins    = saved.coins;
-      if ((saved.trophies ?? 0) > (user.trophies ?? 0)) user.trophies = saved.trophies;
-    } catch (_) {}
-
-    State.user = user; State.playerName = user.name;
+    State.user = user;
+    State.playerName = user.name;
     const nameInput = document.getElementById('input-name');
     if (nameInput) nameInput.value = user.name;
     Session.save();
@@ -1072,10 +1084,18 @@ function waitForSupabase(timeoutMs = 5000) {
             State.user.trophies = fresh.trophies;
             if (fresh.display_name) State.user.name = fresh.display_name;
             Session.save();
-            API.syncProfile(State.user.id, fresh.coins, fresh.trophies);
-            console.log('[Boot] Profile synced from Supabase');
+          } else {
+            State.user.coins    = State.user.coins    ?? 200;
+            State.user.trophies = State.user.trophies ?? 50;
           }
-        } catch (e) { console.warn('[Boot] Profile sync failed:', e); }
+        } catch (e) {
+          console.warn('[Boot] Supabase unreachable:', e);
+          State.user.coins    = null;
+          State.user.trophies = null;
+        }
+      } else {
+        State.user.coins    = null;
+        State.user.trophies = null;
       }
     }
 
