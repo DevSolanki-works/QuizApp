@@ -137,51 +137,48 @@
   }
   .btn-loading { opacity: 0.65 !important; pointer-events: none !important; }
 
-  /* Google auth */
-  .google-auth-container {
-    width: 100%; display: flex; flex-direction: column;
-    align-items: center; gap: 12px; margin-bottom: 8px;
-  }
-  .auth-help-wrap {
+  /* Guest play callout */
+  .guest-play-cta {
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    padding: 16px 14px 14px;
+    border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
   }
-  .auth-toggle {
-    width: 28px;
-    height: 28px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.78);
+  .guest-play-kicker {
     font-family: var(--font-pixel);
-    font-size: 10px;
-    line-height: 1;
-    cursor: pointer;
-    transition: transform 0.15s ease, background 0.15s ease;
-  }
-  .auth-toggle:active {
-    transform: scale(0.96);
-  }
-  .auth-toggle.open {
-    background: rgba(255,217,61,0.14);
+    font-size: 8px;
+    letter-spacing: 0.6px;
     color: var(--yellow);
+    text-align: center;
   }
-  .auth-note {
-    display: none;
-    width: 100%;
+  .guest-play-copy {
     font-family: var(--font-body);
     font-size: 13px;
     font-weight: 800;
-    line-height: 1.5;
+    line-height: 1.55;
     text-align: center;
-    color: rgba(255,255,255,0.7);
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: var(--radius-md);
-    padding: 12px 14px;
+    color: rgba(255,255,255,0.76);
+  }
+  .guest-play-pills {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  .guest-play-pills span {
+    padding: 6px 10px;
+    border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.12);
+    border: 1px solid rgba(255,217,61,0.24);
+    color: var(--yellow);
+    font-family: var(--font-pixel);
+    font-size: 6px;
+    letter-spacing: 0.4px;
   }
   .user-profile-badge {
     display: flex; align-items: center; gap: 10px; padding: 8px 16px;
@@ -312,23 +309,14 @@
   <div class="home-card z1">
     <p class="card-heading">✦ LET'S PLAY ✦</p>
 
-    <div class="google-auth-container" id="google-auth-area">
-      <div id="google-signin-btn"></div>
-      <div id="user-profile" style="display:none;">
-        <div class="user-profile-badge">
-          <img id="user-img" class="user-avatar" src="" alt="">
-          <span id="user-name-display"></span>
-        </div>
-        <div class="user-balance-row">
-          <span class="user-balance-pill">COINS <span id="user-coins-display">200</span></span>
-          <span class="user-balance-pill">TROPHIES <span id="user-trophies-display">50</span></span>
-        </div>
-        <button class="btn-logout" onclick="homeLogout()">LOGOUT</button>
+    <div class="guest-play-cta" id="guest-play-cta">
+      <div class="guest-play-kicker">NO LOGIN REQUIRED</div>
+      <p class="guest-play-copy" id="guest-play-copy">Enter your name to play solo, host a room, or join friends right away.</p>
+      <div class="guest-play-pills">
+        <span>SOLO</span>
+        <span>MULTIPLAYER</span>
+        <span>ROOM CODE</span>
       </div>
-    </div>
-    <div class="auth-help-wrap" id="auth-help-wrap">
-      <button class="auth-toggle" id="auth-help-toggle" type="button" aria-expanded="false" aria-controls="auth-help-note" onclick="toggleAuthHelp()">⌄</button>
-      <p class="auth-note" id="auth-help-note">You can play without signing in. Google sign-in only saves your coins, trophies, and leaderboard progress.</p>
     </div>
 
     <div>
@@ -402,61 +390,11 @@ function onHomeShow() {
 }
 
 function _initGoogleSignIn() {
-  const btnArea     = document.getElementById('google-signin-btn');
-  const profileArea = document.getElementById('user-profile');
-  if (State.user) {
-    btnArea.style.display     = 'none';
-    profileArea.style.display = 'block';
-    const helpWrap = document.getElementById('auth-help-wrap');
-    if (helpWrap) helpWrap.style.display = 'none';
-    document.getElementById('user-img').src = State.user.picture;
-    document.getElementById('user-name-display').textContent = State.user.name;
-    const coinsEl    = document.getElementById('user-coins-display');
-    const trophiesEl = document.getElementById('user-trophies-display');
-    if (State.user.coins === null || State.user.trophies === null) {
-      coinsEl.textContent    = '—';
-      trophiesEl.textContent = '—';
-      coinsEl.title          = 'Not available — check your connection';
-      trophiesEl.title       = 'Not available — check your connection';
-    } else {
-      coinsEl.textContent    = formatCoins(State.user.coins);
-      trophiesEl.textContent = Number(State.user.trophies || 0).toLocaleString();
-    }
-    const nameInput = document.getElementById('input-name');
-    if (nameInput && !nameInput.value.trim()) {
-      nameInput.value  = State.user.name;
-      State.playerName = State.user.name;
-    }
-  } else {
-    btnArea.style.display     = 'block';
-    profileArea.style.display = 'none';
-    const helpWrap = document.getElementById('auth-help-wrap');
-    if (helpWrap) helpWrap.style.display = 'flex';
-    const helpNote = document.getElementById('auth-help-note');
-    const helpToggle = document.getElementById('auth-help-toggle');
-    if (helpNote) helpNote.style.display = 'none';
-    if (helpToggle) {
-      helpToggle.classList.remove('open');
-      helpToggle.textContent = '⌄';
-      helpToggle.setAttribute('aria-expanded', 'false');
-    }
-    if (IS_NATIVE_APP) {
-      btnArea.innerHTML = `
-        <button class="btn btn-primary" onclick="nativeGoogleSignIn()" style="max-width:280px;">
-          <span class="icon">🔐</span> &nbsp;SIGN IN WITH GOOGLE
-        </button>`;
-      return;
-    }
-    if (window.google) {
-      google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleLogin,
-        auto_select: true,
-      });
-      google.accounts.id.renderButton(btnArea, {
-        theme: 'outline', size: 'large', shape: 'pill', width: 280,
-      });
-    }
+  const copy = document.getElementById('guest-play-copy');
+  if (copy) {
+    copy.textContent = State.user
+      ? `Saved profile ready for ${State.user.name}. Enter a name to keep playing.`
+      : 'Enter your name to play solo, host a room, or join friends right away.';
   }
 }
 
