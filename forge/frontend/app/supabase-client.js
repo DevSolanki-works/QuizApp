@@ -131,6 +131,111 @@ async function donationSubmit(displayName, googleId, amountInr, upiTxnId) {
     throw new Error(error.message);
   }
 }
+/**
+ * Call once at the end of every game (any mode).
+ * - If last_played_date is today         → streak unchanged (already played today)
+ * - If last_played_date was yesterday    → streak + 1
+ * - If last_played_date was 2+ days ago  → streak resets to 1
+ * - If never played before               → streak = 1
+ *
+ * Returns the new streak value, or null on error.
+ *
+ * @param {string} googleId - The player's Google sub
+ */
+async function lbUpdateDailyStreak(googleId) {
+  const db = _initSupabase();
+  if (!db || !googleId) return null;
+
+  try {
+    // Fetch current streak state
+    const { data, error } = await db
+      .from('leaderboard')
+      .select('daily_streak, last_played_date')
+      .eq('google_id', googleId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('[Streak] Fetch failed:', error.message);
+      return null;
+    }
+
+    const todayStr     = _todayDateString();
+    const lastPlayed   = data?.last_played_date || null;
+    const currentStreak = Number(data?.daily_streak || 0);
+
+    let newStreak;
+
+    if (lastPlayed === todayStr) {
+      // Already played today — don't touch anything
+      return currentStreak;
+    } else if (lastPlayed === _yesterdayDateString()) {
+      // Consecutive day — extend streak
+      newStreak = currentStreak + 1;
+    } else {
+      // Missed a day (or first game ever) — reset
+      newStreak = 1;
+    }
+
+    const { error: upsertErr } = await db
+      .from('leaderboard')
+      .upsert(
+        { google_id: googleId, daily_streak: newStreak, last_played_date: todayStr },
+        { onConflict: 'google_id' }
+      );
+
+    if (upsertErr) {
+      console.error('[Streak] Update failed:', upsertErr.message);
+      return null;
+    }
+
+    return newStreak;
+
+  } catch (e) {
+    console.error('[Streak] Unexpected error:', e);
+    return null;
+  }
+}
+
+/**
+ * Fetch the current daily streak for a player without modifying it.
+ * Used on home screen load to display the streak badge.
+ *
+ * @param {string} googleId
+ * @returns {number} streak count, or 0 on error/not found
+ */
+async function lbGetDailyStreak(googleId) {
+  const db = _initSupabase();
+  if (!db || !googleId) return 0;
+
+  try {
+    const { data, error } = await db
+      .from('leaderboard')
+      .select('daily_streak, last_played_date')
+      .eq('google_id', googleId)
+      .single();
+
+    if (error) return 0;
+
+    // If they haven't played today or yesterday, streak is effectively broken
+    // but we still show what's stored — the reset happens on next game end
+    return Number(data?.daily_streak || 0);
+  } catch (e) {
+    return 0;
+  }
+}
+
+/** Returns today's date as YYYY-MM-DD in local time */
+function _todayDateString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/** Returns yesterday's date as YYYY-MM-DD in local time */
+function _yesterdayDateString() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 // Expose globally so all screen files can call them without imports
 window.lbUpsertPlayer  = lbUpsertPlayer;
@@ -139,3 +244,5 @@ window.lbFetch         = lbFetch;
 window.lbFetchDonors   = lbFetchDonors;
 window.donationSubmit  = donationSubmit;
 window._initSupabase   = _initSupabase;
+window.lbUpdateDailyStreak = lbUpdateDailyStreak;
+window.lbGetDailyStreak    = lbGetDailyStreak;

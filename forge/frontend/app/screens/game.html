@@ -1059,6 +1059,19 @@ async function _onGameOver(data) {
       console.warn('[Results] Economy sync failed:', e);
     }
   }
+
+  // ── Daily streak update ───────────────────────────────────
+  if (State.user?.id && typeof lbUpdateDailyStreak === 'function') {
+    try {
+      const newStreak = await lbUpdateDailyStreak(State.user.id);
+      if (newStreak !== null) {
+        State._homeStreak = newStreak;   // cached for home screen stat display
+      }
+    } catch (e) {
+      console.warn('[Streak] Update failed silently:', e);
+    }
+  }
+  // ─────────────────────────────────────────────────────────
   if (data.team_scores)  State.teamScores  = data.team_scores;
   if (data.team_names)   State.teamNames   = data.team_names;
   if (data.teams)        State.teams       = data.teams;

@@ -564,8 +564,6 @@ async function applyUserEconomy(economy) {
       console.warn('[Economy] Supabase upsert failed:', e);
     }
   }
-}
-
   const syncTasks = [API.syncProfile(State.user.id, State.user.coins, State.user.trophies)];
   if (typeof lbUpsertPlayer === 'function') {
     syncTasks.push(

@@ -1,549 +1,997 @@
 <!--
-  HOME SCREEN
-  Two flows: Host (create room) | Guest (join with code) | Solo
-  Team mode is selected INSIDE the lobby after joining, not here.
+  HOME SCREEN (POST-LOGIN) — Forge App Track
+  Milestone 34 — updated:
+    - Bottom nav reordered: RANKS · SHOP · HOME(center) · PROFILE · SETTINGS
+    - PROFILE nav item = Sign In trigger when logged out, profile info when logged in
+    - 🔥 stat shows daily streak (Supabase-backed, resets if day skipped)
+    - Join room overlay
 -->
 <style>
   .home-wrap {
-    width: 100%; min-height: 100%;
-    display: flex; flex-direction: column;
-    align-items: center; padding: 0 24px 32px;
-  }
-  @media (min-width: 1024px) {
-    .home-wrap {
-      display: grid;
-      grid-template-columns: minmax(300px, 400px) minmax(320px, 400px);
-      grid-template-rows: auto auto;
-      justify-content: center; align-content: start;
-      gap: 28px 40px; padding: 42px 40px 36px;
-    }
-  }
-  .home-hero {
-    width: 100%; display: flex; flex-direction: column;
-    align-items: center; padding: 52px 0 36px; gap: 14px;
-  }
-  @media (min-width: 1024px) {
-    .home-hero { grid-column:1; grid-row:1; padding:0; max-width:400px; align-self:center; }
-  }
-  .home-trophy {
-    font-size: 64px;
-    line-height: 1;
-    filter: drop-shadow(0 4px 20px rgba(255,217,61,0.4));
-    animation: home-trophy-bob 3s ease-in-out infinite;
-  }
-  @keyframes home-trophy-bob {
-    0%,100% { transform: translateY(0) rotate(-2deg); }
-    50%      { transform: translateY(-8px) rotate(2deg); }
-  }
-  .home-title {
-    font-family: var(--font-pixel); font-size: 26px;
-    color: var(--white); letter-spacing: 2px;
-    text-align: center; line-height: 1.5;
-    text-shadow: 0 2px 0 rgba(0,0,0,0.4);
-  }
-  .home-title-accent { color: var(--yellow); font-size: 12px; }
-  .home-tagline {
-    font-family: var(--font-pixel); font-size: 8px;
-    color: rgba(255,255,255,0.5); text-align: center;
-    letter-spacing: 1px; line-height: 2;
-  }
-  .home-live-badge {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 14px; border-radius: var(--radius-pill);
-    background: rgba(6,214,160,0.12); border: 1px solid rgba(6,214,160,0.3);
-    margin-top: 4px;
-  }
-  .live-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--green); box-shadow: 0 0 8px var(--green);
-    animation: pulse-dot 1.5s infinite;
-  }
-  @keyframes pulse-dot {
-    0%,100% { opacity:1; transform:scale(1); }
-    50%      { opacity:0.4; transform:scale(0.75); }
-  }
-  .live-text {
-    font-family: var(--font-pixel); font-size: 7px;
-    color: var(--green); letter-spacing: 0.5px; white-space: nowrap;
-  }
-  .home-card {
-    width: 100%; padding: 28px 22px;
-    border-radius: var(--radius-lg);
-    background: rgba(255,255,255,0.09);
-    border: 1px solid rgba(255,255,255,0.16);
-    display: flex; flex-direction: column; gap: 18px;
-  }
-  @media (min-width: 1024px) {
-    .home-card { grid-column:2; grid-row:1; max-width:400px; }
-  }
-  .card-heading {
-    font-family: var(--font-pixel); font-size: 9px;
-    color: var(--yellow); letter-spacing: 0.8px; text-align: center;
-  }
-  .code-input {
-    text-align: center !important; text-transform: uppercase;
-    letter-spacing: 10px !important; font-size: 24px !important;
-    font-weight: 900 !important; color: var(--yellow) !important;
-  }
-  .code-input::placeholder {
-    letter-spacing: 4px !important; font-size: 18px !important;
-    color: rgba(255,255,255,0.2) !important;
-  }
-  .home-features {
-    display: flex; flex-wrap: wrap; gap: 8px;
-    justify-content: center; margin-top: 24px; width: 100%;
-  }
-  @media (min-width: 1024px) {
-    .home-features { grid-column: 1 / -1; grid-row: 2; margin-top: 0; }
-  }
-  .feature-pill {
-    display: flex; align-items: center; gap: 6px;
-    padding: 6px 12px; border-radius: var(--radius-pill);
-    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
-    font-family: var(--font-pixel); font-size: 7px;
-    color: rgba(255,255,255,0.5); letter-spacing: 0.3px;
-  }
-  .app-only-note {
     width: 100%;
-    max-width: 520px;
-    margin-top: 14px;
-    padding: 14px 18px;
-    border-radius: var(--radius-md);
-    background: rgba(6,214,160,0.12);
-    border: 1px solid rgba(6,214,160,0.28);
-    font-family: var(--font-body);
-    font-size: 13px;
-    font-weight: 800;
-    color: rgba(255,255,255,0.78);
-    text-align: center;
-    line-height: 1.65;
-  }
-  .feature-pill .fi { font-size: 13px; }
-  .btn .icon { font-size: 1.4em; vertical-align: middle; }
-  .mode-description {
-    margin-top: -10px; text-align: center;
-    font-family: var(--font-body); font-size: 13px; font-weight: 700;
-    color: rgba(255,255,255,0.58);
-  }
-  .input-field.error {
-    border-color: var(--red) !important;
-    box-shadow: 0 0 0 4px rgba(239,35,60,0.18) !important;
-    animation: shake 0.3s ease;
-  }
-  @keyframes shake {
-    0%,100% { transform: translateX(0); }
-    25%      { transform: translateX(-6px); }
-    75%      { transform: translateX(6px); }
-  }
-  .btn-loading { opacity: 0.65 !important; pointer-events: none !important; }
-
-  /* Guest play callout */
-  .guest-play-cta {
-    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    padding: 16px 14px 14px;
-    border-radius: var(--radius-md);
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
+    overflow: hidden;
+    background: var(--bg);
   }
-  .guest-play-kicker {
-    font-family: var(--font-pixel);
-    font-size: 8px;
-    letter-spacing: 0.6px;
-    color: var(--yellow);
-    text-align: center;
-  }
-  .guest-play-copy {
-    font-family: var(--font-body);
-    font-size: 13px;
-    font-weight: 800;
-    line-height: 1.55;
-    text-align: center;
-    color: rgba(255,255,255,0.76);
-  }
-  .guest-play-pills {
+
+  /* ── TOP BAR ───────────────────────────────────────────── */
+  .h-topbar {
+    background: var(--bg-mid);
+    border-bottom: 2px solid rgba(0,0,0,0.3);
+    padding: 12px 16px 10px;
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
   }
-  .guest-play-pills span {
-    padding: 6px 10px;
-    border-radius: var(--radius-pill);
-    background: rgba(255,217,61,0.12);
-    border: 1px solid rgba(255,217,61,0.24);
-    color: var(--yellow);
-    font-family: var(--font-pixel);
-    font-size: 6px;
-    letter-spacing: 0.4px;
-  }
-  .user-profile-badge {
-    display: flex; align-items: center; gap: 10px; padding: 8px 16px;
-    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
-    border-radius: var(--radius-pill); font-family: var(--font-body);
-    font-weight: 700; font-size: 14px; color: var(--white);
-  }
-  .user-balance-row {
+
+  .h-profile { display: flex; align-items: center; gap: 10px; }
+
+  .h-avatar {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.15);
+    background: var(--bg-light);
     display: flex; align-items: center; justify-content: center;
-    gap: 8px; flex-wrap: wrap;
+    font-size: 18px; flex-shrink: 0; overflow: hidden;
   }
-  .user-balance-pill {
-    font-family: var(--font-pixel); font-size: 7px;
-    padding: 6px 10px; border-radius: var(--radius-pill);
+
+  .h-avatar img {
+    width: 100%; height: 100%;
+    object-fit: cover; border-radius: 8px;
+  }
+
+  .h-profile-info { display: flex; flex-direction: column; gap: 4px; }
+
+  .h-profile-name {
+    font-family: var(--font-pixel);
+    font-size: 7px; color: var(--white); letter-spacing: 0.5px;
+  }
+
+  .h-profile-level {
+    font-family: var(--font-pixel);
+    font-size: 5.5px; color: var(--green); letter-spacing: 0.3px;
+  }
+
+  .h-topbar-right { display: flex; align-items: center; gap: 7px; }
+
+  .h-currency-pill {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,0.09);
+    border: 1.5px solid rgba(255,255,255,0.15);
+    border-radius: 8px; padding: 5px 8px;
+  }
+
+  .h-currency-val {
+    font-family: var(--font-pixel);
+    font-size: 7px; color: var(--yellow);
+  }
+
+  /* Sign-in prompt in top bar (shown when logged out) */
+  .h-signin-topbar {
+    display: flex; align-items: center; gap: 8px;
     background: rgba(255,217,61,0.12);
-    border: 1px solid rgba(255,217,61,0.3);
-    color: var(--yellow);
+    border: 1.5px solid rgba(255,217,61,0.3);
+    border-radius: 8px; padding: 8px 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
   }
-  .user-avatar {
-    width: 32px; height: 32px; border-radius: 50%;
-    border: 2px solid var(--yellow); object-fit: cover;
-  }
-  .btn-logout {
-    font-family: var(--font-pixel); font-size: 7px; color: var(--yellow);
-    background: none; border: none; cursor: pointer;
-    text-decoration: underline; opacity: 0.7;
+  .h-signin-topbar:active { background: rgba(255,217,61,0.2); }
+  .h-signin-topbar-text {
+    font-family: var(--font-pixel);
+    font-size: 6px; color: var(--yellow); letter-spacing: 0.3px;
   }
 
-  /* Back-to-landing link */
-  .home-back-link {
-    font-family: var(--font-pixel); font-size: 6px;
-    color: rgba(255,255,255,0.3); text-decoration: none;
-    letter-spacing: 0.4px; margin-top: 8px;
-    transition: color 0.15s;
-    cursor: pointer; background: none; border: none;
+  /* ── MAIN ──────────────────────────────────────────────── */
+  .h-main {
+    flex: 1; overflow: hidden;
+    display: flex; flex-direction: column;
+    padding: 20px 16px 10px; gap: 14px;
   }
-  .home-back-link:hover { color: rgba(255,255,255,0.55); }
 
-  /* Top-left actions stack (Leaderboard + Chai) */
-  .top-left-actions {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+  /* ── WORDMARK ──────────────────────────────────────────── */
+  .h-hero {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 6px; flex-shrink: 0;
   }
-  .lb-pill {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 16px;
-    height: 38px;
-    border-radius: var(--radius-pill);
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.22);
-    text-decoration: none;
-    transition: background 0.15s, transform 0.1s;
+
+  .h-forge-title {
+    font-family: var(--font-pixel);
+    font-size: 30px; color: var(--yellow);
+    letter-spacing: 8px; line-height: 1;
+  }
+
+  .h-forge-sub {
+    font-family: var(--font-pixel);
+    font-size: 5px; color: rgba(255,255,255,0.25); letter-spacing: 3px;
+  }
+
+  /* ── STATS ROW ─────────────────────────────────────────── */
+  .h-stats {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px; flex-shrink: 0;
+  }
+
+  .h-stat {
+    background: rgba(255,255,255,0.07);
+    border: 1.5px solid rgba(255,255,255,0.11);
+    border-radius: 10px; padding: 10px 6px;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+  }
+
+  .h-stat-icon { font-size: 15px; line-height: 1; }
+  .h-stat-val  { font-family: var(--font-pixel); font-size: 11px; color: var(--white); }
+  .h-stat-label { font-family: var(--font-pixel); font-size: 4.5px; color: rgba(255,255,255,0.3); letter-spacing: 1px; }
+
+  /* ── SECTION LABEL ─────────────────────────────────────── */
+  .h-section-label {
+    font-family: var(--font-pixel);
+    font-size: 5.5px; color: rgba(255,255,255,0.25);
+    letter-spacing: 1.5px; flex-shrink: 0;
+  }
+
+  /* ── SOLO HERO CARD ────────────────────────────────────── */
+  .h-solo-card {
+    background: rgba(255,217,61,0.12);
+    border: 1.5px solid rgba(255,217,61,0.35);
+    border-radius: 12px; padding: 16px;
+    display: flex; align-items: center; gap: 14px;
+    cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .h-solo-card:active { background: rgba(255,217,61,0.18); }
+
+  .h-solo-icon { font-size: 28px; line-height: 1; flex-shrink: 0; }
+
+  .h-solo-info {
+    display: flex; flex-direction: column; gap: 5px; flex: 1;
+  }
+
+  .h-solo-name {
+    font-family: var(--font-pixel); font-size: 11px; color: var(--yellow);
+  }
+
+  .h-solo-desc {
+    font-family: var(--font-pixel); font-size: 5px;
+    color: rgba(255,255,255,0.4); line-height: 1.8; letter-spacing: 0.3px;
+  }
+
+  .h-solo-arrow {
+    width: 34px; height: 34px; background: var(--yellow);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--text-dark); flex-shrink: 0;
+  }
+
+  /* ── MODE GRID ─────────────────────────────────────────── */
+  .h-modes-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 9px; flex-shrink: 0;
+  }
+
+  .h-mode-card {
+    background: rgba(255,255,255,0.07);
+    border: 1.5px solid rgba(255,255,255,0.10);
+    border-radius: 12px; padding: 13px 11px;
+    display: flex; flex-direction: column; gap: 6px;
+    cursor: pointer; position: relative; overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    transition: filter 0.15s;
+  }
+  .h-mode-card:active:not(.h-mode-locked) { filter: brightness(1.12); }
+
+  .h-mode-card.h-mode-create { background: rgba(6,214,160,0.10);  border-color: rgba(6,214,160,0.22); }
+  .h-mode-card.h-mode-join   { background: rgba(79,195,247,0.09); border-color: rgba(79,195,247,0.20); }
+  .h-mode-card.h-mode-team   { background: rgba(155,93,229,0.10); border-color: rgba(155,93,229,0.25); }
+  .h-mode-card.h-mode-locked { opacity: 0.35; cursor: default; }
+
+  .h-mode-icon { font-size: 20px; line-height: 1; }
+  .h-mode-name { font-family: var(--font-pixel); font-size: 8px; color: var(--white); letter-spacing: 0.5px; }
+  .h-mode-desc { font-family: var(--font-pixel); font-size: 4.5px; color: rgba(255,255,255,0.35); line-height: 1.7; letter-spacing: 0.3px; }
+
+  .h-mode-badge {
+    position: absolute; top: 8px; right: 8px;
+    border-radius: 4px; padding: 2px 5px;
+    font-family: var(--font-pixel); font-size: 4px; border: 1px solid;
+  }
+  .h-badge-live { background: rgba(6,214,160,0.15);   color: var(--green);  border-color: rgba(6,214,160,0.3); }
+  .h-badge-hot  { background: rgba(239,35,60,0.15);   color: var(--red);    border-color: rgba(239,35,60,0.3); }
+  .h-badge-soon { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.1); }
+
+  /* ── PAGE DOTS ─────────────────────────────────────────── */
+  .h-page-dots {
+    display: flex; gap: 5px; justify-content: center; flex-shrink: 0;
+  }
+
+  .h-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.12); }
+  .h-dot.active { background: var(--yellow); width: 18px; border-radius: 3px; }
+
+  /* ── BOTTOM NAV ────────────────────────────────────────── */
+  .h-bottom-nav {
+    background: var(--bg-mid);
+    border-top: 2px solid rgba(0,0,0,0.3);
+    padding: 9px 6px 14px;
+    display: flex; align-items: center;
+    justify-content: space-around; flex-shrink: 0;
+  }
+
+  .h-nav-item {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+    cursor: pointer; padding: 5px 8px; border-radius: 8px;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+  }
+
+  .h-nav-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    border: 1.5px solid rgba(255,255,255,0.10);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; background: rgba(255,255,255,0.06);
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  /* HOME center item — slightly larger */
+  .h-nav-item.h-nav-center .h-nav-icon {
+    width: 36px; height: 36px; font-size: 16px;
+    border-radius: 10px;
+  }
+
+  .h-nav-item.active .h-nav-icon {
+    background: rgba(255,217,61,0.18);
+    border-color: rgba(255,217,61,0.45);
+  }
+
+  .h-nav-label {
+    font-family: var(--font-pixel); font-size: 4.5px;
+    color: rgba(255,255,255,0.28); letter-spacing: 0.5px;
+  }
+
+  .h-nav-item.active .h-nav-label { color: var(--yellow); }
+
+  /* Sign-in state on profile nav item */
+  .h-nav-item.h-nav-signin .h-nav-icon {
+    background: rgba(255,217,61,0.12);
+    border-color: rgba(255,217,61,0.3);
+  }
+  .h-nav-item.h-nav-signin .h-nav-label { color: var(--yellow); }
+
+  /* Streak fire glow when streak ≥ 3 */
+  .h-stat.streak-active {
+    background: rgba(239,35,60,0.1);
+    border-color: rgba(239,35,60,0.25);
+  }
+
+  /* ── SIGN-IN MODAL ─────────────────────────────────────── */
+  #h-signin-modal {
+    display: none; position: fixed; inset: 0; z-index: 700;
+    background: rgba(9,15,80,0.95); backdrop-filter: blur(8px);
+    align-items: flex-end; justify-content: center;
+    padding-bottom: 0;
+  }
+
+  .h-signin-sheet {
+    width: 100%; max-width: var(--max-w);
+    background: var(--bg-mid);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-bottom: none;
+    border-radius: 20px 20px 0 0;
+    padding: 28px 24px 40px;
+    display: flex; flex-direction: column; gap: 22px;
+    animation: sheet-up 0.3s cubic-bezier(0.22,1,0.36,1) both;
+  }
+
+  @keyframes sheet-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  .h-signin-title {
+    font-family: var(--font-pixel); font-size: 11px;
+    color: var(--white); text-align: center; letter-spacing: 1px; line-height: 1.6;
+  }
+
+  .h-signin-body {
+    font-family: var(--font-body); font-size: 14px; font-weight: 700;
+    color: rgba(255,255,255,0.6); text-align: center; line-height: 1.7;
+  }
+
+  .h-signin-perks {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .h-signin-perk {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .h-signin-perk-icon { font-size: 18px; flex-shrink: 0; }
+
+  .h-signin-perk-text {
+    font-family: var(--font-body); font-size: 13px; font-weight: 700;
+    color: rgba(255,255,255,0.75); line-height: 1.4;
+  }
+
+  /* Google Sign-In button wrapper */
+  .h-google-btn-wrap {
+    display: flex; justify-content: center;
+  }
+
+  /* Native app fallback button */
+  .h-native-google-btn {
+    width: 100%; height: 52px; border-radius: var(--radius-pill);
+    background: #FFFFFF; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-family: var(--font-body); font-size: 15px; font-weight: 800;
+    color: #1A1A2E;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.25);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .h-native-google-btn:active {
+    transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.25);
+  }
+
+  .h-signin-close {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.3); text-align: center;
+    cursor: pointer; padding: 4px;
     -webkit-tap-highlight-color: transparent;
   }
-  .lb-pill:active { transform: scale(0.97); }
-  .lb-pill-icon { font-size: 18px; }
-  .lb-pill-text {
-    font-family: var(--font-pixel);
-    font-size: 8px;
-    color: var(--white);
-    letter-spacing: 0.5px;
+  .h-signin-close:active { color: rgba(255,255,255,0.55); }
+
+  /* Logged-in profile sheet */
+  .h-profile-sheet {
+    width: 100%; max-width: var(--max-w);
+    background: var(--bg-mid);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-bottom: none; border-radius: 20px 20px 0 0;
+    padding: 28px 24px 40px;
+    display: flex; flex-direction: column; gap: 18px;
+    animation: sheet-up 0.3s cubic-bezier(0.22,1,0.36,1) both;
   }
 
-  .chai-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #ffffff;
-    padding: 8px 24px;
-    border-radius: 12px;
-    text-decoration: none;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
-    transition: transform 0.2s;
-  }
-  .chai-link:active { transform: scale(0.97); }
-  .chai-link img { height: 28px; object-fit: contain; }
-
-  @media (max-width: 1024px) {
-    .top-left-actions { top: 12px; left: 12px; gap: 8px; }
-    .lb-pill { height: 32px; padding: 0 12px; }
-    .lb-pill-icon { font-size: 14px; }
-    .lb-pill-text { font-size: 7px; }
-    .chai-link { padding: 6px 16px; }
-    .chai-link img { height: 20px; }
+  .h-profile-sheet-row {
+    display: flex; align-items: center; gap: 14px;
   }
 
-  /* Chai support row */
-  .chai-support-row {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    margin-top: 4px;
+  .h-profile-sheet-avatar {
+    width: 56px; height: 56px; border-radius: 14px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: var(--bg-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; overflow: hidden; flex-shrink: 0;
   }
-  .chai-support-row.bottom {
-    margin-top: 32px;
-    margin-bottom: 24px;
+
+  .h-profile-sheet-avatar img {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 12px;
   }
+
+  .h-profile-sheet-info { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+
+  .h-profile-sheet-name {
+    font-family: var(--font-pixel); font-size: 9px; color: var(--white);
+  }
+
+  .h-profile-sheet-email {
+    font-family: var(--font-body); font-size: 12px; font-weight: 700;
+    color: rgba(255,255,255,0.45);
+  }
+
+  .h-profile-sheet-level {
+    font-family: var(--font-pixel); font-size: 6px; color: var(--green);
+  }
+
+  .h-profile-stat-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+  }
+
+  .h-profile-stat {
+    background: rgba(255,255,255,0.07);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 10px; padding: 10px 6px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+
+  .h-profile-stat-val  { font-family: var(--font-pixel); font-size: 11px; color: var(--white); }
+  .h-profile-stat-label { font-family: var(--font-pixel); font-size: 4.5px; color: rgba(255,255,255,0.3); letter-spacing: 1px; }
+
+  .h-signout-btn {
+    width: 100%; height: 48px; border-radius: var(--radius-pill);
+    background: rgba(239,35,60,0.12); border: 1.5px solid rgba(239,35,60,0.3);
+    color: var(--red); font-family: var(--font-pixel); font-size: 8px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .h-signout-btn:active { background: rgba(239,35,60,0.2); }
 </style>
 
 <div class="home-wrap">
-  <div class="confetti-bg" id="home-confetti"></div>
-  <div class="stars-bg"    id="home-stars"></div>
+  <div class="stars-bg" id="home-stars"></div>
 
-  <!-- HERO -->
-  <div class="home-hero z1">
-    <div class="home-trophy" aria-hidden="true">🏆</div>
-    <h1 class="home-title">
-      FORGE<br>
-      <span class="home-title-accent">AI TRIVIA SHOWDOWN</span>
-    </h1>
-    <p class="home-tagline">TYPE ANY TOPIC · AI BUILDS YOUR QUIZ · PLAY LIVE</p>
-    <div class="home-live-badge">
-      <div class="live-dot"></div>
-      <span class="live-text" id="home-status-text">CONNECTING...</span>
+  <!-- TOP BAR -->
+  <div class="h-topbar z1">
+    <!-- Profile / guest state -->
+    <div id="h-topbar-user">
+      <!-- Populated by _hRenderProfile() -->
+    </div>
+
+    <!-- Right side: currency (hidden when logged out) -->
+    <div class="h-topbar-right" id="h-topbar-right" style="display:none;">
+      <div class="h-currency-pill">
+        <span style="font-size:12px;">🪙</span>
+        <span class="h-currency-val" id="h-coins">—</span>
+      </div>
+      <div class="h-currency-pill">
+        <span style="font-size:12px;">🏆</span>
+        <span class="h-currency-val" id="h-trophies">—</span>
+      </div>
     </div>
   </div>
 
-  <!-- ACTION CARD -->
-  <div class="home-card z1">
-    <p class="card-heading">✦ LET'S PLAY ✦</p>
+  <!-- MAIN CONTENT -->
+  <div class="h-main z1">
 
-    <div class="guest-play-cta" id="guest-play-cta">
-      <div class="guest-play-kicker">NO LOGIN REQUIRED</div>
-      <p class="guest-play-copy" id="guest-play-copy">Enter your name to play solo, host a room, or join friends right away.</p>
-      <div class="guest-play-pills">
-        <span>SOLO</span>
-        <span>MULTIPLAYER</span>
-        <span>ROOM CODE</span>
+    <!-- WORDMARK -->
+    <div class="h-hero">
+      <div class="h-forge-title">FORGE</div>
+      <div class="h-forge-sub">AI TRIVIA SHOWDOWN</div>
+    </div>
+
+    <!-- STATS -->
+    <div class="h-stats">
+      <div class="h-stat" id="h-stat-rank-block">
+        <span class="h-stat-icon">🌍</span>
+        <span class="h-stat-val" id="h-stat-rank">—</span>
+        <span class="h-stat-label">GLOBAL</span>
+      </div>
+      <div class="h-stat" id="h-stat-streak-block">
+        <span class="h-stat-icon">🔥</span>
+        <span class="h-stat-val" id="h-stat-streak">0</span>
+        <span class="h-stat-label">DAY STREAK</span>
+      </div>
+      <div class="h-stat">
+        <span class="h-stat-icon">⚡</span>
+        <span class="h-stat-val" id="h-stat-wins">—</span>
+        <span class="h-stat-label">WIN RATE</span>
       </div>
     </div>
 
-    <div>
-      <label class="input-label" for="input-name">YOUR NAME</label>
-      <input id="input-name" class="input-field" type="text"
-        placeholder="e.g. QuizMaster99" maxlength="20"
-        autocomplete="off" autocorrect="off" spellcheck="false" />
+    <!-- SECTION LABEL -->
+    <div class="h-section-label">PLAY MODES</div>
+
+    <!-- SOLO HERO -->
+    <div class="h-solo-card" onclick="hStartSolo()">
+      <span class="h-solo-icon">🎯</span>
+      <div class="h-solo-info">
+        <span class="h-solo-name">SOLO PLAY</span>
+        <span class="h-solo-desc">ANY TOPIC · CHASE YOUR BEST</span>
+      </div>
+      <div class="h-solo-arrow">▶</div>
     </div>
 
-    <div class="divider-text">SOLO MODE</div>
-    <button class="btn btn-primary" id="btn-solo" onclick="homeStartSolo()">
-      🎯 &nbsp;SOLO PLAY
-    </button>
-    <p class="mode-description">Play alone and chase your high score.</p>
-
-    <div class="divider-text">MULTIPLAYER</div>
-    <button class="btn btn-primary" id="btn-create" onclick="homeCreateRoom()">
-      <span class="icon">🎮</span> &nbsp;CREATE ROOM
-    </button>
-    <p class="mode-description">Classic or Team — choose after friends join.</p>
-
-    <div class="divider-text">JOIN A ROOM</div>
-    <div>
-      <label class="input-label" for="input-code">ROOM CODE</label>
-      <input id="input-code" class="input-field code-input" type="text"
-        placeholder="XXXX" maxlength="4"
-        autocomplete="off" autocorrect="off" spellcheck="false" />
+    <!-- 2×2 GRID -->
+    <div class="h-modes-grid">
+      <div class="h-mode-card h-mode-create" onclick="hCreateRoom()">
+        <span class="h-mode-badge h-badge-live">LIVE</span>
+        <span class="h-mode-icon">🎮</span>
+        <span class="h-mode-name">CREATE</span>
+        <span class="h-mode-desc">HOST A ROOM<br>INVITE FRIENDS</span>
+      </div>
+      <div class="h-mode-card h-mode-join" onclick="hJoinRoom()">
+        <span class="h-mode-icon">🚀</span>
+        <span class="h-mode-name">JOIN</span>
+        <span class="h-mode-desc">ENTER CODE<br>JOIN BATTLE</span>
+      </div>
+      <div class="h-mode-card h-mode-team" onclick="hCreateTeamRoom()">
+        <span class="h-mode-badge h-badge-hot">HOT</span>
+        <span class="h-mode-icon">⚔️</span>
+        <span class="h-mode-name">TEAM</span>
+        <span class="h-mode-desc">2 TEAMS<br>1 WINNER</span>
+      </div>
+      <div class="h-mode-card h-mode-locked">
+        <span class="h-mode-badge h-badge-soon">SOON</span>
+        <span class="h-mode-icon">🌐</span>
+        <span class="h-mode-name" style="color:rgba(255,255,255,0.2);">RANKED</span>
+        <span class="h-mode-desc" style="color:rgba(255,255,255,0.12);">COMING SOON</span>
+      </div>
     </div>
-    <button class="btn btn-secondary" id="btn-join" onclick="homeJoinRoom()">
-      <span class="icon">🚀</span> &nbsp;JOIN ROOM
-    </button>
+
+    <!-- PAGE DOTS -->
+    <div class="h-page-dots">
+      <div class="h-dot active"></div>
+      <div class="h-dot"></div>
+      <div class="h-dot"></div>
+    </div>
+
   </div>
 
-  <!-- FEATURE PILLS + CHAI SUPPORT -->
-  <div class="home-features z1">
-    <div class="feature-pill"><span class="fi">🤖</span> AI-GENERATED</div>
-    <div class="feature-pill"><span class="fi">⚡</span> REAL-TIME</div>
-    <div class="feature-pill"><span class="fi">🌐</span> ANY TOPIC</div>
-    <div class="feature-pill"><span class="fi">👥</span> MULTIPLAYER</div>
-    <div class="feature-pill"><span class="fi">⚔️</span> TEAM BATTLE</div>
-    <div class="feature-pill"><span class="fi">🔥</span> STREAK COMBOS</div>
-    <div class="app-only-note" data-app-only>
-      App build lane active. Future mobile-only modes, AdMob rewards, and Play Store features can be added here without changing the public website.
+  <!-- BOTTOM NAV — order: RANKS · SHOP · HOME(center) · PROFILE · SETTINGS -->
+  <div class="h-bottom-nav z1">
+
+    <div class="h-nav-item" id="hnav-ranks" onclick="hGoLeaderboard()">
+      <div class="h-nav-icon">🏆</div>
+      <span class="h-nav-label">RANKS</span>
+    </div>
+
+    <div class="h-nav-item" id="hnav-shop" onclick="hGoShop()">
+      <div class="h-nav-icon">🛒</div>
+      <span class="h-nav-label">SHOP</span>
+    </div>
+
+    <!-- CENTER HOME BUTTON -->
+    <div class="h-nav-item h-nav-center active" id="hnav-home">
+      <div class="h-nav-icon">🏠</div>
+      <span class="h-nav-label">HOME</span>
+    </div>
+
+    <!-- PROFILE — sign-in when logged out -->
+    <div class="h-nav-item" id="hnav-profile" onclick="hOpenProfileSheet()">
+      <div class="h-nav-icon" id="h-nav-profile-icon">👤</div>
+      <span class="h-nav-label" id="h-nav-profile-label">SIGN IN</span>
+    </div>
+
+    <div class="h-nav-item" id="hnav-settings" onclick="hGoSettings()">
+      <div class="h-nav-icon">⚙️</div>
+      <span class="h-nav-label">SETTINGS</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SIGN-IN BOTTOM SHEET (logged out)
+════════════════════════════════════════════ -->
+<div id="h-signin-modal" onclick="hCloseSigninModal(event)">
+  <div class="h-signin-sheet" onclick="event.stopPropagation()">
+
+    <p class="h-signin-title">SIGN IN TO FORGE</p>
+
+    <div class="h-signin-perks">
+      <div class="h-signin-perk">
+        <span class="h-signin-perk-icon">🪙</span>
+        <span class="h-signin-perk-text">Coins and trophies saved across all your devices</span>
+      </div>
+      <div class="h-signin-perk">
+        <span class="h-signin-perk-icon">🔥</span>
+        <span class="h-signin-perk-text">Daily streak tracking — don't break your chain!</span>
+      </div>
+      <div class="h-signin-perk">
+        <span class="h-signin-perk-icon">🌍</span>
+        <span class="h-signin-perk-text">Appear on the global leaderboard</span>
+      </div>
+    </div>
+
+    <!-- Google Sign-In button -->
+    <!-- Web: rendered by Google Identity Services SDK -->
+    <!-- Native app: falls back to nativeGoogleSignIn() -->
+    <div class="h-google-btn-wrap" id="h-google-btn-container">
+      <!-- Populated by _hRenderSigninButton() -->
+    </div>
+
+    <div class="h-signin-close" onclick="hCloseSigninModal()">MAYBE LATER</div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PROFILE BOTTOM SHEET (logged in)
+════════════════════════════════════════════ -->
+<div id="h-profile-modal" onclick="hCloseProfileModal(event)" style="
+  display:none; position:fixed; inset:0; z-index:700;
+  background:rgba(9,15,80,0.95); backdrop-filter:blur(8px);
+  align-items:flex-end; justify-content:center;
+">
+  <div class="h-profile-sheet" onclick="event.stopPropagation()">
+
+    <div class="h-profile-sheet-row">
+      <div class="h-profile-sheet-avatar" id="h-sheet-avatar">👾</div>
+      <div class="h-profile-sheet-info">
+        <span class="h-profile-sheet-name"  id="h-sheet-name">—</span>
+        <span class="h-profile-sheet-email" id="h-sheet-email">—</span>
+        <span class="h-profile-sheet-level" id="h-sheet-level">—</span>
+      </div>
+    </div>
+
+    <div class="h-profile-stat-row">
+      <div class="h-profile-stat">
+        <span style="font-size:15px;">🪙</span>
+        <span class="h-profile-stat-val"   id="h-sheet-coins">—</span>
+        <span class="h-profile-stat-label">COINS</span>
+      </div>
+      <div class="h-profile-stat">
+        <span style="font-size:15px;">🏆</span>
+        <span class="h-profile-stat-val"   id="h-sheet-trophies">—</span>
+        <span class="h-profile-stat-label">TROPHIES</span>
+      </div>
+      <div class="h-profile-stat">
+        <span style="font-size:15px;">🔥</span>
+        <span class="h-profile-stat-val"   id="h-sheet-streak">—</span>
+        <span class="h-profile-stat-label">DAY STREAK</span>
+      </div>
+    </div>
+
+    <button class="h-signout-btn" onclick="hSignOut()">SIGN OUT</button>
+    <div class="h-signin-close" onclick="hCloseProfileModal()">CLOSE</div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     JOIN ROOM OVERLAY
+════════════════════════════════════════════ -->
+<div id="h-join-overlay" onclick="hJoinOverlayClose()" style="
+  display:none; position:fixed; inset:0; z-index:600;
+  background:rgba(9,15,80,0.94); backdrop-filter:blur(8px);
+  align-items:center; justify-content:center; padding:24px;
+">
+  <div onclick="event.stopPropagation()" style="
+    width:100%; max-width:320px;
+    background:var(--bg-mid); border:1.5px solid rgba(255,255,255,0.15);
+    border-radius:16px; padding:28px 22px;
+    display:flex; flex-direction:column; gap:20px;
+  ">
+    <p style="font-family:var(--font-pixel);font-size:10px;color:var(--white);text-align:center;letter-spacing:1px;">
+      JOIN A ROOM
+    </p>
+    <div>
+      <label class="input-label" for="h-join-code">ROOM CODE</label>
+      <input id="h-join-code" class="input-field" type="text"
+        placeholder="XXXX" maxlength="4"
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        style="text-align:center;text-transform:uppercase;letter-spacing:10px;font-size:24px;font-weight:900;color:var(--yellow);"
+        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
+        onkeydown="if(event.key==='Enter')hJoinRoomConfirm()" />
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-secondary" style="flex:1;" onclick="hJoinOverlayClose()">CANCEL</button>
+      <button class="btn btn-primary"   style="flex:1;" id="h-join-btn" onclick="hJoinRoomConfirm()">JOIN ▶</button>
     </div>
   </div>
 </div>
 
 <script>
+/* ══════════════════════════════════════════════════════════
+   HOME SCREEN LOGIC — Milestone 34
+   ══════════════════════════════════════════════════════════ */
+
 function onHomeShow() {
   Sound.startBgMusic();
-  const confettiEl = document.getElementById('home-confetti');
-  const starsEl    = document.getElementById('home-stars');
-  if (confettiEl) { confettiEl.innerHTML = ''; spawnConfetti(confettiEl); }
-  if (starsEl)    { starsEl.innerHTML    = ''; spawnStars(starsEl); }
-  _homeUpdateStatus();
-  _initGoogleSignIn();
+  const starsEl = document.getElementById('home-stars');
+  if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
 
-  const nameInput = document.getElementById('input-name');
-  if (nameInput && State.playerName) nameInput.value = State.playerName;
+  _hRenderProfile();
+  _hRenderNavProfile();
+  _hRenderCurrency();
+  _hLoadStats();
+}
 
-  const codeInput = document.getElementById('input-code');
-  if (codeInput) {
-    codeInput.addEventListener('input', () => {
-      codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    });
-    codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') homeJoinRoom(); });
-  }
-  if (nameInput) {
-    nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') homeCreateRoom(); });
+/* ── PROFILE RENDERING ────────────────────────────────────── */
+
+function _hRenderProfile() {
+  const container = document.getElementById('h-topbar-user');
+  const rightEl   = document.getElementById('h-topbar-right');
+  if (!container) return;
+
+  if (State.user) {
+    // Logged in — show avatar + name
+    const picHtml = State.user.picture
+      ? `<img src="${State.user.picture}" alt="avatar" />`
+      : '👾';
+    container.innerHTML = `
+      <div class="h-profile" onclick="hOpenProfileSheet()" style="cursor:pointer;">
+        <div class="h-avatar">${picHtml}</div>
+        <div class="h-profile-info">
+          <span class="h-profile-name">${_hEsc((State.user.name || 'PLAYER').toUpperCase().slice(0,12))}</span>
+          <span class="h-profile-level">${_hRankLabel(Number(State.user.trophies || 0))}</span>
+        </div>
+      </div>`;
+    if (rightEl) rightEl.style.display = 'flex';
+  } else {
+    // Logged out — sign-in prompt
+    container.innerHTML = `
+      <div class="h-signin-topbar" onclick="hOpenSigninModal()">
+        <span style="font-size:16px;">👤</span>
+        <span class="h-signin-topbar-text">SIGN IN</span>
+      </div>`;
+    if (rightEl) rightEl.style.display = 'none';
   }
 }
 
-function _initGoogleSignIn() {
-  const copy = document.getElementById('guest-play-copy');
-  if (copy) {
-    copy.textContent = State.user
-      ? `Saved profile ready for ${State.user.name}. Enter a name to keep playing.`
-      : 'Enter your name to play solo, host a room, or join friends right away.';
+function _hRenderNavProfile() {
+  const iconEl  = document.getElementById('h-nav-profile-icon');
+  const labelEl = document.getElementById('h-nav-profile-label');
+  const navEl   = document.getElementById('hnav-profile');
+  if (!iconEl || !labelEl || !navEl) return;
+
+  if (State.user) {
+    iconEl.textContent  = State.user.picture ? '🧑' : '👤';
+    labelEl.textContent = 'PROFILE';
+    navEl.classList.remove('h-nav-signin');
+  } else {
+    iconEl.textContent  = '🔑';
+    labelEl.textContent = 'SIGN IN';
+    navEl.classList.add('h-nav-signin');
   }
 }
 
-async function handleGoogleLogin(response) {
+function _hRankLabel(trophies) {
+  if (trophies >= 500) return 'GRANDMASTER';
+  if (trophies >= 200) return 'CHAMPION';
+  if (trophies >= 100) return 'EXPERT';
+  if (trophies >= 50)  return 'SKILLED';
+  if (trophies >= 20)  return 'APPRENTICE';
+  return 'ROOKIE';
+}
+
+/* ── CURRENCY ─────────────────────────────────────────────── */
+
+function _hRenderCurrency() {
+  const coinsEl    = document.getElementById('h-coins');
+  const trophiesEl = document.getElementById('h-trophies');
+  if (!State.user) return;
+  if (coinsEl)    coinsEl.textContent    = State.user.coins    != null ? Number(State.user.coins).toLocaleString()    : '—';
+  if (trophiesEl) trophiesEl.textContent = State.user.trophies != null ? Number(State.user.trophies).toLocaleString() : '—';
+}
+
+/* ── STATS (async) ────────────────────────────────────────── */
+
+async function _hLoadStats() {
+  // Win rate from localStorage
   try {
-    const user = await API.verifyGoogleToken(response.credential);
- 
-    // Store the raw token so syncProfile() can use it for authenticated calls
-    user._credential = response.credential;
- 
-    // SYNC: Fetch fresh data from Supabase on first login to this device
+    const wins   = Number(localStorage.getItem('forge_stat_wins')   || 0);
+    const played = Number(localStorage.getItem('forge_stat_played') || 0);
+    const winEl  = document.getElementById('h-stat-wins');
+    if (winEl) winEl.textContent = played > 0 ? Math.round((wins / played) * 100) + '%' : '—';
+  } catch (_) {}
+
+  if (!State.user?.id) {
+    // Not logged in — zero out streak, hide rank
+    const streakEl = document.getElementById('h-stat-streak');
+    if (streakEl) streakEl.textContent = '0';
+    const rankEl = document.getElementById('h-stat-rank');
+    if (rankEl) rankEl.textContent = '—';
+    return;
+  }
+
+  // Daily streak from Supabase
+  if (typeof lbGetDailyStreak === 'function') {
     try {
-      const fresh = await lbFetchProfile(user.id);
-      if (fresh) {
-        user.coins    = fresh.coins;
-        user.trophies = fresh.trophies;
-        API.syncProfile(user.id, fresh.coins, fresh.trophies);
-      }
-    } catch (e) { console.warn('[Login] Sync failed:', e); }
- 
-    const localKey = `forge_economy_${user.id}`;
-    try {
-      const savedLocal = JSON.parse(localStorage.getItem(localKey) || '{}');
-      if ((savedLocal.coins    ?? 0) > (user.coins    ?? 0)) user.coins    = savedLocal.coins;
-      if ((savedLocal.trophies ?? 0) > (user.trophies ?? 0)) user.trophies = savedLocal.trophies;
+      const streak  = await lbGetDailyStreak(State.user.id);
+      State._homeStreak = streak;
+      const streakEl    = document.getElementById('h-stat-streak');
+      const blockEl     = document.getElementById('h-stat-streak-block');
+      if (streakEl) streakEl.textContent = streak;
+      if (blockEl)  blockEl.classList.toggle('streak-active', streak >= 3);
     } catch (_) {}
- 
-    State.user       = user;
-    State.playerName = user.name;
- 
-    const nameInput = document.getElementById('input-name');
-    if (nameInput) nameInput.value = user.name;
-    Session.save();
-    _initGoogleSignIn();
-    Toast.success(`Signed in as ${user.name}`);
-  } catch (e) {
-    console.error(e);
-    Toast.error('Google Sign-In failed.');
+  }
+
+  // Global rank from Supabase
+  if (typeof lbFetchProfile === 'function') {
+    try {
+      const profile = await lbFetchProfile(State.user.id);
+      if (profile) {
+        const db = window._forgeSupabase;
+        if (db) {
+          const { data } = await db
+            .from('leaderboard')
+            .select('google_id', { count: 'exact' })
+            .gt('trophies', profile.trophies || 0);
+          const rankEl = document.getElementById('h-stat-rank');
+          if (rankEl) rankEl.textContent = '#' + ((data ? data.length : 0) + 1);
+        }
+      }
+    } catch (_) {}
   }
 }
 
-function homeLogout() {
-  State.user = null; Session.save(); _initGoogleSignIn(); Toast.info('Signed out');
-}
+/* ── SIGN-IN MODAL ────────────────────────────────────────── */
 
-function toggleAuthHelp() {
-  const note = document.getElementById('auth-help-note');
-  const toggle = document.getElementById('auth-help-toggle');
-  if (!note || !toggle) return;
-  const open = note.style.display === 'block';
-  note.style.display = open ? 'none' : 'block';
-  toggle.classList.toggle('open', !open);
-  toggle.textContent = open ? '⌄' : '⌃';
-  toggle.setAttribute('aria-expanded', String(!open));
-}
-
-async function _homeUpdateStatus() {
-  const badge = document.getElementById('home-status-text');
-  if (!badge) return;
-  try {
-    const d = await API.health();
-    badge.textContent = `${d.active_rooms ?? 0} ROOMS ACTIVE`;
-  } catch {
-    badge.textContent = IS_LOCAL_DEV ? 'START LOCAL BACKEND' : 'SERVER OFFLINE';
-  }
-}
-
-function _validateName() {
-  const el  = document.getElementById('input-name');
-  const val = el?.value.trim();
-  if (!val) { _shakeEl(el); Toast.error('Enter your name first!'); return null; }
-  return val;
-}
-function _shakeEl(el) {
-  if (!el) return;
-  el.classList.add('error');
-  setTimeout(() => el.classList.remove('error'), 800);
-}
-function _setLoading(id, on) {
-  const b = document.getElementById(id);
-  if (b) { b.classList.toggle('btn-loading', on); b.disabled = on; }
-}
-
-/* ── CREATE ROOM ── */
-async function homeCreateRoom() {
+function hOpenSigninModal() {
   Sound.click();
-  const name = _validateName(); if (!name) return;
-  _setLoading('btn-create', true);
-  try {
-    const data = await API.createRoom(name, 'classic');
-    State.playerName  = name;
-    State.roomCode    = data.room_code;
-    State.isHost      = true;
-    State.playMode    = 'classic';
-    State.resultStats = null;
-    State.players     = [name];
-    State.teams       = {};
-    State.teamNames   = { A: 'Red Dragons', B: 'Blue Phoenix' };
-    State.teamScores  = {};
-    Session.save();
-    WS.connect(State.roomCode, State.playerName);
-    await goTo('lobby');
-  } catch (e) {
-    console.error(e);
-    const msg = e.message.includes('{') ? JSON.parse(e.message).detail : e.message;
-    Toast.error(msg || 'Could not create room. Try again.');
-  } finally {
-    _setLoading('btn-create', false);
+  const modal = document.getElementById('h-signin-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  _hRenderSigninButton();
+}
+
+function hCloseSigninModal(e) {
+  if (e && e.target !== document.getElementById('h-signin-modal')) return;
+  _hDismissSigninModal();
+}
+
+function _hDismissSigninModal() {
+  const modal = document.getElementById('h-signin-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function _hRenderSigninButton() {
+  const container = document.getElementById('h-google-btn-container');
+  if (!container) return;
+
+  if (IS_NATIVE_APP) {
+    // Native Capacitor build — use the native plugin
+    container.innerHTML = `
+      <button class="h-native-google-btn" onclick="nativeGoogleSignIn()">
+        <img src="https://developers.google.com/identity/images/g-logo.png"
+             alt="Google" style="width:22px;height:22px;" />
+        Continue with Google
+      </button>`;
+  } else {
+    // Web build — Google Identity Services SDK renders the button
+    container.innerHTML = `
+      <div id="h-gsi-btn"></div>`;
+    if (window.google?.accounts?.id) {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (response) => {
+          await handleGoogleLogin(response);
+          _hDismissSigninModal();
+          _hRenderProfile();
+          _hRenderNavProfile();
+          _hRenderCurrency();
+          _hLoadStats();
+        },
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('h-gsi-btn'),
+        { theme: 'outline', size: 'large', width: 280 }
+      );
+    } else {
+      // GSI not loaded yet — plain fallback
+      container.innerHTML = `
+        <p style="font-family:var(--font-pixel);font-size:6px;color:rgba(255,255,255,0.3);text-align:center;line-height:2;">
+          GOOGLE SIGN-IN UNAVAILABLE<br>CHECK YOUR CONNECTION
+        </p>`;
+    }
   }
 }
 
-/* ── SOLO ── */
-async function homeStartSolo() {
+/* ── PROFILE SHEET (logged in) ────────────────────────────── */
+
+function hOpenProfileSheet() {
   Sound.click();
-  const name = _validateName(); if (!name) return;
-  _setLoading('btn-solo', true);
+  if (!State.user) {
+    hOpenSigninModal();
+    return;
+  }
+
+  // Populate sheet
+  const avatarEl   = document.getElementById('h-sheet-avatar');
+  const nameEl     = document.getElementById('h-sheet-name');
+  const emailEl    = document.getElementById('h-sheet-email');
+  const levelEl    = document.getElementById('h-sheet-level');
+  const coinsEl    = document.getElementById('h-sheet-coins');
+  const trophiesEl = document.getElementById('h-sheet-trophies');
+  const streakEl   = document.getElementById('h-sheet-streak');
+
+  if (avatarEl) avatarEl.innerHTML = State.user.picture
+    ? `<img src="${State.user.picture}" alt="avatar" />`
+    : '👾';
+  if (nameEl)     nameEl.textContent     = (State.user.name  || 'PLAYER').toUpperCase();
+  if (emailEl)    emailEl.textContent    = State.user.email  || '';
+  if (levelEl)    levelEl.textContent    = _hRankLabel(Number(State.user.trophies || 0));
+  if (coinsEl)    coinsEl.textContent    = State.user.coins    != null ? Number(State.user.coins).toLocaleString()    : '—';
+  if (trophiesEl) trophiesEl.textContent = State.user.trophies != null ? Number(State.user.trophies).toLocaleString() : '—';
+  if (streakEl)   streakEl.textContent   = State._homeStreak || 0;
+
+  const modal = document.getElementById('h-profile-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function hCloseProfileModal(e) {
+  if (e && e.target !== document.getElementById('h-profile-modal')) return;
+  const modal = document.getElementById('h-profile-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function hSignOut() {
+  Sound.click();
+  State.user = null;
+  Session.save();
+  hCloseProfileModal();
+  // Revoke Google session silently
+  try {
+    if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+  } catch (_) {}
+  _hRenderProfile();
+  _hRenderNavProfile();
+  _hRenderCurrency();
+  _hLoadStats();
+  Toast.info('Signed out.');
+}
+
+/* ── MODE ACTIONS ─────────────────────────────────────────── */
+
+async function hStartSolo() {
+  Sound.click();
+  const name = State.playerName || State.user?.name;
+  if (!name) { Toast.error('No player name set.'); return; }
   try {
     const data = await API.createRoom(name, 'solo');
-    State.playerName  = name;
-    State.roomCode    = data.room_code;
-    State.isHost      = true;
-    State.playMode    = 'solo';
-    State.resultStats = null;
-    State.players     = [name];
-    State.teams       = {};
-    State.teamNames   = { A: 'Red Dragons', B: 'Blue Phoenix' };
-    State.teamScores  = {};
-    Session.save();
+    _hSetRoomState(data, name, 'solo');
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
-  } catch (e) {
-    console.error(e);
-    const msg = e.message.includes('{') ? JSON.parse(e.message).detail : e.message;
-    Toast.error(msg || 'Could not start solo game. Try again.');
-  } finally {
-    _setLoading('btn-solo', false);
+  } catch (e) { console.error(e); Toast.error('Could not start solo game. Try again.'); }
+}
+
+async function hCreateRoom() {
+  Sound.click();
+  const name = State.playerName || State.user?.name;
+  if (!name) { Toast.error('No player name set.'); return; }
+  try {
+    const data = await API.createRoom(name, 'classic');
+    _hSetRoomState(data, name, 'classic');
+    WS.connect(State.roomCode, State.playerName);
+    await goTo('lobby');
+  } catch (e) { console.error(e); Toast.error('Could not create room. Try again.'); }
+}
+
+async function hCreateTeamRoom() {
+  Sound.click();
+  const name = State.playerName || State.user?.name;
+  if (!name) { Toast.error('No player name set.'); return; }
+  try {
+    const data = await API.createRoom(name, 'classic');
+    _hSetRoomState(data, name, 'classic');
+    WS.connect(State.roomCode, State.playerName);
+    await goTo('lobby');
+  } catch (e) { console.error(e); Toast.error('Could not create room. Try again.'); }
+}
+
+function _hSetRoomState(data, name, playMode) {
+  State.playerName  = name;
+  State.roomCode    = data.room_code;
+  State.isHost      = true;
+  State.playMode    = playMode;
+  State.resultStats = null;
+  State.players     = [name];
+  State.teams       = {};
+  State.teamNames   = { A: 'Red Dragons', B: 'Blue Phoenix' };
+  State.teamScores  = {};
+  Session.save();
+}
+
+/* ── JOIN OVERLAY ─────────────────────────────────────────── */
+
+function hJoinRoom() {
+  Sound.click();
+  const overlay = document.getElementById('h-join-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    setTimeout(() => document.getElementById('h-join-code')?.focus(), 100);
   }
 }
 
-/* ── JOIN ROOM ── */
-async function homeJoinRoom() {
-  Sound.click();
-  const name   = _validateName(); if (!name) return;
-  const codeEl = document.getElementById('input-code');
+function hJoinOverlayClose() {
+  const overlay = document.getElementById('h-join-overlay');
+  if (overlay) overlay.style.display = 'none';
+  const input = document.getElementById('h-join-code');
+  if (input) input.value = '';
+}
+
+async function hJoinRoomConfirm() {
+  const codeEl = document.getElementById('h-join-code');
   const code   = codeEl?.value.trim().toUpperCase();
   if (!code || code.length !== 4) {
-    _shakeEl(codeEl); Toast.error('Enter a 4-digit room code!'); return;
+    codeEl?.classList.add('error');
+    setTimeout(() => codeEl?.classList.remove('error'), 800);
+    Toast.error('Enter a 4-character room code!');
+    return;
   }
-  _setLoading('btn-join', true);
+  const name = State.playerName || State.user?.name;
+  if (!name) { Toast.error('No player name set.'); return; }
+
+  const btn = document.getElementById('h-join-btn');
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
   try {
     const room = await API.getRoom(code);
     if (room.play_mode === 'solo') { Toast.error('Solo rooms are private.'); return; }
@@ -556,12 +1004,26 @@ async function homeJoinRoom() {
     State.teamNames   = room.team_names || { A: 'Red Dragons', B: 'Blue Phoenix' };
     State.teamScores  = {};
     Session.save();
+    hJoinOverlayClose();
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
   } catch (e) {
-    console.error(e); _shakeEl(codeEl); Toast.error('Room not found. Check the code!');
+    console.error(e);
+    Toast.error('Room not found. Check the code!');
   } finally {
-    _setLoading('btn-join', false);
+    if (btn) { btn.textContent = 'JOIN ▶'; btn.disabled = false; }
   }
+}
+
+/* ── NAV STUBS ────────────────────────────────────────────── */
+
+function hGoLeaderboard() { Sound.click(); Toast.info('Leaderboard — coming soon as in-app screen!'); }
+function hGoShop()        { Sound.click(); Toast.info('Shop — coming soon!'); }
+function hGoSettings()    { Sound.click(); Toast.info('Settings — coming soon!'); }
+
+/* ── UTILS ────────────────────────────────────────────────── */
+
+function _hEsc(s) {
+  return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
 }
 </script>
