@@ -586,6 +586,12 @@ let _streakTimeout  = null;    // used to time the shatter → hide transition
 
 /** Called by router when screen becomes active */
 function onGameShow() {
+  // Stop any stale interval from a previous game session.
+  // On Android/Capacitor, screen scripts persist in memory across games,
+  // so _timerInterval from game 1 is still live when game 2 starts unless
+  // we explicitly clear it here.
+  _stopTimer();
+  _clearLeaderboardTimers();
   Sound.stopBgMusic();
   const starsEl = document.getElementById('game-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
@@ -602,11 +608,10 @@ function onGameShow() {
   if (teamBanner) teamBanner.style.display = isTeam ? 'flex' : 'none';
   if (isTeam) _updateTeamBanner({});
 
-  // Reset local state
+  // Reset local per-game state
   _answered = false;
   _qIndex   = 0;
   _myStreak = 0;
-  _clearLeaderboardTimers();
   _hideLB();
   _hideStreak(true);
 

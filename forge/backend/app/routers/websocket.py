@@ -72,6 +72,10 @@ GENERATION_TIMEOUT_SECONDS       = 30
 
 _round_timeout_tasks: dict[str, asyncio.Task] = {}
 
+# Tracks which rooms are currently mid-resolve to prevent duplicate concurrent
+# calls to resolve_round() (e.g. from expire_question + answer handler racing).
+_resolving_rounds: set[str] = set()
+
 
 # ── Broadcast helpers ─────────────────────────────────────────────────────────
 
@@ -364,7 +368,29 @@ async def broadcast_question(room_code: str) -> None:
 
 
 async def resolve_round(room_code: str, question_index: int) -> None:
-    """Lock the round and drive the reveal → intermission → next-question sequence."""
+    """Lock the round and drive the reveal → intermission → next-question sequence.
+
+    WHY the _resolving_rounds guard:
+      resolve_round() can be triggered from two concurrent paths for the same
+      round — the player answer handler and the _expire_question timeout task.
+      Both paths check room.phase == QUESTION before entering, but because Python
+      async code yields at every 'await', both can pass that check before either
+      has had the chance to mutate room.phase.  The result was two concurrent
+      coroutines both sleeping through the ANSWER_REVEAL and INTERMISSION phases,
+      then both advancing current_q_index and broadcasting the next question,
+      which corrupted state and froze the game loop.
+
+      The set acts as a fast, non-async mutex: the first caller wins, any
+      subsequent concurrent call for the same room returns immediately.
+    """
+    # ── Concurrency guard — only one resolve may run per room at a time ────────
+    if room_code in _resolving_rounds:
+        logger.debug(
+            "resolve_round(%s, q=%d) skipped — already resolving",
+            room_code, question_index,
+        )
+        return
+
     room = rooms.get(room_code)
     if (
         not room
@@ -374,45 +400,54 @@ async def resolve_round(room_code: str, question_index: int) -> None:
     ):
         return
 
+    # Claim the lock and cancel any pending expire task for this room.
+    # Cancelling here (rather than in the callers) guarantees the task is always
+    # stopped before we mutate room state, regardless of which path won the race.
+    _resolving_rounds.add(room_code)
     _cancel_round_timeout(room_code)
 
-    for name, player in room.players.items():
-        if name not in room.answers_this_round:
-            player.streak = 0
+    try:
+        for name, player in room.players.items():
+            if name not in room.answers_this_round:
+                player.streak = 0
 
-    room.phase   = RoundPhase.ANSWER_REVEAL
-    reveal_data  = _round_payload(room)
-    reveal_data.update({"phase": room.phase.value, "hold_ms": ANSWER_REVEAL_SECONDS * 1000})
-    await broadcast(room_code, {"type": "ANSWER_REVEAL", "data": reveal_data})
-    await asyncio.sleep(ANSWER_REVEAL_SECONDS)
+        room.phase   = RoundPhase.ANSWER_REVEAL
+        reveal_data  = _round_payload(room)
+        reveal_data.update({"phase": room.phase.value, "hold_ms": ANSWER_REVEAL_SECONDS * 1000})
+        await broadcast(room_code, {"type": "ANSWER_REVEAL", "data": reveal_data})
+        await asyncio.sleep(ANSWER_REVEAL_SECONDS)
 
-    room = rooms.get(room_code)
-    if not room or room.status != GameStatus.ACTIVE:
-        return
+        room = rooms.get(room_code)
+        if not room or room.status != GameStatus.ACTIVE:
+            return
 
-    if room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
-        room.phase = RoundPhase.INTERMISSION_LEADERBOARD
-        is_final   = room.current_q_index + 1 >= len(room.questions)
-        hold_secs  = 2 if is_final else INTERMISSION_LEADERBOARD_SECONDS
-        inter_data = _round_payload(room)
-        inter_data.update({
-            "phase":    room.phase.value,
-            "hold_ms":  hold_secs * 1000,
-            "is_final": is_final,
-        })
-        await broadcast(room_code, {"type": "INTERMISSION_LEADERBOARD", "data": inter_data})
-        await asyncio.sleep(hold_secs)
+        if room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
+            room.phase = RoundPhase.INTERMISSION_LEADERBOARD
+            is_final   = room.current_q_index + 1 >= len(room.questions)
+            hold_secs  = 2 if is_final else INTERMISSION_LEADERBOARD_SECONDS
+            inter_data = _round_payload(room)
+            inter_data.update({
+                "phase":    room.phase.value,
+                "hold_ms":  hold_secs * 1000,
+                "is_final": is_final,
+            })
+            await broadcast(room_code, {"type": "INTERMISSION_LEADERBOARD", "data": inter_data})
+            await asyncio.sleep(hold_secs)
 
-    room = rooms.get(room_code)
-    if not room or room.status != GameStatus.ACTIVE:
-        return
+        room = rooms.get(room_code)
+        if not room or room.status != GameStatus.ACTIVE:
+            return
 
-    if room.current_q_index + 1 >= len(room.questions):
-        await _finish_game(room_code)
-        return
+        if room.current_q_index + 1 >= len(room.questions):
+            await _finish_game(room_code)
+            return
 
-    room.current_q_index += 1
-    await broadcast_question(room_code)
+        room.current_q_index += 1
+        await broadcast_question(room_code)
+
+    finally:
+        # Always release the lock so future rounds in the same room can proceed.
+        _resolving_rounds.discard(room_code)
 
 
 async def _finish_game(room_code: str) -> None:
@@ -874,6 +909,11 @@ async def websocket_endpoint(
 
                 connected = _connected_players(room)
                 if len(room.answers_this_round) >= len(connected):
+                    # Cancel the expire task BEFORE calling resolve_round so we
+                    # don't race: expire fires at roughly the same instant the
+                    # last answer arrives, and without this cancel both paths
+                    # would enter resolve_round concurrently.
+                    _cancel_round_timeout(room_code)
                     await resolve_round(room_code, room.current_q_index)
 
     except WebSocketDisconnect:
@@ -900,6 +940,10 @@ async def websocket_endpoint(
                 and room.phase == RoundPhase.QUESTION
                 and len(room.answers_this_round) >= len(connected)
             ):
+                # Same cancel-before-resolve discipline as the answer handler.
+                # A disconnecting player can trigger this path at the same time
+                # the expire_question task fires, causing a duplicate resolve.
+                _cancel_round_timeout(room_code)
                 asyncio.create_task(resolve_round(room_code, room.current_q_index))
         else:
             asyncio.create_task(_delayed_room_cleanup(room_code))
