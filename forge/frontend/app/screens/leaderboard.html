@@ -1,0 +1,699 @@
+<!--
+  LEADERBOARD SCREEN — Forge App Track
+  In-app screen replacing the old leaderboard.html external page.
+
+  Tabs: 💰 COINS · 🏆 TROPHIES · 🔥 STREAK
+  - Top 50 players per tab, fetched from Supabase on tab open (lazy)
+  - Logged-in user's own row always highlighted + their rank shown in header
+  - Pull-to-refresh via button
+  - Back button returns to home
+  - No scrolling header — only the list scrolls
+-->
+<style>
+  .lb-wrap {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* ── TOP BAR ───────────────────────────────────────────── */
+  .lb-topbar {
+    background: var(--bg-mid);
+    border-bottom: 2px solid rgba(0,0,0,0.3);
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .lb-back-btn {
+    width: 34px;
+    height: 34px;
+    background: rgba(255,255,255,0.09);
+    border: 1.5px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .lb-back-btn:active { background: rgba(255,255,255,0.18); }
+
+  .lb-topbar-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .lb-title {
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    color: var(--white);
+    letter-spacing: 1px;
+  }
+
+  .lb-my-rank-line {
+    font-family: var(--font-pixel);
+    font-size: 5.5px;
+    color: var(--yellow);
+    letter-spacing: 0.5px;
+  }
+
+  .lb-refresh-btn {
+    width: 34px;
+    height: 34px;
+    background: rgba(255,255,255,0.09);
+    border: 1.5px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, transform 0.3s;
+  }
+  .lb-refresh-btn:active { background: rgba(255,255,255,0.18); }
+  .lb-refresh-btn.spinning { animation: lb-spin 0.6s linear; }
+  @keyframes lb-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  /* ── MY RANK CARD ──────────────────────────────────────── */
+  .lb-my-card {
+    margin: 12px 14px 0;
+    background: rgba(255,217,61,0.1);
+    border: 1.5px solid rgba(255,217,61,0.3);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .lb-my-card.hidden { display: none; }
+
+  .lb-my-rank-badge {
+    font-family: var(--font-pixel);
+    font-size: 14px;
+    color: var(--yellow);
+    width: 36px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .lb-my-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--bg-light);
+    border: 1.5px solid rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .lb-my-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+
+  .lb-my-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .lb-my-name {
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    color: var(--yellow);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lb-my-sub {
+    font-family: var(--font-pixel);
+    font-size: 5px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.3px;
+  }
+
+  .lb-my-val {
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    color: var(--white);
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── TABS ──────────────────────────────────────────────── */
+  .lb-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    padding: 12px 14px 0;
+    flex-shrink: 0;
+  }
+
+  .lb-tab {
+    height: 40px;
+    border-radius: 8px;
+    border: 1.5px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    font-family: var(--font-pixel);
+    font-size: 6px;
+    color: rgba(255,255,255,0.4);
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .lb-tab.active-coins {
+    background: rgba(255,217,61,0.15);
+    border-color: rgba(255,217,61,0.4);
+    color: var(--yellow);
+  }
+
+  .lb-tab.active-trophies {
+    background: rgba(6,214,160,0.12);
+    border-color: rgba(6,214,160,0.35);
+    color: var(--green);
+  }
+
+  .lb-tab.active-streak {
+    background: rgba(239,35,60,0.12);
+    border-color: rgba(239,35,60,0.35);
+    color: var(--red);
+  }
+
+  /* ── LIST AREA ─────────────────────────────────────────── */
+  .lb-list-wrap {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 14px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* scrollbar */
+  .lb-list-wrap::-webkit-scrollbar { width: 3px; }
+  .lb-list-wrap::-webkit-scrollbar-track { background: transparent; }
+  .lb-list-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  /* ── LOADING ───────────────────────────────────────────── */
+  .lb-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 48px 0;
+  }
+
+  .lb-loading-text {
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.5px;
+  }
+
+  /* ── EMPTY ─────────────────────────────────────────────── */
+  .lb-empty {
+    text-align: center;
+    padding: 48px 0;
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    color: rgba(255,255,255,0.25);
+    line-height: 2.5;
+  }
+
+  /* ── ROW ───────────────────────────────────────────────── */
+  .lb-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.08);
+    animation: lb-row-in 0.3s ease both;
+    flex-shrink: 0;
+  }
+
+  .lb-row.is-me {
+    background: rgba(255,217,61,0.1);
+    border-color: rgba(255,217,61,0.3);
+  }
+
+  .lb-row.rank-1 {
+    background: rgba(255,217,61,0.12);
+    border-color: rgba(255,217,61,0.35);
+  }
+
+  .lb-row.rank-2 {
+    background: rgba(192,192,192,0.08);
+    border-color: rgba(192,192,192,0.2);
+  }
+
+  .lb-row.rank-3 {
+    background: rgba(205,127,50,0.08);
+    border-color: rgba(205,127,50,0.2);
+  }
+
+  @keyframes lb-row-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* stagger */
+  .lb-row:nth-child(1)  { animation-delay: 0.00s; }
+  .lb-row:nth-child(2)  { animation-delay: 0.03s; }
+  .lb-row:nth-child(3)  { animation-delay: 0.06s; }
+  .lb-row:nth-child(4)  { animation-delay: 0.09s; }
+  .lb-row:nth-child(5)  { animation-delay: 0.12s; }
+  .lb-row:nth-child(n+6){ animation-delay: 0.15s; }
+
+  .lb-row-rank {
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .lb-row-rank.r1 { color: var(--yellow); font-size: 14px; }
+  .lb-row-rank.r2 { color: #C0C0C0;       font-size: 14px; }
+  .lb-row-rank.r3 { color: #CD7F32;       font-size: 14px; }
+
+  .lb-row-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--bg-light);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .lb-row-name {
+    flex: 1;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .lb-row-name.is-me { color: var(--yellow); }
+
+  .lb-row-val {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .lb-row-main {
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    color: var(--white);
+  }
+
+  .lb-row-sub {
+    font-family: var(--font-pixel);
+    font-size: 5.5px;
+    color: rgba(255,255,255,0.3);
+  }
+
+  /* YOU badge */
+  .lb-you-tag {
+    font-family: var(--font-pixel);
+    font-size: 5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255,217,61,0.2);
+    border: 1px solid rgba(255,217,61,0.4);
+    color: var(--yellow);
+    flex-shrink: 0;
+  }
+
+  /* ── SECTION DIVIDER ───────────────────────────────────── */
+  .lb-divider {
+    font-family: var(--font-pixel);
+    font-size: 5px;
+    color: rgba(255,255,255,0.2);
+    text-align: center;
+    letter-spacing: 1px;
+    padding: 4px 0;
+    flex-shrink: 0;
+  }
+</style>
+
+<div class="lb-wrap">
+
+  <!-- TOP BAR -->
+  <div class="lb-topbar z1">
+    <button class="lb-back-btn" onclick="lbGoBack()" aria-label="Back">←</button>
+    <div class="lb-topbar-info">
+      <span class="lb-title">🏆 LEADERBOARD</span>
+      <span class="lb-my-rank-line" id="lb-my-rank-line" style="display:none;"></span>
+    </div>
+    <button class="lb-refresh-btn" id="lb-refresh-btn" onclick="lbRefresh()" aria-label="Refresh">↻</button>
+  </div>
+
+  <!-- MY RANK CARD (logged-in users) -->
+  <div class="lb-my-card hidden z1" id="lb-my-card">
+    <span class="lb-my-rank-badge" id="lb-my-rank-badge">—</span>
+    <div class="lb-my-avatar" id="lb-my-avatar">👾</div>
+    <div class="lb-my-info">
+      <span class="lb-my-name" id="lb-my-name">—</span>
+      <span class="lb-my-sub" id="lb-my-sub">YOUR STANDING</span>
+    </div>
+    <span class="lb-my-val" id="lb-my-val">—</span>
+  </div>
+
+  <!-- TABS -->
+  <div class="lb-tabs z1">
+    <button class="lb-tab active-coins"    id="lbtab-coins"    onclick="lbSwitchTab('coins')">💰 COINS</button>
+    <button class="lb-tab"                 id="lbtab-trophies" onclick="lbSwitchTab('trophies')">🏆 TROPHIES</button>
+    <button class="lb-tab"                 id="lbtab-streak"   onclick="lbSwitchTab('streak')">🔥 STREAK</button>
+  </div>
+
+  <!-- SCROLLABLE LIST -->
+  <div class="lb-list-wrap z1" id="lb-list">
+    <!-- populated by _lbRender() -->
+  </div>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   LEADERBOARD SCREEN — Forge App Track
+   ══════════════════════════════════════════════════════════ */
+
+const AVATARS_LB = ['😀','🤩','🧠','🦊','🐼','🦁','🐯','🤖','👾','🎩','🦄','🐸','🎮','⚡','🔥','🏆'];
+
+// Which tabs have already been fetched this session
+const _lbLoaded  = { coins: false, trophies: false, streak: false };
+const _lbCache   = { coins: null,  trophies: null,  streak: null  };
+
+let _lbActiveTab = 'coins';
+
+/* ── LIFECYCLE ────────────────────────────────────────────── */
+
+function onLeaderboardShow() {
+  _lbActiveTab = 'coins';
+  _lbLoaded.coins    = false;
+  _lbLoaded.trophies = false;
+  _lbLoaded.streak   = false;
+  _lbCache.coins     = null;
+  _lbCache.trophies  = null;
+  _lbCache.streak    = null;
+
+  _lbApplyTabStyles('coins');
+  _lbRenderMyCard('coins');
+  _lbLoad('coins');
+}
+
+/* ── TAB SWITCHING ────────────────────────────────────────── */
+
+function lbSwitchTab(tab) {
+  if (_lbActiveTab === tab) return;
+  Sound.click();
+  _lbActiveTab = tab;
+  _lbApplyTabStyles(tab);
+  _lbRenderMyCard(tab);
+
+  if (!_lbLoaded[tab]) {
+    _lbLoad(tab);
+  } else {
+    _lbRender(_lbCache[tab], tab);
+  }
+}
+
+function _lbApplyTabStyles(tab) {
+  ['coins','trophies','streak'].forEach(t => {
+    const el = document.getElementById(`lbtab-${t}`);
+    if (!el) return;
+    el.className = 'lb-tab' + (t === tab ? ` active-${t}` : '');
+  });
+}
+
+/* ── LOAD DATA ────────────────────────────────────────────── */
+
+async function _lbLoad(tab) {
+  _lbLoaded[tab] = true;
+  _lbShowLoading();
+
+  const db = _initSupabase ? _initSupabase() : null;
+  if (!db) {
+    _lbShowEmpty('SUPABASE NOT AVAILABLE');
+    return;
+  }
+
+  try {
+    const col = tab === 'coins'    ? 'coins'
+              : tab === 'trophies' ? 'trophies'
+              :                      'daily_streak';
+
+    const { data, error } = await db
+      .from('leaderboard')
+      .select('google_id, display_name, coins, trophies, daily_streak, last_played_date, updated_at')
+      .order(col, { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      _lbCache[tab] = [];
+      _lbShowEmpty('NO PLAYERS YET\nBE THE FIRST ON THE BOARD!');
+      return;
+    }
+
+    _lbCache[tab] = data;
+    _lbRender(data, tab);
+    _lbRenderMyCard(tab);
+
+  } catch (e) {
+    console.error('[Leaderboard] Load failed:', e);
+    _lbShowEmpty('FAILED TO LOAD\nCHECK YOUR CONNECTION');
+  }
+}
+
+/* ── RENDER LIST ──────────────────────────────────────────── */
+
+function _lbRender(data, tab) {
+  const list = document.getElementById('lb-list');
+  if (!list) return;
+
+  const myId    = State.user?.id || null;
+  const medals  = ['🥇','🥈','🥉'];
+
+  // Find where the logged-in user sits in the list
+  let myRankInList = -1;
+  if (myId) {
+    myRankInList = data.findIndex(r => r.google_id === myId);
+  }
+
+  let html = '';
+
+  data.forEach((row, i) => {
+    const rank   = i + 1;
+    const isMe   = row.google_id === myId;
+    const rCls   = rank <= 3 ? `rank-${rank}` : '';
+    const rChar  = rank <= 3 ? medals[i] : `#${rank}`;
+    const rTxt   = rank <= 3 ? `r${rank}` : '';
+    const emoji  = AVATARS_LB[(i) % AVATARS_LB.length];
+
+    const mainVal = tab === 'coins'    ? Number(row.coins         || 0).toLocaleString()
+                  : tab === 'trophies' ? Number(row.trophies      || 0).toLocaleString()
+                  :                      Number(row.daily_streak  || 0) + ' DAYS';
+
+    const subVal  = tab === 'coins'    ? `${Number(row.trophies || 0).toLocaleString()} TROPHIES`
+                  : tab === 'trophies' ? `${Number(row.coins    || 0).toLocaleString()} COINS`
+                  :                      _lbTimeAgo(row.last_played_date);
+
+    const youTag  = isMe ? '<span class="lb-you-tag">YOU</span>' : '';
+
+    // Insert a divider when we jump past top 3
+    if (i === 3) {
+      html += `<div class="lb-divider">─── REST OF THE BOARD ───</div>`;
+    }
+
+    // If user is not in top 50 and we're near the end, they appear in the my-card
+    html += `
+      <div class="lb-row ${rCls}${isMe ? ' is-me' : ''}">
+        <span class="lb-row-rank ${rTxt}">${rChar}</span>
+        <div class="lb-row-avatar">${emoji}</div>
+        <span class="lb-row-name${isMe ? ' is-me' : ''}">${_lbEsc(row.display_name || 'PLAYER')}</span>
+        ${youTag}
+        <div class="lb-row-val">
+          <span class="lb-row-main">${mainVal}</span>
+          <span class="lb-row-sub">${subVal}</span>
+        </div>
+      </div>`;
+  });
+
+  list.innerHTML = html;
+
+  // Update rank line in topbar
+  if (myId && myRankInList >= 0) {
+    const rankLineEl = document.getElementById('lb-my-rank-line');
+    if (rankLineEl) {
+      const tabLabel = tab === 'coins' ? 'COINS' : tab === 'trophies' ? 'TROPHIES' : 'STREAK';
+      rankLineEl.textContent = `YOUR ${tabLabel} RANK: #${myRankInList + 1}`;
+      rankLineEl.style.display = 'block';
+    }
+  }
+}
+
+/* ── MY RANK CARD ─────────────────────────────────────────── */
+
+function _lbRenderMyCard(tab) {
+  const card      = document.getElementById('lb-my-card');
+  const badgeEl   = document.getElementById('lb-my-rank-badge');
+  const avatarEl  = document.getElementById('lb-my-avatar');
+  const nameEl    = document.getElementById('lb-my-name');
+  const subEl     = document.getElementById('lb-my-sub');
+  const valEl     = document.getElementById('lb-my-val');
+
+  if (!State.user || !card) return;
+
+  // Show card
+  card.classList.remove('hidden');
+
+  // Avatar
+  if (avatarEl) {
+    avatarEl.innerHTML = State.user.picture
+      ? `<img src="${State.user.picture}" alt="avatar" />`
+      : '👾';
+  }
+
+  // Name
+  if (nameEl) nameEl.textContent = (State.user.name || 'YOU').toUpperCase().slice(0, 14);
+
+  // Value and rank from cached data
+  const data = _lbCache[tab];
+  if (data) {
+    const myIdx = data.findIndex(r => r.google_id === State.user.id);
+    if (myIdx >= 0) {
+      const row  = data[myIdx];
+      const rank = myIdx + 1;
+      const medals = ['🥇','🥈','🥉'];
+
+      if (badgeEl) badgeEl.textContent = rank <= 3 ? medals[myIdx] : `#${rank}`;
+
+      const mainVal = tab === 'coins'    ? `${Number(row.coins        || 0).toLocaleString()} 🪙`
+                    : tab === 'trophies' ? `${Number(row.trophies     || 0).toLocaleString()} 🏆`
+                    :                      `${Number(row.daily_streak || 0)} 🔥 DAYS`;
+      if (valEl) valEl.textContent = mainVal;
+      if (subEl) subEl.textContent = `RANK #${rank} OF ${data.length}`;
+    } else {
+      // User not in top 50
+      if (badgeEl) badgeEl.textContent = '—';
+      const fallbackVal = tab === 'coins'    ? `${Number(State.user.coins    || 0).toLocaleString()} 🪙`
+                        : tab === 'trophies' ? `${Number(State.user.trophies || 0).toLocaleString()} 🏆`
+                        :                      `${State._homeStreak || 0} 🔥 DAYS`;
+      if (valEl) valEl.textContent = fallbackVal;
+      if (subEl) subEl.textContent = 'NOT IN TOP 50';
+    }
+  } else {
+    // Data not loaded yet — show current user values
+    if (badgeEl) badgeEl.textContent = '...';
+    const fallbackVal = tab === 'coins'    ? `${Number(State.user.coins    || 0).toLocaleString()} 🪙`
+                      : tab === 'trophies' ? `${Number(State.user.trophies || 0).toLocaleString()} 🏆`
+                      :                      `${State._homeStreak || 0} 🔥 DAYS`;
+    if (valEl) valEl.textContent = fallbackVal;
+    if (subEl) subEl.textContent = 'LOADING RANK...';
+  }
+}
+
+/* ── LOADING / EMPTY STATES ───────────────────────────────── */
+
+function _lbShowLoading() {
+  const list = document.getElementById('lb-list');
+  if (!list) return;
+  list.innerHTML = `
+    <div class="lb-loading">
+      <div class="dot-loader">
+        <span></span><span></span><span></span>
+      </div>
+      <p class="lb-loading-text">LOADING RANKINGS...</p>
+    </div>`;
+}
+
+function _lbShowEmpty(msg) {
+  const list = document.getElementById('lb-list');
+  if (!list) return;
+  list.innerHTML = `<div class="lb-empty">${msg.replace(/\n/g,'<br>')}</div>`;
+}
+
+/* ── REFRESH ──────────────────────────────────────────────── */
+
+function lbRefresh() {
+  Sound.click();
+  const btn = document.getElementById('lb-refresh-btn');
+  if (btn) {
+    btn.classList.add('spinning');
+    setTimeout(() => btn.classList.remove('spinning'), 650);
+  }
+  // Force reload current tab
+  _lbLoaded[_lbActiveTab] = false;
+  _lbCache[_lbActiveTab]  = null;
+  _lbLoad(_lbActiveTab);
+}
+
+/* ── NAVIGATION ───────────────────────────────────────────── */
+
+function lbGoBack() {
+  Sound.click();
+  goTo('home');
+}
+
+/* ── UTILS ────────────────────────────────────────────────── */
+
+function _lbEsc(s) {
+  return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '—';
+}
+
+function _lbTimeAgo(dateStr) {
+  if (!dateStr) return 'NEVER PLAYED';
+  const d    = new Date(dateStr);
+  const diff = Date.now() - d.getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'PLAYED TODAY';
+  if (days === 1) return 'PLAYED YESTERDAY';
+  if (days  <  7) return `${days} DAYS AGO`;
+  return `${Math.floor(days / 7)} WEEKS AGO`;
+}
+</script>
