@@ -476,6 +476,7 @@
    ══════════════════════════════════════════════════════════ */
 const PLATFORM = window.FORGE_PLATFORM || {};
 const IS_NATIVE_APP = !!PLATFORM.isNativeApp;
+const IS_FIRE_OS = !!PLATFORM.isFireOS;
 const IS_APP_TARGET = PLATFORM.target === 'app';
 const IS_LOCAL_DEV = !!PLATFORM.isLocalDev;
 
@@ -985,6 +986,12 @@ async function handleGoogleLogin(response) {
 
 let _googleNativeInitialized = false;
 async function nativeGoogleSignIn() {
+  // Fire OS has no Google Play Services — sign-in is impossible
+  if (IS_FIRE_OS) {
+    Toast.info('Google Sign-In is not available on Fire OS. Play as a guest!');
+    return;
+  }
+
   const plugin = window.Capacitor?.Plugins?.GoogleSignIn;
   if (!plugin) {
     Toast.error('Google Sign-In is unavailable on this build.');

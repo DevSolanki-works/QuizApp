@@ -40,11 +40,23 @@
   var target = isNativeApp || override === "app" ? "app" : "web";
   var isWebsite = target === "web";
 
+  var isFireOS = false;
+  try {
+    // Fire tablets report manufacturer as "Amazon" via the user agent
+    // and lack the Google Play Services package
+    isFireOS =
+      /\bKF[A-Z]{2,4}\b/.test(navigator.userAgent) ||   // Amazon Fire device codes e.g. KFMAWI, KFSAW
+      navigator.userAgent.includes('Amazon') && navigator.userAgent.includes('Build/');
+  } catch (_) {
+    isFireOS = false;
+  }
+
   var config = {
     target: target,
     isWebsite: isWebsite,
     isNativeApp: isNativeApp,
     isLocalDev: isLocalDev,
+    isFireOS: isFireOS,  
     appOnlyFeaturesEnabled: target === "app",
     monetization: target === "app" ? "admob" : "adsense",
     adsenseClient: ADSENSE_CLIENT,
@@ -84,6 +96,7 @@
   installVisibilityStyles();
 
   window.FORGE_PLATFORM = config;
+  window.IS_FIRE_OS = isFireOS;  
   window.ForgePlatform = {
     config: config,
     loadAdSense: loadAdSense,

@@ -617,6 +617,14 @@
         <span class="h-profile-stat-label">DAY STREAK</span>
       </div>
     </div>
+    <!-- ADD inside .h-signin-sheet, just before the close button -->
+    <div id="h-fireos-note" style="display:none;
+      background:rgba(255,255,255,0.05); border:1.5px solid rgba(255,255,255,0.1);
+      border-radius:10px; padding:12px 14px;
+      font-family:var(--font-pixel); font-size:5.5px;
+      color:rgba(255,255,255,0.35); line-height:2; text-align:center; letter-spacing:0.3px;">
+      RUNNING ON AMAZON FIRE OS<br>GOOGLE SERVICES NOT AVAILABLE
+    </div>
 
     <button class="h-signout-btn" onclick="hSignOut()">SIGN OUT</button>
     <div class="h-signin-close" onclick="hCloseProfileModal()">CLOSE</div>
@@ -796,8 +804,10 @@ async function _hLoadStats() {
 
 function hOpenSigninModal() {
   Sound.click();
-  const modal = document.getElementById('h-signin-modal');
+  const modal   = document.getElementById('h-signin-modal');
+  const fireNote = document.getElementById('h-fireos-note');
   if (!modal) return;
+  if (fireNote) fireNote.style.display = IS_FIRE_OS ? 'block' : 'none';
   modal.style.display = 'flex';
   _hRenderSigninButton();
 }
@@ -816,8 +826,29 @@ function _hRenderSigninButton() {
   const container = document.getElementById('h-google-btn-container');
   if (!container) return;
 
+  // Fire OS — no GMS, Google Sign-In is not possible
+  if (IS_FIRE_OS) {
+    container.innerHTML = `
+      <div style="
+        padding:16px; border-radius:12px;
+        background:rgba(255,255,255,0.06);
+        border:1.5px solid rgba(255,255,255,0.1);
+        text-align:center; display:flex; flex-direction:column; gap:10px;
+      ">
+        <p style="font-family:var(--font-pixel);font-size:6px;color:rgba(255,255,255,0.45);line-height:2;letter-spacing:0.5px;">
+          GOOGLE SIGN-IN IS NOT AVAILABLE<br>ON AMAZON FIRE DEVICES
+        </p>
+        <p style="font-family:var(--font-body);font-size:13px;font-weight:700;color:rgba(255,255,255,0.5);line-height:1.6;">
+          Your coins and trophies won't be saved across devices, but you can still play every mode!
+        </p>
+        <button class="btn btn-secondary" style="height:44px;" onclick="_hDismissSigninModal()">
+          PLAY AS GUEST
+        </button>
+      </div>`;
+    return;
+  }
+
   if (IS_NATIVE_APP) {
-    // Native Capacitor build — use the native plugin
     container.innerHTML = `
       <button class="h-native-google-btn" onclick="nativeGoogleSignIn()">
         <img src="https://developers.google.com/identity/images/g-logo.png"
@@ -825,9 +856,7 @@ function _hRenderSigninButton() {
         Continue with Google
       </button>`;
   } else {
-    // Web build — Google Identity Services SDK renders the button
-    container.innerHTML = `
-      <div id="h-gsi-btn"></div>`;
+    container.innerHTML = `<div id="h-gsi-btn"></div>`;
     if (window.google?.accounts?.id) {
       google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
@@ -845,7 +874,6 @@ function _hRenderSigninButton() {
         { theme: 'outline', size: 'large', width: 280 }
       );
     } else {
-      // GSI not loaded yet — plain fallback
       container.innerHTML = `
         <p style="font-family:var(--font-pixel);font-size:6px;color:rgba(255,255,255,0.3);text-align:center;line-height:2;">
           GOOGLE SIGN-IN UNAVAILABLE<br>CHECK YOUR CONNECTION
