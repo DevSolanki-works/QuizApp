@@ -615,16 +615,7 @@ async function applyUserEconomy(economy) {
     }
   }
 }
-
-  const syncTasks = [API.syncProfile(State.user.id, State.user.coins, State.user.trophies)];
-  if (typeof lbUpsertPlayer === 'function') {
-    syncTasks.push(
-      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies)
-        .catch(e => console.warn('[LB] Upsert failed silently:', e))
-    );
-  }
-  await Promise.allSettled(syncTasks);
-}
+// ← function ends here cleanly, nothing dangling after
 
 // Restore session state on boot
 const _savedSession = Session.load();
