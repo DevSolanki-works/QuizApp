@@ -147,47 +147,56 @@ async function lbUpdateDailyStreak(googleId) {
   if (!db || !googleId) return null;
 
   try {
-    // Fetch current streak state
+    const todayStr     = _todayDateString();
+    const yesterdayStr = _yesterdayDateString();
+
+    // Fetch current streak state — handle missing row gracefully
     const { data, error } = await db
       .from('leaderboard')
-      .select('daily_streak, last_played_date')
+      .select('daily_streak, last_played_date, display_name, coins, trophies')
       .eq('google_id', googleId)
-      .single();
+      .maybeSingle();                    // ← maybeSingle() returns null data instead of error when no row
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       console.error('[Streak] Fetch failed:', error.message);
       return null;
     }
 
-    const todayStr     = _todayDateString();
-    const lastPlayed   = data?.last_played_date || null;
+    const lastPlayed    = data?.last_played_date || null;
     const currentStreak = Number(data?.daily_streak || 0);
 
-    let newStreak;
-
+    // Already played today — nothing to do
     if (lastPlayed === todayStr) {
-      // Already played today — don't touch anything
       return currentStreak;
-    } else if (lastPlayed === _yesterdayDateString()) {
-      // Consecutive day — extend streak
-      newStreak = currentStreak + 1;
-    } else {
-      // Missed a day (or first game ever) — reset
-      newStreak = 1;
     }
+
+    const newStreak = lastPlayed === yesterdayStr
+      ? currentStreak + 1   // consecutive day
+      : 1;                  // missed a day or first game ever
+
+    // Build full upsert payload — include all non-null columns
+    // so this works even if the row doesn't exist yet
+    const payload = {
+      google_id:        googleId,
+      daily_streak:     newStreak,
+      last_played_date: todayStr,
+      updated_at:       new Date().toISOString(),
+      // Carry over existing values if row exists, else use State fallback
+      display_name:     data?.display_name || window.State?.user?.name  || 'PLAYER',
+      coins:            data?.coins        ?? window.State?.user?.coins    ?? 200,
+      trophies:         data?.trophies     ?? window.State?.user?.trophies ?? 50,
+    };
 
     const { error: upsertErr } = await db
       .from('leaderboard')
-      .upsert(
-        { google_id: googleId, daily_streak: newStreak, last_played_date: todayStr },
-        { onConflict: 'google_id' }
-      );
+      .upsert(payload, { onConflict: 'google_id' });
 
     if (upsertErr) {
-      console.error('[Streak] Update failed:', upsertErr.message);
+      console.error('[Streak] Upsert failed:', upsertErr.message);
       return null;
     }
 
+    console.log(`[Streak] Updated to ${newStreak} for ${googleId}`);
     return newStreak;
 
   } catch (e) {
