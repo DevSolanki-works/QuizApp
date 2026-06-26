@@ -551,21 +551,56 @@ function formatCoins(value) {
   return Number.isInteger(n) ? n.toLocaleString() : n.toFixed(2);
 }
 
+function _safeEconomyNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 async function applyUserEconomy(economy) {
   if (!State.user || !economy) return;
-  if (economy.coins    !== undefined) State.user.coins    = economy.coins;
-  if (economy.trophies !== undefined) State.user.trophies = economy.trophies;
-  Session.save();
-  if (typeof lbUpsertPlayer === 'function') {
+
+  let baseCoins    = _safeEconomyNumber(State.user.coins);
+  let baseTrophies = _safeEconomyNumber(State.user.trophies);
+
+  // Android's backend profile cache can lag behind Supabase. Treat the
+  // GAME_OVER payload as a delta and always apply it to the newest row.
+  if (typeof lbFetchProfile === 'function') {
     try {
-      await lbUpsertPlayer(
-        State.user.id, State.user.name,
-        State.user.coins, State.user.trophies
-      );
+      const fresh = await lbFetchProfile(State.user.id);
+      if (fresh) {
+        const freshCoins    = _safeEconomyNumber(fresh.coins);
+        const freshTrophies = _safeEconomyNumber(fresh.trophies);
+        if (freshCoins    !== null) baseCoins    = freshCoins;
+        if (freshTrophies !== null) baseTrophies = freshTrophies;
+        if (fresh.display_name) State.user.name = fresh.display_name;
+      }
     } catch (e) {
-      console.warn('[Economy] Supabase upsert failed:', e);
+      console.warn('[Economy] Supabase refresh failed, using local balance:', e);
     }
   }
+
+  const coinDelta    = _safeEconomyNumber(economy.coins_delta);
+  const trophyDelta  = _safeEconomyNumber(economy.trophies_delta);
+  const backendCoins = _safeEconomyNumber(economy.coins);
+  const backendTrophies = _safeEconomyNumber(economy.trophies);
+
+  if (coinDelta !== null) {
+    State.user.coins = Math.max(0, (baseCoins ?? backendCoins ?? 200) + coinDelta);
+  } else if (backendCoins !== null) {
+    State.user.coins = backendCoins;
+  }
+
+  if (trophyDelta !== null) {
+    State.user.trophies = Math.max(0, Math.round((baseTrophies ?? backendTrophies ?? 50) + trophyDelta));
+  } else if (backendTrophies !== null) {
+    State.user.trophies = Math.max(0, Math.round(backendTrophies));
+  }
+
+  if (economy.coins !== undefined) economy.coins = State.user.coins;
+  if (economy.trophies !== undefined) economy.trophies = State.user.trophies;
+
+  Session.save();
+
   const syncTasks = [API.syncProfile(State.user.id, State.user.coins, State.user.trophies)];
   if (typeof lbUpsertPlayer === 'function') {
     syncTasks.push(
