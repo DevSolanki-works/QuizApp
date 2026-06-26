@@ -398,25 +398,6 @@
         </div>
       </div>
 
-      <!-- Question count -->
-      <div class="settings-row settings-row-col">
-        <div class="volume-header">
-          <div class="volume-header-left">
-            <div class="settings-row-icon icon-bg-green">❓</div>
-            <div class="settings-row-info">
-              <span class="settings-row-name">QUESTIONS PER GAME</span>
-              <span class="settings-row-desc">Default number of questions in solo</span>
-            </div>
-          </div>
-        </div>
-        <div class="pill-selector" id="pills-qcount">
-          <button class="pill-option" data-val="5"  onclick="settingsPill('qcount','5',this)">5</button>
-          <button class="pill-option selected" data-val="10" onclick="settingsPill('qcount','10',this)">10</button>
-          <button class="pill-option" data-val="15" onclick="settingsPill('qcount','15',this)">15</button>
-          <button class="pill-option" data-val="20" onclick="settingsPill('qcount','20',this)">20</button>
-        </div>
-      </div>
-
       <!-- Show correct answer toggle -->
       <div class="settings-row">
         <div class="settings-row-icon icon-bg-green">✅</div>
@@ -526,7 +507,6 @@ const _settingsDefaults = {
   'streak-notif': false,
   stats      : true,
   difficulty : 'medium',
-  qcount     : '10',
 };
 
 let _settings = { ..._settingsDefaults };
