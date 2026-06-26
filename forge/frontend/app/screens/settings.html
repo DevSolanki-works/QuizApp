@@ -1,0 +1,740 @@
+<!--
+  SETTINGS SCREEN — Forge App Track
+  Features:
+  - Volume slider (replaces the floating mute button)
+  - Sound effects toggle
+  - Background music toggle
+  - Notification toggle (stub)
+  - Difficulty preference
+  - Question count preference
+  - Theme (dark only for now, future)
+  - Clear local data
+  - App version info
+-->
+<style>
+  .settings-wrap {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .settings-topbar {
+    background: var(--bg-mid);
+    border-bottom: 2px solid rgba(0,0,0,0.3);
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .settings-back-btn {
+    width: 34px; height: 34px;
+    background: rgba(255,255,255,0.09);
+    border: 1.5px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .settings-back-btn:active { background: rgba(255,255,255,0.18); }
+
+  .settings-title {
+    font-family: var(--font-pixel);
+    font-size: 10px; color: var(--white); letter-spacing: 1px;
+    flex: 1;
+  }
+
+  .settings-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .settings-scroll::-webkit-scrollbar { width: 3px; }
+  .settings-scroll::-webkit-scrollbar-track { background: transparent; }
+  .settings-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  /* ── SECTION ────────────────────────────────────────────── */
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .settings-section-label {
+    font-family: var(--font-pixel);
+    font-size: 5.5px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 1.5px;
+    padding: 0 4px 8px;
+  }
+
+  /* ── ROW ────────────────────────────────────────────────── */
+  .settings-row {
+    background: rgba(255,255,255,0.07);
+    border: 1.5px solid rgba(255,255,255,0.10);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 6px;
+  }
+
+  .settings-row.settings-row-col {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .settings-row-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+
+  .icon-bg-yellow  { background: rgba(255,217,61,0.15);  border: 1.5px solid rgba(255,217,61,0.25); }
+  .icon-bg-green   { background: rgba(6,214,160,0.12);   border: 1.5px solid rgba(6,214,160,0.22); }
+  .icon-bg-purple  { background: rgba(155,93,229,0.12);  border: 1.5px solid rgba(155,93,229,0.22); }
+  .icon-bg-red     { background: rgba(239,35,60,0.12);   border: 1.5px solid rgba(239,35,60,0.22); }
+  .icon-bg-blue    { background: rgba(79,195,247,0.12);  border: 1.5px solid rgba(79,195,247,0.22); }
+
+  .settings-row-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .settings-row-name {
+    font-family: var(--font-pixel);
+    font-size: 7.5px;
+    color: var(--white);
+    letter-spacing: 0.3px;
+  }
+
+  .settings-row-desc {
+    font-family: var(--font-pixel);
+    font-size: 5px;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 0.3px;
+    line-height: 1.7;
+  }
+
+  /* ── TOGGLE ─────────────────────────────────────────────── */
+  .settings-toggle {
+    width: 44px; height: 24px;
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.1);
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .settings-toggle.on {
+    background: var(--green);
+    border-color: rgba(6,214,160,0.6);
+  }
+
+  .settings-toggle-knob {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.5);
+    position: absolute;
+    top: 1px; left: 1px;
+    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), background 0.2s;
+  }
+
+  .settings-toggle.on .settings-toggle-knob {
+    transform: translateX(20px);
+    background: #fff;
+  }
+
+  /* ── VOLUME SLIDER SECTION ───────────────────────────────── */
+  .volume-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .volume-header-left {
+    display: flex; align-items: center; gap: 14px;
+  }
+
+  .volume-val {
+    font-family: var(--font-pixel);
+    font-size: 9px;
+    color: var(--yellow);
+    min-width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .volume-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 2px;
+  }
+
+  .volume-slider-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    opacity: 0.5;
+  }
+
+  input[type="range"].forge-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.15);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"].forge-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--yellow);
+    border: 2px solid rgba(0,0,0,0.3);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+
+  input[type="range"].forge-slider::-webkit-slider-thumb:active {
+    transform: scale(1.2);
+  }
+
+  input[type="range"].forge-slider::-moz-range-thumb {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--yellow);
+    border: 2px solid rgba(0,0,0,0.3);
+    cursor: pointer;
+  }
+
+  input[type="range"].forge-slider::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 3px;
+  }
+
+  /* ── PILL SELECTOR (difficulty / question count) ─────────── */
+  .pill-selector {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .pill-option {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1.5px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.07);
+    font-family: var(--font-pixel);
+    font-size: 6px;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+
+  .pill-option.selected {
+    background: rgba(255,217,61,0.18);
+    border-color: rgba(255,217,61,0.5);
+    color: var(--yellow);
+  }
+
+  /* ── DANGER BUTTON ───────────────────────────────────────── */
+  .settings-danger-btn {
+    width: 100%;
+    height: 48px;
+    border-radius: var(--radius-pill);
+    background: rgba(239,35,60,0.1);
+    border: 1.5px solid rgba(239,35,60,0.3);
+    color: var(--red);
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+    letter-spacing: 0.5px;
+  }
+  .settings-danger-btn:active { background: rgba(239,35,60,0.2); }
+
+  /* ── VERSION FOOTER ──────────────────────────────────────── */
+  .settings-footer {
+    text-align: center;
+    padding: 8px 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .settings-version {
+    font-family: var(--font-pixel);
+    font-size: 5.5px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 1px;
+  }
+
+  .settings-links {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .settings-link {
+    font-family: var(--font-pixel);
+    font-size: 5px;
+    color: rgba(255,255,255,0.25);
+    text-decoration: none;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .settings-link:active { color: var(--yellow); }
+</style>
+
+<div class="settings-wrap">
+
+  <!-- TOP BAR -->
+  <div class="settings-topbar z1">
+    <button class="settings-back-btn" onclick="settingsGoBack()">←</button>
+    <span class="settings-title">⚙️ SETTINGS</span>
+  </div>
+
+  <!-- SCROLLABLE CONTENT -->
+  <div class="settings-scroll z1">
+
+    <!-- ── SOUND ─────────────────────────────────────────── -->
+    <div class="settings-section">
+      <div class="settings-section-label">SOUND</div>
+
+      <!-- Volume slider -->
+      <div class="settings-row settings-row-col">
+        <div class="volume-header">
+          <div class="volume-header-left">
+            <div class="settings-row-icon icon-bg-yellow" id="settings-vol-icon">🔊</div>
+            <div class="settings-row-info">
+              <span class="settings-row-name">MASTER VOLUME</span>
+              <span class="settings-row-desc">Controls all in-game audio</span>
+            </div>
+          </div>
+          <span class="volume-val" id="settings-vol-val">100%</span>
+        </div>
+        <div class="volume-slider-wrap">
+          <span class="volume-slider-icon">🔈</span>
+          <input type="range" class="forge-slider" id="settings-volume"
+            min="0" max="100" step="1" value="100"
+            oninput="settingsOnVolume(this.value)" />
+          <span class="volume-slider-icon">🔊</span>
+        </div>
+      </div>
+
+      <!-- Sound effects toggle -->
+      <div class="settings-row">
+        <div class="settings-row-icon icon-bg-yellow">🎵</div>
+        <div class="settings-row-info">
+          <span class="settings-row-name">SOUND EFFECTS</span>
+          <span class="settings-row-desc">Button clicks, correct/wrong sounds</span>
+        </div>
+        <div class="settings-toggle on" id="toggle-sfx" onclick="settingsToggle('sfx', this)">
+          <div class="settings-toggle-knob"></div>
+        </div>
+      </div>
+
+      <!-- Background music toggle -->
+      <div class="settings-row">
+        <div class="settings-row-icon icon-bg-purple">🎶</div>
+        <div class="settings-row-info">
+          <span class="settings-row-name">BACKGROUND MUSIC</span>
+          <span class="settings-row-desc">Ambient music on home and lobby</span>
+        </div>
+        <div class="settings-toggle on" id="toggle-bgm" onclick="settingsToggle('bgm', this)">
+          <div class="settings-toggle-knob"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── GAMEPLAY ───────────────────────────────────────── -->
+    <div class="settings-section">
+      <div class="settings-section-label">GAMEPLAY</div>
+
+      <!-- Default difficulty -->
+      <div class="settings-row settings-row-col">
+        <div class="volume-header">
+          <div class="volume-header-left">
+            <div class="settings-row-icon icon-bg-blue">⚡</div>
+            <div class="settings-row-info">
+              <span class="settings-row-name">DEFAULT DIFFICULTY</span>
+              <span class="settings-row-desc">Pre-selected when starting a game</span>
+            </div>
+          </div>
+        </div>
+        <div class="pill-selector" id="pills-difficulty">
+          <button class="pill-option" data-val="easy"   onclick="settingsPill('difficulty','easy',this)">EASY · 30S</button>
+          <button class="pill-option selected" data-val="medium" onclick="settingsPill('difficulty','medium',this)">MEDIUM · 20S</button>
+          <button class="pill-option" data-val="hard"   onclick="settingsPill('difficulty','hard',this)">HARD · 10S</button>
+        </div>
+      </div>
+
+      <!-- Question count -->
+      <div class="settings-row settings-row-col">
+        <div class="volume-header">
+          <div class="volume-header-left">
+            <div class="settings-row-icon icon-bg-green">❓</div>
+            <div class="settings-row-info">
+              <span class="settings-row-name">QUESTIONS PER GAME</span>
+              <span class="settings-row-desc">Default number of questions in solo</span>
+            </div>
+          </div>
+        </div>
+        <div class="pill-selector" id="pills-qcount">
+          <button class="pill-option" data-val="5"  onclick="settingsPill('qcount','5',this)">5</button>
+          <button class="pill-option selected" data-val="10" onclick="settingsPill('qcount','10',this)">10</button>
+          <button class="pill-option" data-val="15" onclick="settingsPill('qcount','15',this)">15</button>
+          <button class="pill-option" data-val="20" onclick="settingsPill('qcount','20',this)">20</button>
+        </div>
+      </div>
+
+      <!-- Show correct answer toggle -->
+      <div class="settings-row">
+        <div class="settings-row-icon icon-bg-green">✅</div>
+        <div class="settings-row-info">
+          <span class="settings-row-name">SHOW ANSWER REVEAL</span>
+          <span class="settings-row-desc">Highlight correct answer after each round</span>
+        </div>
+        <div class="settings-toggle on" id="toggle-reveal" onclick="settingsToggle('reveal', this)">
+          <div class="settings-toggle-knob"></div>
+        </div>
+      </div>
+
+      <!-- Streak notifications -->
+      <div class="settings-row">
+        <div class="settings-row-icon icon-bg-red">🔥</div>
+        <div class="settings-row-info">
+          <span class="settings-row-name">STREAK REMINDERS</span>
+          <span class="settings-row-desc">Remind me to play daily to keep streak</span>
+        </div>
+        <div class="settings-toggle off" id="toggle-streak-notif" onclick="settingsToggle('streak-notif', this)">
+          <div class="settings-toggle-knob"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── ACCOUNT ────────────────────────────────────────── -->
+    <div class="settings-section">
+      <div class="settings-section-label">ACCOUNT</div>
+
+      <!-- Signed-in state (shown when logged in) -->
+      <div class="settings-row" id="settings-account-row" style="display:none;">
+        <div class="settings-row-icon icon-bg-blue" id="settings-acct-avatar">👾</div>
+        <div class="settings-row-info">
+          <span class="settings-row-name" id="settings-acct-name">—</span>
+          <span class="settings-row-desc" id="settings-acct-email">—</span>
+        </div>
+      </div>
+
+      <!-- Not signed in (shown when logged out) -->
+      <div class="settings-row" id="settings-signin-row">
+        <div class="settings-row-icon icon-bg-yellow">🔑</div>
+        <div class="settings-row-info">
+          <span class="settings-row-name">SIGN IN WITH GOOGLE</span>
+          <span class="settings-row-desc">Save progress, coins and trophies</span>
+        </div>
+        <div onclick="settingsSignIn()" style="
+          padding: 7px 12px; border-radius: 999px;
+          background: rgba(255,217,61,0.15); border: 1.5px solid rgba(255,217,61,0.35);
+          font-family: var(--font-pixel); font-size: 6px; color: var(--yellow);
+          cursor: pointer; flex-shrink: 0; white-space: nowrap;
+          -webkit-tap-highlight-color: transparent;">
+          SIGN IN
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── DATA ──────────────────────────────────────────── -->
+    <div class="settings-section">
+      <div class="settings-section-label">DATA</div>
+
+      <div class="settings-row">
+        <div class="settings-row-icon icon-bg-purple">📊</div>
+        <div class="settings-row-info">
+          <span class="settings-row-name">STATS TRACKING</span>
+          <span class="settings-row-desc">Save win/loss stats locally on device</span>
+        </div>
+        <div class="settings-toggle on" id="toggle-stats" onclick="settingsToggle('stats', this)">
+          <div class="settings-toggle-knob"></div>
+        </div>
+      </div>
+
+      <div style="margin-top: 4px;">
+        <button class="settings-danger-btn" onclick="settingsClearData()">
+          🗑️ &nbsp;CLEAR LOCAL DATA
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ── ABOUT ──────────────────────────────────────────── -->
+    <div class="settings-footer">
+      <span class="settings-version" id="settings-version-text">FORGE v1.0.4 · BUILD 5</span>
+      <div class="settings-links">
+        <span class="settings-link" onclick="settingsOpenLink('privacy')">PRIVACY POLICY</span>
+        <span class="settings-link" onclick="settingsOpenLink('terms')">TERMS OF SERVICE</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   SETTINGS SCREEN — Forge App Track
+   ══════════════════════════════════════════════════════════ */
+
+const SETTINGS_KEY = 'forge_settings_v1';
+
+// Default settings — merged with whatever is saved in localStorage
+const _settingsDefaults = {
+  volume     : 100,
+  sfx        : true,
+  bgm        : true,
+  reveal     : true,
+  'streak-notif': false,
+  stats      : true,
+  difficulty : 'medium',
+  qcount     : '10',
+};
+
+let _settings = { ..._settingsDefaults };
+
+/* ── LIFECYCLE ────────────────────────────────────────────── */
+
+function onSettingsShow() {
+  _settingsLoad();
+  _settingsApplyAll();
+  _settingsRenderAccount();
+}
+
+/* ── LOAD / SAVE ──────────────────────────────────────────── */
+
+function _settingsLoad() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      _settings = { ..._settingsDefaults, ...saved };
+    }
+  } catch (_) {}
+}
+
+function _settingsSave() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(_settings));
+  } catch (_) {}
+}
+
+/* ── APPLY ALL TO UI ──────────────────────────────────────── */
+
+function _settingsApplyAll() {
+  // Volume slider
+  const slider = document.getElementById('settings-volume');
+  if (slider) slider.value = _settings.volume;
+  _settingsUpdateVolumeUI(_settings.volume);
+
+  // Toggles
+  ['sfx','bgm','reveal','streak-notif','stats'].forEach(key => {
+    const el = document.getElementById(`toggle-${key}`);
+    if (!el) return;
+    if (_settings[key]) {
+      el.classList.add('on');
+    } else {
+      el.classList.remove('on');
+    }
+  });
+
+  // Difficulty pills
+  _settingsActivatePill('difficulty', _settings.difficulty);
+
+  // Question count pills
+  _settingsActivatePill('qcount', _settings.qcount);
+}
+
+/* ── VOLUME ───────────────────────────────────────────────── */
+
+function settingsOnVolume(rawVal) {
+  const val = parseInt(rawVal, 10);
+  _settings.volume = val;
+  _settingsUpdateVolumeUI(val);
+  _settingsSave();
+
+  // Apply to Sound engine
+  if (Sound._masterGain && Sound._ctx) {
+    const gain = val / 100;
+    Sound._masterGain.gain.setTargetAtTime(gain, Sound._ctx.currentTime, 0.05);
+    Sound.muted = (val === 0);
+    try { localStorage.setItem('forge_muted', String(val === 0)); } catch (_) {}
+  }
+}
+
+function _settingsUpdateVolumeUI(val) {
+  const valEl  = document.getElementById('settings-vol-val');
+  const iconEl = document.getElementById('settings-vol-icon');
+  if (valEl)  valEl.textContent  = val + '%';
+  if (iconEl) iconEl.textContent =
+    val === 0   ? '🔇' :
+    val  <  40  ? '🔈' :
+    val  <  75  ? '🔉' : '🔊';
+}
+
+/* ── TOGGLES ──────────────────────────────────────────────── */
+
+function settingsToggle(key, el) {
+  Sound.click();
+  const isOn = el.classList.toggle('on');
+  _settings[key] = isOn;
+  _settingsSave();
+
+  // Apply side effects
+  if (key === 'bgm') {
+    if (isOn) Sound.startBgMusic();
+    else      Sound.stopBgMusic();
+  }
+  if (key === 'sfx') {
+    // sfx handled in Sound.click() etc. — expose a flag
+    window._forgeSfxEnabled = isOn;
+  }
+}
+
+/* ── PILLS ────────────────────────────────────────────────── */
+
+function settingsPill(group, val, el) {
+  Sound.click();
+  _settings[group] = val;
+  _settingsSave();
+  _settingsActivatePill(group, val);
+
+  // Apply to State defaults
+  if (group === 'difficulty') State.mode = val;
+}
+
+function _settingsActivatePill(group, val) {
+  const container = document.getElementById(`pills-${group}`);
+  if (!container) return;
+  container.querySelectorAll('.pill-option').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.val === val);
+  });
+}
+
+/* ── ACCOUNT ──────────────────────────────────────────────── */
+
+function _settingsRenderAccount() {
+  const accountRow = document.getElementById('settings-account-row');
+  const signinRow  = document.getElementById('settings-signin-row');
+  const nameEl     = document.getElementById('settings-acct-name');
+  const emailEl    = document.getElementById('settings-acct-email');
+  const avatarEl   = document.getElementById('settings-acct-avatar');
+
+  if (State.user) {
+    if (accountRow) accountRow.style.display = 'flex';
+    if (signinRow)  signinRow.style.display  = 'none';
+    if (nameEl)     nameEl.textContent  = (State.user.name  || 'PLAYER').toUpperCase();
+    if (emailEl)    emailEl.textContent = State.user.email || '';
+    if (avatarEl) {
+      avatarEl.innerHTML = State.user.picture
+        ? `<img src="${State.user.picture}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />`
+        : '👾';
+    }
+  } else {
+    if (accountRow) accountRow.style.display = 'none';
+    if (signinRow)  signinRow.style.display  = 'flex';
+  }
+}
+
+function settingsSignIn() {
+  Sound.click();
+  // Navigate back to home and trigger the sign-in sheet there
+  goTo('home').then(() => {
+    if (typeof hOpenSigninModal === 'function') hOpenSigninModal();
+  });
+}
+
+/* ── CLEAR DATA ───────────────────────────────────────────── */
+
+function settingsClearData() {
+  Sound.click();
+  if (!confirm('Clear all local game data? Your cloud save (coins, trophies, streak) is safe. This only removes local stats and preferences.')) return;
+
+  try {
+    const keysToKeep = ['forge_session_v1', 'forge_muted'];
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!keysToKeep.includes(key)) toRemove.push(key);
+    }
+    toRemove.forEach(k => localStorage.removeItem(k));
+  } catch (_) {}
+
+  // Reset settings to defaults
+  _settings = { ..._settingsDefaults };
+  _settingsSave();
+  _settingsApplyAll();
+
+  Toast.success('Local data cleared!');
+}
+
+/* ── LINKS ────────────────────────────────────────────────── */
+
+function settingsOpenLink(page) {
+  Sound.click();
+  const urls = {
+    privacy: 'https://forgetrivia.online/privacy.html',
+    terms  : 'https://forgetrivia.online/terms.html',
+  };
+  const url = urls[page];
+  if (!url) return;
+
+  // Use Capacitor Browser plugin in native app, window.open on web
+  const browser = window.Capacitor?.Plugins?.Browser;
+  if (browser) {
+    browser.open({ url });
+  } else {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+
+/* ── NAVIGATION ───────────────────────────────────────────── */
+
+function settingsGoBack() {
+  Sound.click();
+  goTo('home');
+}
+
+/* ── EXPOSE SETTINGS GETTER ───────────────────────────────── */
+// Other screens can read forge settings like:
+// const s = getForgeSettings(); s.difficulty, s.qcount, etc.
+window.getForgeSettings = () => ({ ..._settings });
+</script>
