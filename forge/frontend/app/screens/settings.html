@@ -599,11 +599,8 @@ function settingsToggle(key, el) {
 
   if (key === 'bgm') {
     Sound.bgmEnabled = isOn;
-    if (isOn) {
-      Sound.startBgMusic();
-    } else {
-      Sound.stopBgMusic();
-    }
+    if (isOn) Sound.startBgMusic();
+    else      Sound.stopBgMusic();
   }
 
   if (key === 'sfx') {
@@ -615,7 +612,7 @@ function settingsToggle(key, el) {
     else      StreakNotif.cancel();
   }
 
-  // Click sound AFTER setting the flag so it respects the new sfx state
+  // Click after setting flags so SFX respects the new state
   if (key !== 'sfx' || isOn) Sound.click();
 }
 
