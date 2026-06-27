@@ -958,15 +958,7 @@ const Sound = {
   _safe() {
     this.init();
     if (!this._ctx) return null;
-    if (this._ctx.state === 'suspended') {
-      this._ctx.resume().then(() => {
-        // Context just became running — restart BGM if it should be playing
-        // but isn't (interval running but ctx was suspended the whole time)
-        if (this.bgmEnabled && !this._bgInterval && State.currentScreen !== 'game') {
-          this._startBgmNow();
-        }
-      }).catch(() => {});
-    }
+    if (this._ctx.state === 'suspended') this._ctx.resume().catch(() => {});
     return this._ctx;
   },
   _tone(freq, type, duration, volume, startTime) {
@@ -1070,9 +1062,24 @@ const Sound = {
     this.stopBgMusic();
     this.init();
     if (!this._ctx) return;
-    // Start interval regardless of suspend state.
-    // _safe() will restart it properly once a real gesture resumes the context.
-    this._startBgmNow();
+
+    const notes = [261, 329, 392, 440, 523, 392, 329, 261];
+    let i = 0;
+
+    this._bgInterval = setInterval(() => {
+      if (!this.bgmEnabled) { this.stopBgMusic(); return; }
+      const c = this._ctx;
+      if (!c || c.state !== 'running') return; // skip tick silently if suspended
+      const t = c.currentTime;
+      const osc = c.createOscillator(), gain = c.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = notes[i % notes.length];
+      gain.gain.setValueAtTime(0.325, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.connect(gain); gain.connect(this._masterGain);
+      osc.start(t); osc.stop(t + 0.58);
+      i++;
+    }, 500);
   },
   stopBgMusic() {
     clearInterval(this._bgInterval);
@@ -1159,34 +1166,15 @@ const StreakNotif = {
 window.StreakNotif = StreakNotif;
 
 // ── APP LIFECYCLE — pause audio when app backgrounds ──────
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    Sound.stopBgMusic();
-    if (Sound._ctx && Sound._ctx.state === 'running') {
-      Sound._ctx.suspend();
-    }
-  } else {
-    if (Sound._ctx && Sound._ctx.state === 'suspended') {
-      Sound._ctx.resume().catch(() => {});
-    }
-    if (State.currentScreen !== 'game' && Sound.bgmEnabled) {
-      Sound.startBgMusic();
-    }
+// Replace ALL previous gesture listeners with just this one:
+document.addEventListener('touchend', function _unlock() {
+  if (!Sound._ctx) Sound.init();
+  if (Sound._ctx && Sound._ctx.state !== 'running') {
+    Sound._ctx.resume().then(() => {
+      console.log('[Sound] Context unlocked');
+    }).catch(() => {});
   }
-});
-
-// Capacitor-specific: fires on native app pause/resume
-document.addEventListener('pause', () => {
-  Sound.stopBgMusic();
-  if (Sound._ctx) Sound._ctx.suspend().catch(() => {});
-}, false);
-
-document.addEventListener('resume', () => {
-  if (Sound._ctx) Sound._ctx.resume().catch(() => {});
-  if (State.currentScreen !== 'game' && Sound.bgmEnabled) {
-    Sound.startBgMusic();
-  }
-  StreakNotif.schedule();
+  document.removeEventListener('touchend', _unlock);
 }, false);
 
 /* ══════════════════════════════════════════════════════════
