@@ -1050,6 +1050,77 @@ const Sound = {
     },
   };
 
+/* ══════════════════════════════════════════════════════════
+   STREAK NOTIFICATIONS
+   Uses @capacitor/local-notifications to schedule a daily
+   reminder if the player hasn't played today.
+   Only active when the user has enabled streak reminders
+   in Settings and is signed in.
+   ══════════════════════════════════════════════════════════ */
+const StreakNotif = {
+
+  NOTIF_ID: 1001,   // fixed ID so we can cancel/replace it
+
+  /** Call this after every game end and on app resume */
+  async schedule() {
+    try {
+      const settings = JSON.parse(localStorage.getItem('forge_settings_v1') || '{}');
+      if (!settings['streak-notif']) return;   // user turned it off
+      if (!State.user) return;                  // guests don't have streaks to protect
+
+      const plugin = window.Capacitor?.Plugins?.LocalNotifications;
+      if (!plugin) return;   // not in native app
+
+      // Check permission first
+      const { display } = await plugin.checkPermissions();
+      if (display !== 'granted') {
+        const { display: granted } = await plugin.requestPermissions();
+        if (granted !== 'granted') return;
+      }
+
+      // Cancel any previously scheduled reminder first
+      await this.cancel();
+
+      // Schedule for 8 PM today local time
+      // If it's already past 8 PM, schedule for 8 PM tomorrow
+      const now   = new Date();
+      const fire  = new Date();
+      fire.setHours(20, 0, 0, 0);   // 8:00 PM
+      if (fire <= now) {
+        fire.setDate(fire.getDate() + 1);   // push to tomorrow
+      }
+
+      await plugin.schedule({
+        notifications: [{
+          id      : this.NOTIF_ID,
+          title   : '🔥 Don\'t break your streak!',
+          body    : `You haven't played today. Keep your ${State._homeStreak || 1}-day streak alive!`,
+          schedule: { at: fire, allowWhileIdle: true },
+          sound   : null,
+          smallIcon: 'ic_stat_forge',   // use your app icon name
+          actionTypeId: '',
+          extra   : null,
+        }],
+      });
+
+      console.log('[StreakNotif] Scheduled for', fire.toLocaleTimeString());
+    } catch (e) {
+      console.warn('[StreakNotif] Schedule failed:', e);
+    }
+  },
+
+  /** Cancel the pending reminder — call after user plays */
+  async cancel() {
+    try {
+      const plugin = window.Capacitor?.Plugins?.LocalNotifications;
+      if (!plugin) return;
+      await plugin.cancel({ notifications: [{ id: this.NOTIF_ID }] });
+    } catch (_) {}
+  },
+};
+
+window.StreakNotif = StreakNotif;
+
 // ── APP LIFECYCLE — pause audio when app backgrounds ──────
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
@@ -1081,6 +1152,7 @@ document.addEventListener('resume', () => {
   if (State.currentScreen !== 'game') {
     Sound.startBgMusic();
   }
+  StreakNotif.schedule(); 
 }, false);
 
 ['click','touchstart'].forEach(ev =>

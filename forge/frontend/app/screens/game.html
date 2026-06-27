@@ -1071,6 +1071,10 @@ async function _onGameOver(data) {
       console.warn('[Streak] Update failed silently:', e);
     }
   }
+  //Cancel today's reminder since they just played, reschedule for tomorrow
+  StreakNotif.cancel();
+  StreakNotif.schedule();
+
   // ─────────────────────────────────────────────────────────
   if (data.team_scores)  State.teamScores  = data.team_scores;
   if (data.team_names)   State.teamNames   = data.team_names;

@@ -607,6 +607,13 @@ function settingsToggle(key, el) {
   if (key === 'sfx') {
     Sound.sfxEnabled = isOn;
   }
+  if (key === 'streak-notif') {
+    if (isOn) {
+      StreakNotif.schedule();
+    } else {
+      StreakNotif.cancel();
+    }
+  }
 }
 
 /* ── PILLS ────────────────────────────────────────────────── */
