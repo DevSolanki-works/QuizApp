@@ -951,7 +951,8 @@ const Sound = {
         this._masterGain.gain.value = 1;
         this.muted = false;
         this.sfxEnabled = true;   // ← ADD
-        this.bgmEnabled = true;   // ← ADD
+        this.bgmEnabled = true;  
+        this._bgmWanted = false; // ← ADD
       }
     } catch (e) { console.warn('[Sound] Web Audio API unavailable:', e); }
   },
@@ -1077,7 +1078,11 @@ const Sound = {
       }).catch(e => console.warn('[Sound] BGM resume failed:', e));
     }
   },
-  stopBgMusic() { clearInterval(this._bgInterval); this._bgInterval = null; },
+  stopBgMusic() {
+    clearInterval(this._bgInterval);
+    this._bgInterval = null;
+    this._bgmWanted = false;   // ← ADD
+  },
   toggleMute() {
     this.muted = !this.muted;
     if (this._masterGain && this._ctx)
@@ -1190,7 +1195,17 @@ document.addEventListener('resume', () => {
 }, false);
 
 ['click','touchstart'].forEach(ev =>
-  document.addEventListener(ev, () => Sound.init(), { once: true })
+  document.addEventListener(ev, () => {
+    Sound.init();
+    if (Sound._ctx && Sound._ctx.state === 'suspended') {
+      Sound._ctx.resume().then(() => {
+        // Context is now running — start BGM if we're on a screen that needs it
+        if (Sound.bgmEnabled && State.currentScreen !== 'game') {
+          Sound.startBgMusic();
+        }
+      }).catch(() => {});
+    }
+  }, { once: true })
 );
 
 /* ══════════════════════════════════════════════════════════

@@ -671,6 +671,7 @@
    ══════════════════════════════════════════════════════════ */
 
 function onHomeShow() {
+  Sound._bgmWanted = true;   // signal that BGM should play when context is ready
   if (Sound.bgmEnabled) Sound.startBgMusic();
   const starsEl = document.getElementById('home-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
