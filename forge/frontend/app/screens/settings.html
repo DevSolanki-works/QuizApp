@@ -600,12 +600,12 @@ function settingsToggle(key, el) {
 
   // Apply side effects
   if (key === 'bgm') {
+    Sound.bgmEnabled = isOn;
     if (isOn) Sound.startBgMusic();
     else      Sound.stopBgMusic();
   }
   if (key === 'sfx') {
-    // sfx handled in Sound.click() etc. — expose a flag
-    window._forgeSfxEnabled = isOn;
+    Sound.sfxEnabled = isOn;
   }
 }
 

@@ -933,6 +933,7 @@ function spawnStars(container) {
    ══════════════════════════════════════════════════════════ */
 const Sound = {
   _ctx: null, _masterGain: null, _bgInterval: null, muted: false,
+  // FIND the Sound object and update init() to read both settings:
   init() {
     if (this._ctx) return;
     try {
@@ -944,9 +945,13 @@ const Sound = {
         const vol = savedSettings.volume != null ? savedSettings.volume / 100 : 1;
         this._masterGain.gain.value = vol;
         this.muted = (vol === 0);
+        this.sfxEnabled = savedSettings.sfx !== false;   // ← ADD
+        this.bgmEnabled = savedSettings.bgm !== false;   // ← ADD
       } catch {
         this._masterGain.gain.value = 1;
         this.muted = false;
+        this.sfxEnabled = true;   // ← ADD
+        this.bgmEnabled = true;   // ← ADD
       }
     } catch (e) { console.warn('[Sound] Web Audio API unavailable:', e); }
   },
@@ -965,56 +970,85 @@ const Sound = {
     osc.connect(gain); gain.connect(this._masterGain);
     osc.start(startTime); osc.stop(startTime + duration + 0.02);
   },
-  click()      { const ctx = this._safe(); if (!ctx) return; this._tone(700,'sine',0.06,0.22,ctx.currentTime); },
-  tick()       { const ctx = this._safe(); if (!ctx) return; this._tone(1050,'square',0.04,0.18,ctx.currentTime); },
-  playerJoin() { const ctx = this._safe(); if (!ctx) return; const t=ctx.currentTime; this._tone(880,'sine',0.12,0.28,t); this._tone(1100,'sine',0.18,0.22,t+0.10); },
+  click() {
+    if (!this.sfxEnabled) return;   // ← ADD
+    const ctx = this._safe(); if (!ctx) return;
+    this._tone(700,'sine',0.06,0.22,ctx.currentTime);
+  },
+
+  tick() {
+    if (!this.sfxEnabled) return;   // ← ADD
+    const ctx = this._safe(); if (!ctx) return;
+    this._tone(1050,'square',0.04,0.18,ctx.currentTime);
+  },
+
+  playerJoin() {
+    if (!this.sfxEnabled) return;   // ← ADD
+    const ctx = this._safe(); if (!ctx) return;
+    const t=ctx.currentTime;
+    this._tone(880,'sine',0.12,0.28,t);
+    this._tone(1100,'sine',0.18,0.22,t+0.10);
+  },
+
   correct() {
-    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
-    this._tone(523,'sine',0.15,0.45,t); this._tone(659,'sine',0.15,0.45,t+0.10);
-    this._tone(784,'sine',0.20,0.45,t+0.20); this._tone(1047,'sine',0.35,0.40,t+0.32);
+    if (!this.sfxEnabled) return;   // ← ADD
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
+    this._tone(523,'sine',0.15,0.45,t);
+    this._tone(659,'sine',0.15,0.45,t+0.10);
+    this._tone(784,'sine',0.20,0.45,t+0.20);
+    this._tone(1047,'sine',0.35,0.40,t+0.32);
   },
+
   wrong() {
-    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
-    this._tone(220,'sawtooth',0.18,0.35,t); this._tone(155,'sawtooth',0.22,0.28,t+0.18);
+    if (!this.sfxEnabled) return;   // ← ADD
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
+    this._tone(220,'sawtooth',0.18,0.35,t);
+    this._tone(155,'sawtooth',0.22,0.28,t+0.18);
   },
+
   gameStart() {
-    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
+    if (!this.sfxEnabled) return;   // ← ADD
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
     [523,659,784,1047].forEach((f,i) => this._tone(f,'square',0.14,0.28,t+i*0.14));
   },
+
   combo() {
-    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
-    this._tone(523,'square',0.12,0.40,t); this._tone(659,'square',0.12,0.40,t+0.09);
-    this._tone(784,'square',0.12,0.40,t+0.18); this._tone(1047,'square',0.18,0.50,t+0.27);
+    if (!this.sfxEnabled) return;   // ← ADD
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
+    this._tone(523,'square',0.12,0.40,t);
+    this._tone(659,'square',0.12,0.40,t+0.09);
+    this._tone(784,'square',0.12,0.40,t+0.18);
+    this._tone(1047,'square',0.18,0.50,t+0.27);
     this._tone(1319,'sine',0.28,0.55,t+0.39);
   },
+
   gameOver() {
-    const ctx = this._safe(); if (!ctx) return; const t = ctx.currentTime;
+    if (!this.sfxEnabled) return;   // ← ADD
+    const ctx = this._safe(); if (!ctx) return;
+    const t = ctx.currentTime;
     const notes=[523,659,523,784,659,1047], times=[0,0.14,0.28,0.40,0.54,0.68];
     notes.forEach((f,i) => this._tone(f,'sine',0.22,0.40,t+times[i]));
   },
+
   startBgMusic() {
+    if (!this.bgmEnabled) return;   // ← ADD
     this.stopBgMusic();
     const ctx = this._safe(); if (!ctx) return;
-    const notes=[261,329,392,440,523,392,329,261]; let i=0;
-    this._bgInterval = setInterval(() => {
-      const c=this._safe(); if (!c) return;
-      const t=c.currentTime;
-      const osc=c.createOscillator(), gain=c.createGain();
-      osc.type='triangle'; osc.frequency.value=notes[i%notes.length];
-      gain.gain.setValueAtTime(0.325,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.55);
-      osc.connect(gain); gain.connect(this._masterGain);
-      osc.start(t); osc.stop(t+0.58); i++;
-    }, 500);
+    // ... rest unchanged
   },
-  stopBgMusic() { clearInterval(this._bgInterval); this._bgInterval = null; },
-  toggleMute() {
-    this.muted = !this.muted;
-    if (this._masterGain && this._ctx)
-      this._masterGain.gain.setTargetAtTime(this.muted ? 0 : 1, this._ctx.currentTime, 0.05);
-    try { localStorage.setItem('forge_muted', String(this.muted)); } catch {}
-    return this.muted;
-  },
-};
+    stopBgMusic() { clearInterval(this._bgInterval); this._bgInterval = null; },
+    toggleMute() {
+      this.muted = !this.muted;
+      if (this._masterGain && this._ctx)
+        this._masterGain.gain.setTargetAtTime(this.muted ? 0 : 1, this._ctx.currentTime, 0.05);
+      try { localStorage.setItem('forge_muted', String(this.muted)); } catch {}
+      return this.muted;
+    },
+  };
 
 // ── APP LIFECYCLE — pause audio when app backgrounds ──────
 document.addEventListener('visibilitychange', () => {
