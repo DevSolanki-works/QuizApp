@@ -958,10 +958,14 @@ const Sound = {
   _safe() {
     this.init();
     if (!this._ctx) return null;
-    // Don't block — just kick off the resume. Callers that need
-    // the context immediately (BGM) handle this themselves.
     if (this._ctx.state === 'suspended') {
-      this._ctx.resume().catch(() => {});
+      this._ctx.resume().then(() => {
+        // Context just became running — restart BGM if it should be playing
+        // but isn't (interval running but ctx was suspended the whole time)
+        if (this.bgmEnabled && !this._bgInterval && State.currentScreen !== 'game') {
+          this._startBgmNow();
+        }
+      }).catch(() => {});
     }
     return this._ctx;
   },
@@ -1038,47 +1042,37 @@ const Sound = {
     notes.forEach((f,i) => this._tone(f,'sine',0.22,0.40,t+times[i]));
   },
 
+  _startBgmNow() {
+    if (this._bgInterval) return;  // already running
+    const notes = [261, 329, 392, 440, 523, 392, 329, 261];
+    let i = 0;
+    this._bgInterval = setInterval(() => {
+      if (!this.bgmEnabled) { this.stopBgMusic(); return; }
+      const c = this._ctx;
+      if (!c || c.state !== 'running') return;
+      const t = c.currentTime;
+      const osc  = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = notes[i % notes.length];
+      gain.gain.setValueAtTime(0.325, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.connect(gain);
+      gain.connect(this._masterGain);
+      osc.start(t);
+      osc.stop(t + 0.58);
+      i++;
+    }, 500);
+  },
+
   startBgMusic() {
     if (!this.bgmEnabled) return;
     this.stopBgMusic();
     this.init();
     if (!this._ctx) return;
-
-    const ctx = this._ctx;
-
-    const _beginBgm = () => {
-      // Guard: don't double-start
-      if (this._bgInterval) return;
-      const notes = [261, 329, 392, 440, 523, 392, 329, 261];
-      let i = 0;
-      this._bgInterval = setInterval(() => {
-        if (!this.bgmEnabled) { this.stopBgMusic(); return; }
-        const c = this._ctx;
-        if (!c || c.state !== 'running') return;  // skip silently if suspended
-        const t = c.currentTime;
-        const osc = c.createOscillator(), gain = c.createGain();
-        osc.type = 'triangle';
-        osc.frequency.value = notes[i % notes.length];
-        gain.gain.setValueAtTime(0.325, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
-        osc.connect(gain);
-        gain.connect(this._masterGain);
-        osc.start(t);
-        osc.stop(t + 0.58);
-        i++;
-      }, 500);
-    };
-
-    if (ctx.state === 'running') {
-      // Context already running — start immediately
-      _beginBgm();
-    } else {
-      // Context suspended (normal on cold boot) — try to resume,
-      // and if that fails, wait for a user gesture via the interval itself.
-      // The interval skips silently while suspended and plays once running.
-      ctx.resume().catch(() => {});
-      _beginBgm();  // start the interval anyway — it self-gates on ctx.state
-    }
+    // Start interval regardless of suspend state.
+    // _safe() will restart it properly once a real gesture resumes the context.
+    this._startBgmNow();
   },
   stopBgMusic() {
     clearInterval(this._bgInterval);
@@ -1194,18 +1188,6 @@ document.addEventListener('resume', () => {
   }
   StreakNotif.schedule();
 }, false);
-
-document.addEventListener('touchstart', () => {
-  if (Sound._ctx && Sound._ctx.state === 'suspended') {
-    Sound._ctx.resume().catch(() => {});
-  }
-}, { passive: true });
-
-document.addEventListener('click', () => {
-  if (Sound._ctx && Sound._ctx.state === 'suspended') {
-    Sound._ctx.resume().catch(() => {});
-  }
-}, { passive: true });
 
 /* ══════════════════════════════════════════════════════════
    COOKIE CONSENT
