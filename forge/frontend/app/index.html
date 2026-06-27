@@ -952,7 +952,6 @@ const Sound = {
         this.muted = false;
         this.sfxEnabled = true;   // ← ADD
         this.bgmEnabled = true;  
-        this._bgmWanted = false; // ← ADD
       }
     } catch (e) { console.warn('[Sound] Web Audio API unavailable:', e); }
   },
@@ -1048,13 +1047,14 @@ const Sound = {
     const ctx = this._ctx;
 
     const _beginBgm = () => {
-      if (this._bgInterval) return;   // already running
+      // Guard: don't double-start
+      if (this._bgInterval) return;
       const notes = [261, 329, 392, 440, 523, 392, 329, 261];
       let i = 0;
       this._bgInterval = setInterval(() => {
         if (!this.bgmEnabled) { this.stopBgMusic(); return; }
         const c = this._ctx;
-        if (!c || c.state !== 'running') return;
+        if (!c || c.state !== 'running') return;  // skip silently if suspended
         const t = c.currentTime;
         const osc = c.createOscillator(), gain = c.createGain();
         osc.type = 'triangle';
@@ -1070,18 +1070,19 @@ const Sound = {
     };
 
     if (ctx.state === 'running') {
+      // Context already running — start immediately
       _beginBgm();
     } else {
-      // Context suspended — resume first, then start BGM
-      ctx.resume().then(() => {
-        _beginBgm();
-      }).catch(e => console.warn('[Sound] BGM resume failed:', e));
+      // Context suspended (normal on cold boot) — try to resume,
+      // and if that fails, wait for a user gesture via the interval itself.
+      // The interval skips silently while suspended and plays once running.
+      ctx.resume().catch(() => {});
+      _beginBgm();  // start the interval anyway — it self-gates on ctx.state
     }
   },
   stopBgMusic() {
     clearInterval(this._bgInterval);
     this._bgInterval = null;
-    this._bgmWanted = false;   // ← ADD
   },
   toggleMute() {
     this.muted = !this.muted;
@@ -1194,19 +1195,17 @@ document.addEventListener('resume', () => {
   StreakNotif.schedule();
 }, false);
 
-['click','touchstart'].forEach(ev =>
-  document.addEventListener(ev, () => {
-    Sound.init();
-    if (Sound._ctx && Sound._ctx.state === 'suspended') {
-      Sound._ctx.resume().then(() => {
-        // Context is now running — start BGM if we're on a screen that needs it
-        if (Sound.bgmEnabled && State.currentScreen !== 'game') {
-          Sound.startBgMusic();
-        }
-      }).catch(() => {});
-    }
-  }, { once: true })
-);
+document.addEventListener('touchstart', () => {
+  if (Sound._ctx && Sound._ctx.state === 'suspended') {
+    Sound._ctx.resume().catch(() => {});
+  }
+}, { passive: true });
+
+document.addEventListener('click', () => {
+  if (Sound._ctx && Sound._ctx.state === 'suspended') {
+    Sound._ctx.resume().catch(() => {});
+  }
+}, { passive: true });
 
 /* ══════════════════════════════════════════════════════════
    COOKIE CONSENT
