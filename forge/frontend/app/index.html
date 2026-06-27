@@ -958,7 +958,11 @@ const Sound = {
   _safe() {
     this.init();
     if (!this._ctx) return null;
-    if (this._ctx.state === 'suspended') this._ctx.resume();
+    // Don't block — just kick off the resume. Callers that need
+    // the context immediately (BGM) handle this themselves.
+    if (this._ctx.state === 'suspended') {
+      this._ctx.resume().catch(() => {});
+    }
     return this._ctx;
   },
   _tone(freq, type, duration, volume, startTime) {
@@ -1035,18 +1039,51 @@ const Sound = {
   },
 
   startBgMusic() {
-    if (!this.bgmEnabled) return;   // ← ADD
+    if (!this.bgmEnabled) return;
     this.stopBgMusic();
-    const ctx = this._safe(); if (!ctx) return;
-    // ... rest unchanged
+    this.init();
+    if (!this._ctx) return;
+
+    const ctx = this._ctx;
+
+    const _beginBgm = () => {
+      if (this._bgInterval) return;   // already running
+      const notes = [261, 329, 392, 440, 523, 392, 329, 261];
+      let i = 0;
+      this._bgInterval = setInterval(() => {
+        if (!this.bgmEnabled) { this.stopBgMusic(); return; }
+        const c = this._ctx;
+        if (!c || c.state !== 'running') return;
+        const t = c.currentTime;
+        const osc = c.createOscillator(), gain = c.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = notes[i % notes.length];
+        gain.gain.setValueAtTime(0.325, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+        osc.connect(gain);
+        gain.connect(this._masterGain);
+        osc.start(t);
+        osc.stop(t + 0.58);
+        i++;
+      }, 500);
+    };
+
+    if (ctx.state === 'running') {
+      _beginBgm();
+    } else {
+      // Context suspended — resume first, then start BGM
+      ctx.resume().then(() => {
+        _beginBgm();
+      }).catch(e => console.warn('[Sound] BGM resume failed:', e));
+    }
   },
-    stopBgMusic() { clearInterval(this._bgInterval); this._bgInterval = null; },
-    toggleMute() {
-      this.muted = !this.muted;
-      if (this._masterGain && this._ctx)
-        this._masterGain.gain.setTargetAtTime(this.muted ? 0 : 1, this._ctx.currentTime, 0.05);
-      try { localStorage.setItem('forge_muted', String(this.muted)); } catch {}
-      return this.muted;
+  stopBgMusic() { clearInterval(this._bgInterval); this._bgInterval = null; },
+  toggleMute() {
+    this.muted = !this.muted;
+    if (this._masterGain && this._ctx)
+      this._masterGain.gain.setTargetAtTime(this.muted ? 0 : 1, this._ctx.currentTime, 0.05);
+    try { localStorage.setItem('forge_muted', String(this.muted)); } catch {}
+    return this.muted;
     },
   };
 
@@ -1124,18 +1161,15 @@ window.StreakNotif = StreakNotif;
 // ── APP LIFECYCLE — pause audio when app backgrounds ──────
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    // App went to background — stop everything
     Sound.stopBgMusic();
     if (Sound._ctx && Sound._ctx.state === 'running') {
       Sound._ctx.suspend();
     }
   } else {
-    // App came back to foreground — resume context
     if (Sound._ctx && Sound._ctx.state === 'suspended') {
-      Sound._ctx.resume();
+      Sound._ctx.resume().catch(() => {});
     }
-    // Only restart bg music if not in game screen
-    if (State.currentScreen !== 'game') {
+    if (State.currentScreen !== 'game' && Sound.bgmEnabled) {
       Sound.startBgMusic();
     }
   }
@@ -1149,10 +1183,10 @@ document.addEventListener('pause', () => {
 
 document.addEventListener('resume', () => {
   if (Sound._ctx) Sound._ctx.resume().catch(() => {});
-  if (State.currentScreen !== 'game') {
+  if (State.currentScreen !== 'game' && Sound.bgmEnabled) {
     Sound.startBgMusic();
   }
-  StreakNotif.schedule(); 
+  StreakNotif.schedule();
 }, false);
 
 ['click','touchstart'].forEach(ev =>

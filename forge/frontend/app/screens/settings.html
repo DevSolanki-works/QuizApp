@@ -593,27 +593,30 @@ function _settingsUpdateVolumeUI(val) {
 /* ── TOGGLES ──────────────────────────────────────────────── */
 
 function settingsToggle(key, el) {
-  Sound.click();
   const isOn = el.classList.toggle('on');
   _settings[key] = isOn;
   _settingsSave();
 
-  // Apply side effects
   if (key === 'bgm') {
     Sound.bgmEnabled = isOn;
-    if (isOn) Sound.startBgMusic();
-    else      Sound.stopBgMusic();
+    if (isOn) {
+      Sound.startBgMusic();
+    } else {
+      Sound.stopBgMusic();
+    }
   }
+
   if (key === 'sfx') {
     Sound.sfxEnabled = isOn;
   }
+
   if (key === 'streak-notif') {
-    if (isOn) {
-      StreakNotif.schedule();
-    } else {
-      StreakNotif.cancel();
-    }
+    if (isOn) StreakNotif.schedule();
+    else      StreakNotif.cancel();
   }
+
+  // Click sound AFTER setting the flag so it respects the new sfx state
+  if (key !== 'sfx' || isOn) Sound.click();
 }
 
 /* ── PILLS ────────────────────────────────────────────────── */

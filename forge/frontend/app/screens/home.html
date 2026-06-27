@@ -671,7 +671,7 @@
    ══════════════════════════════════════════════════════════ */
 
 function onHomeShow() {
-  Sound.startBgMusic();
+  if (Sound.bgmEnabled) Sound.startBgMusic();
   const starsEl = document.getElementById('home-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
 
