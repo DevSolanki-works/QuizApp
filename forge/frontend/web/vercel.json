@@ -1,0 +1,12 @@
+{
+  "headers": [
+    {
+      "source": "/ads.txt",
+      "headers": [{ "key": "Content-Type", "value": "text/plain" }]
+    },
+    {
+      "source": "/app-ads.txt",
+      "headers": [{ "key": "Content-Type", "value": "text/plain" }]
+    }
+  ]
+}
