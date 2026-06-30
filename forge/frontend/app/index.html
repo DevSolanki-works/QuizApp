@@ -677,8 +677,18 @@ async function applyUserEconomy(economy) {
 
   const syncTasks = [API.syncProfile(State.user.id, State.user.coins, State.user.trophies)];
   if (typeof lbUpsertPlayer === 'function') {
+    let tickets = null;
+    try {
+      tickets = await API.getTickets(State.user.id);
+      State.user.tickets_today = tickets.tickets_today;
+      State.user.ad_tickets_used_today = tickets.ad_tickets_used_today;
+      State.user.last_ticket_date = tickets.last_ticket_date;
+      Session.save();
+    } catch (e) {
+      console.warn('[Tickets] Mirror fetch failed, leaving Supabase ticket fields unchanged:', e);
+    }
     syncTasks.push(
-      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies)
+      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, tickets)
         .catch(e => console.warn('[LB] Upsert failed silently:', e))
     );
   }
@@ -822,6 +832,12 @@ const API = {
 
   async health() {
     return (await fetch(`${API_BASE}/health`)).json();
+  },
+
+  async getTickets(userId) {
+    const r = await fetch(`${API_BASE}/tickets/${encodeURIComponent(userId)}`);
+    if (!r.ok) throw new Error('Ticket fetch failed');
+    return r.json();
   },
 
   async verifyGoogleToken(credential) {

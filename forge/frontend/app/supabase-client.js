@@ -35,17 +35,24 @@ function _initSupabase() {
  * @param {string} name       - Display name shown on leaderboard
  * @param {number} coins      - Current coin balance
  * @param {number} trophies   - Current trophy count
+ * @param {object} tickets    - Optional file-backed generation ticket state
  */
-async function lbUpsertPlayer(googleId, name, coins, trophies) {
+async function lbUpsertPlayer(googleId, name, coins, trophies, tickets = null) {
   const db = _initSupabase();
   if (!db) throw new Error('Supabase not available');
-  const { error } = await db.from('leaderboard').upsert({
+  const payload = {
     google_id:    googleId,
     display_name: name,
     coins:        Number(coins)    || 0,
     trophies:     Number(trophies) || 0,
     updated_at:   new Date().toISOString(),
-  }, { onConflict: 'google_id' });
+  };
+  if (tickets) {
+    payload.tickets_today = Number(tickets.tickets_today) || 0;
+    payload.ad_tickets_used_today = Number(tickets.ad_tickets_used_today) || 0;
+    payload.last_ticket_date = tickets.last_ticket_date || '';
+  }
+  const { error } = await db.from('leaderboard').upsert(payload, { onConflict: 'google_id' });
   if (error) throw new Error(error.message || 'Leaderboard upsert failed');
   return true;
 }
@@ -61,7 +68,7 @@ async function lbFetchProfile(googleId) {
   if (!db) return null;
   const { data, error } = await db
     .from('leaderboard')
-    .select('coins, trophies, display_name')
+    .select('coins, trophies, display_name, tickets_today, ad_tickets_used_today, last_ticket_date')
     .eq('google_id', googleId)
     .single();
   if (error) {

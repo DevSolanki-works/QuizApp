@@ -316,151 +316,67 @@ uvicorn main:app --reload --port 8000
 
 ## 🏗️ Technical Stack
 
-<<<<<<< HEAD
+
 | Layer | Selection | Notes |
 |-------|-----------|-------|
 | Frontend | HTML5 / CSS3 / Vanilla JS | No bundler, Capacitor-compatible |
-| Database | Supabase (Postgres) | Free tier, $0 constraint |
-| Mobile | CapacitorJS → Android | Package ID: `com.devsolanki.forge` |
+| Database | Supabase (Postgres) | Free tier, display/cross-session mirror |
+| Mobile | CapacitorJS -> Android | Package ID: `com.devsolanki.forge` |
 | Backend | Python 3 / FastAPI | Async WebSocket game loop |
 | AI | Gemini 2.5 Flash Lite | Free tier, fallback question bank |
 | Real-time | FastAPI WebSockets | Low-latency state sync |
-| State | In-memory Python dict | Ephemeral, acceptable for MVP |
-| Deployment | Docker → Cloud Run | Serverless, $0 infrastructure |
+| Runtime State | In-memory rooms + file-backed profiles | Backend runtime truth for economy/tickets |
+| Deployment | Docker -> Cloud Run | Serverless, $0 infrastructure |
 | Ads | AdMob (pending approval) | Rewarded ads only in app |
-=======
-1. **Google AdSense (Primary Web Driver):** Web track deployment only. Pending manual configuration review approval (Blocked: PAN card pending verification).
-2. **Chai4Me Micro-Donations:** Web track deployment only. Profile endpoint: `https://www.chai4.me/devsolankiworks`
-3. **In-Game Soft Currency:** Engagement loop powered by virtual Coins and Trophies accumulated dynamically across gameplay sessions (Web + App shared data).
-4. **App Acquisition Funnel:** Driving app store traction by gating premier content (Team mode, global ranking metrics) behind the native wrapper build.
-
-### ⛔ DEPRECATED — Forbidden Ad Technologies
-
-> **Hard Prohibition:** Never integrate low-tier, high-intrusion monetization tools. This includes: Monetag, vignette/interstitial ads, popunders, force-push notification monetization assets, or any instant-approval programmatic platforms.
-
-### AdSense Compliance Checklist (Website Only)
-
-- [x] AdSense core script tags integrated into every single crawlable HTML node.
-- [x] Clear global navigation elements to explicit Privacy Policy and About screens available on every viewport.
-- [x] Functional localized cookie consent banner with embedded `localStorage` tracking and NPA capability.
-- [x] High semantic text quality across `landing.html` to robustly counter "Low Value Content" rejections.
-- [x] Updated structural mapping index assets (`robots.txt` and `sitemap.xml`) served dynamically from root.
-- [x] Strict routing enforcement ensuring cold crawlers drop directly onto semantic rich content (`landing.html`).
-- [ ] Manual application review sign-off → **PENDING** (Awaiting identification/PAN clearance).
-
-### ⚠️ AdSense Landing Page Enforcements
-
-`landing.html` **MUST** remain the explicit entry screen served during a baseline cold initialization address (`/#` or `/`) on the **website infrastructure**. The initialization script guarantees this deployment sequence via Case 3 processing routing configurations. Never change this routing order for the web tier; crawlers must interact with semantic copy.
 
 ---
 
-## 🔒 Security Hardening (Milestone 29)
+## Monetization Strategy
 
-### Core Architectural Changes
+1. **Google AdSense (Primary Web Driver):** Web track deployment only. Pending manual configuration review approval.
+2. **Chai4Me Micro-Donations:** Web track deployment only.
+3. **In-Game Soft Currency:** Coins and trophies accumulated across gameplay sessions.
+4. **App Acquisition Funnel:** Drive Play Store downloads by making the app the full-featured tier.
+5. **AdMob:** Rewarded ads only in app after approval.
+
+### Deprecated / Forbidden Ad Technologies
+
+Never integrate low-tier, high-intrusion monetization tools: Monetag, vignette/interstitial ads, popunders, force-push notification monetization assets, or instant-approval programmatic platforms.
+
+### AdSense Landing Page Enforcement
+
+`landing.html` must remain the explicit entry screen for cold website loads. Do not change website crawler routing.
+
+---
+
+## Security Hardening (Milestone 29)
 
 | Source File Target | Nature of Modifications / Security Patch |
 | --- | --- |
-| `app/core/sanitize.py` | **NEW:** Explicit structural input schema validation module parsing all incoming WebSocket frames. |
-| `app/core/limiter.py` | XFF header configurations updated to target and trust the final IP array string index (Cloud Run signature verification) to neutralize upstream client spoofing risks. |
-| `app/routers/http.py` | Secured `/economy/sync` and `/economy/reward` routers; endpoints now strictly demand a valid `Authorization: Bearer <id_token>` structure. |
-| `app/routers/websocket.py` | Passed all functional ingestion vectors through validation logic; setup fixed action allowlist filters; rate-limited connection setups. |
-| `index.html` (Boot block) | Integrated `waitForSupabase()` async polling logic to resolve racing execution paths; wrapped logic inside global `try/catch` safety parameters. |
-| `index.html` (`goTo()`) | Implemented strict `SCREEN_GUARDS` checks to mitigate direct access attempts to unauthorized routes (e.g., trying to access `/#results` or `/#game` directly via URI strings). |
-| `index.html` (API Object) | Configured frontend profiling calls to automatically sign data packets out with the required `Authorization: Bearer` token payload string. |
-| `index.html` (`handleGoogleLogin()`) | Updated user object mappings to retain `user._credential` within the local lifecycle layer to handle authenticated communication requirements smoothly. |
+| `app/core/sanitize.py` | Structural WebSocket input validation. |
+| `app/core/limiter.py` | XFF handling targets Cloud Run's trusted final IP. |
+| `app/routers/http.py` | `/economy/sync`, `/economy/reward`, and ticket spend-side endpoints require matching Google identity where relevant. |
+| `app/routers/websocket.py` | Validated action allowlist, sanitized topics, and rate-limited connection setup. |
+| `frontend/app/index.html` | Route guards and backend sync calls with Google bearer token where required. |
 
-### Security Model Architecture
+### Security Model
 
-- **WebSocket Ingestion:** Every client message is parsed against an absolute action filter configuration key allowlist (`sanitize.VALID_ACTIONS`).
-- **Prompt Injection Defense:** Topics undergo pattern evaluation via regex-based blocklists prior to triggering downstream LLM generations via Gemini.
-- **Financial Protection Layer:** Economy modification calls require an unexpired, authentic Google JWT mapping cleanly to the payload's `user_id`.
-- **Rate Limiting Engine:** Enforces connection and action quotas on a per-IP basis, using securely extracted cloud load-balancer signatures.
-- **Navigation Route Interceptors:** Strict frontend validation guards access to operational routes: `lobby` demands verified parameters (`roomCode`, `playerName`), `game` requires an active WebSocket channel, and `results` checks for population metrics.
-- **Timestamp Calibration:** Latency tracking values (`time_ms`) undergo backend boundary checking, clamping values to `[0, time_limit_ms + 500ms]` to eliminate manual speed hacks.
+- **WebSocket ingestion:** Every client message is validated against an allowlist.
+- **Prompt injection defense:** Topics are checked before Gemini generation.
+- **Financial protection:** Economy-changing HTTP calls require Google token ownership checks.
+- **Rate limiting:** Connection and action quotas are enforced per IP.
+- **Route guards:** Frontend blocks direct navigation to game/results without valid session state.
+- **Timestamp calibration:** `time_ms` is clamped server-side.
 
 ---
 
-## 🗄️ Supabase Persistence Engine (Milestone 27)
-
-### Project Instance Configuration
+## Supabase Persistence Engine (Milestone 27)
 
 - **Endpoint URL:** `https://ffstsbwkianjcjpqvmtv.supabase.co`
-- **Access Control:** Public Anon Key (Refer to explicit token strings within `supabase-client.js`)
-- **Regional Hosting:** Southeast Asia (Singapore Data Center Hub)
+- **Regional Hosting:** Southeast Asia (Singapore)
+- **Purpose:** Long-term display/cross-session mirror for leaderboard and profile-adjacent data.
 
-### Database Schemas
-
-```
-┌───────────────────┐             ┌───────────────────┐
-│    leaderboard    │             │     donations     │
-├───────────────────┤             ├───────────────────┤
-│ google_id (PK)    │             │ id (PK)           │
-│ name              │             │ upi_txn_id        │
-│ coins             │             │ status            │
-│ trophies          │             │ amount            │
-└───────────────────┘             └───────────────────┘
-         │
-         ▼ (SQL VIEW)
-┌───────────────────┐
-│ donor_leaderboard │
-└───────────────────┘
-```
-
-| Database Node Object | Structural Intent & Operational Behavior |
-| --- | --- |
-| `leaderboard` | Flat user storage node matrix. Uses `google_id` as the Primary Key. Upserts occur during game-ending sequences. |
-| `donations` | Ledger tracking micro-transactions / incoming UPI claims. Transitions states: `pending` → `approved` → `rejected`. |
-| `donor_leaderboard` | **SQL VIEW.** Read-only node compilation. Aggregates and displays mathematical calculations summing approved transaction tallies. |
-
-
-### Implemented Schema Additions
-
-```sql
-alter table public.leaderboard
-  add column if not exists tickets_today int default 3,
-  add column if not exists ad_tickets_used_today int default 0,
-  add column if not exists last_ticket_date text default '';
-```
-
-```sql
-create table if not exists public.question_bank (
-  id uuid primary key default gen_random_uuid(),
-  category text not null,
-  question text not null,
-  options jsonb not null,
-  correct_idx int not null,
-  difficulty text default 'medium',
-  times_used int default 0,
-  created_at timestamptz default now()
-);
-
-create index if not exists idx_question_bank_category
-  on public.question_bank (category);
-
-alter table public.question_bank enable row level security;
-```
-
-### Operational Logic
-
-- **Asynchronous Updates:** Ranking data updates run concurrently inside `applyUserEconomy()` via fire-and-forget patterns.
-- **Conflict Resolution:** `lbUpsertPlayer()` runs explicit conflict checks on `google_id` configurations to guarantee playing records append to existing rows instead of resetting current scores.
-- **Manual Verification:** Financial data auditing flows are fully manual: verification happens via the Supabase admin interface by transitioning values to `approved` only after reviewing physical banking notifications.
-
----
-
-## 🏗️ Technical Stack Constraints (LOCKED)
-
-| Technology Layer | Selection | Rationale & Boundaries |
-| --- | --- | --- |
-| **Frontend Framework** | HTML5 / CSS3 / Vanilla JavaScript | Retains clean portability requirements for seamless compilation into native systems using CapacitorJS. |
-| **Database Solution** | Supabase (Postgres Engine) | Free tier pricing model satisfies $0 operational resource guidelines perfectly. |
-| **Mobile Deployment** | CapacitorJS → Android Application Bundle | Free, robust, automated wrapper pipelines matching local workflow parameters without compounding expenses. |
-| **Backend Architecture** | Python 3 / FastAPI Engine | Excellent fit for rapid asynchronous handling; maximizes development velocity. |
-| **Artificial Intelligence** | Gemini 2.5 Flash Lite | Leverages high-performance inference at a $0 API price point. |
-| **Real-time Pipeline** | Native FastAPI WebSocket Implementations | Low-latency state sync features built directly into core framework layers. |
-| **State Persistence** | Transient In-Memory Python Dictionary Objects | Minimizes architecture footprint; avoids complex local hosting overhead. |
-| **Deployment Platform** | Containerized Docker → Google Cloud Run | Scalable serverless tier accommodating the $0 infrastructure cap. |
->>>>>>> Settingsss
+Runtime rooms and economy/ticket enforcement stay backend-side; Supabase mirrors the values the client syncs after gameplay.
 
 ---
 
@@ -572,189 +488,131 @@ gcloud run deploy forge-backend \
 
 ## 📐 Scoring Formula
 
-<<<<<<< HEAD
+
 ```python
 # Base (speed-based)
 base = max(500, min(1000, int(1000 * (1 - (time_ms / time_limit_ms) * 0.5))))
 
 # Streak multiplier
 multi = min(1.0 + (streak // 3) * 0.5, 3.0)
-# streak 0-2 → ×1.0 | 3-5 → ×1.5 | 6-8 → ×2.0 | 9-11 → ×2.5 | 12+ → ×3.0
+# streak 0-2 -> x1.0 | 3-5 -> x1.5 | 6-8 -> x2.0 | 9-11 -> x2.5 | 12+ -> x3.0
 
 final = int(base * multi)
 ```
-=======
-| Index | Milestone Module Target Description | Project Status |
-| --- | --- | --- |
-| **1–16** | Initial foundational architecture up through implementation of session persistence. | ✅ Done |
-| **17** | Integration of Secure Google Federated Authentication. | ✅ Done |
-| **18** | Configuration of Regulatory Compliance paths & Base Navigation layers. | ✅ Done |
-| **19** | Mathematical processing logic implementation for Streaks and Multiplier components. | ✅ Done |
-| **20** | Execution and deployment of Multiplayer Team Mode routers. | ✅ Done |
-| **21** | Deployment of Host Room Locking systems. | ✅ Done |
-| **22** | UI input field stabilization refactor layers. | ✅ Done |
-| **23** | Solo Isolation Modes, Soft Currency Economy, and integration of CI/CD systems. | ✅ Done |
-| **24** | Local Storage persistence architecture for local economy modules. | ✅ Done |
-| **25** | Monetization setup: dynamic structural landing configuration + Chai4Me paths. | ✅ Done |
-| **26** | AdSense Regulatory Compliance: Cookie Consent Mechanism integration. | ✅ Done |
-| **27** | Supabase Global Leaderboard infrastructure configuration. | ✅ Done |
-| **28** | Production Play Store Deployment Pipeline Execution. | 🔲 Blocked *(Awaiting Verification)* |
-| **29** | Ingestion Engine Hardening and Security Layer configuration. | ✅ Done |
-| **29.5** | Generation and alignment of Master App Branding Graphic Vectors (Icons/Splash screens). | ✅ Done |
-| **29.6** | Submission processing to the Amazon Appstore. | ✅ Done |
-| **30** | AdSense dynamic footprint verification processing expansion (Compliance pages + sitemap). | ✅ Done |
-| **31** | **Strategic Pivot:** Architecture decision resolved June 19, 2026 — forked frontend (`web/` + `app/`), backend stays unified. | ✅ Resolved |
-| **31.5** | Physical folder split execution: move current `frontend/` → `frontend/web/`, scaffold `frontend/app/`, repoint `capacitor.config.json` and Vercel build root. | 🔲 Next |
-| **32** | App Stream: Removal of out-of-scope compliance assets & Chai4Me logic from native wrapper. | ✅ Done |
-| **33** | App Stream: Realization of feature-gating routes blocking web access to premier arrays. | 🔲 Next |
-| **34** | App Stream: Neo-Brutalism visual skin implementation. Home screen composition **locked** June 22, 2026 (see "Locked Home Screen Composition") — ready to implement against `screens/home.html`. Remaining screens (lobby, game, results) still need their own composition pass before full milestone completion. | 🔄 In Progress |
-| **35** | Generation Tickets — Real Spendable Currency. | ✅ Done |
-| **36** | Seed Question Bank data layer. Schema + reviewable seed file are complete; Quick Play UI remains future work. | 🔄 In Progress |
->>>>>>> Settingsss
 
 ---
 
 ## 🗄️ Supabase Schema
 
-<<<<<<< HEAD
-```
+
+```text
 leaderboard        : google_id (PK), display_name, coins, trophies,
-                     daily_streak, last_played_date, updated_at
+                     daily_streak, last_played_date, updated_at,
+                     tickets_today, ad_tickets_used_today, last_ticket_date
 donations          : id (PK), upi_txn_id, status, amount
-donor_leaderboard  : SQL VIEW — read only
+donor_leaderboard  : SQL VIEW - read only
+question_bank      : id (PK), category, question, options, correct_idx,
+                     difficulty, times_used, created_at
 ```
 
-**Future additions needed:**
+### Implemented Schema Additions
+
+```sql
+alter table public.leaderboard
+  add column if not exists tickets_today int default 3,
+  add column if not exists ad_tickets_used_today int default 0,
+  add column if not exists last_ticket_date text default '';
+```
+
+```sql
+create table if not exists public.question_bank (
+  id uuid primary key default gen_random_uuid(),
+  category text not null,
+  question text not null,
+  options jsonb not null,
+  correct_idx int not null,
+  difficulty text default 'medium',
+  times_used int default 0,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_question_bank_category
+  on public.question_bank (category);
+
+alter table public.question_bank enable row level security;
+```
+
+**Future additions under consideration:**
 - `domain_stats` table: `google_id, category, games_played, wins, badge_level`
 - `challenges` table: `id, challenger_id, opponent_id, topic, questions_json, challenger_score, expires_at`
-- `power_up_purchases` table: `google_id, power_up_type, purchased_at` (for analytics)
-=======
-- **Workflow Split Decision (June 18, 2026):** The website codebase is now entirely frozen. App builds represent the active frontier moving forward.
-- **Amazon Appstore Submission status (June 18, 2026):** Initial package validation phase complete.
-- **Play Store Release Pipeline Requirements:** When compiling the application for production delivery, execute the following actions precisely:
-  1. Synchronize the native file layer tree: `npx cap sync android`
-  2. Clean and compile the production bundle via Gradle: `./gradlew.bat clean bundleRelease` (Uses local encrypted configuration keys via `keystore.properties`).
-  3. Manually verify that the `versionCode` configuration inside `app/build.gradle` has been properly incremented.
-- **Cloud Run Cold Start Penalty:** Inactive infrastructure scales completely down to zero instances, which can cause a ≈ 2s latency penalty on cold requests. Mitigated by firing a warm-up `/health` ping immediately when the application launches.
-- **Volatile Session Memory Behavior:** In-memory application objects are cleared whenever Cloud Run containers recycle. This is an acceptable limitation for the current project MVP.
-- **Cross-Compilation Architecture Guidelines:** When deploying from ARM64 machines, always use buildx platform targets explicitly: `docker buildx --platform linux/amd64 --push`.
-- **JSON Serialization Adjustments:** Exclude `Player.websocket` data properties from JSON transformation tasks to avoid serialization faults.
-- **Fallback Content Engine Strategy:** LLM service access is structured with fallbacks; if the Gemini service encounters rate caps, a static fallback question registry takes over to keep matches running.
-- **WSL Android Debug Bridge (ADB) Disconnection Issues:** Windows Subsystem for Linux instances cannot naturally discover raw USB endpoint paths. Execute all native ADB commands through Windows PowerShell hosts.
-- **Asset Tracking Protocol:** After making changes to any asset files within the frontend folder directory trees, run `npx cap sync android` before building test packages.
-- **Profile Sync Precedence:** `profiles.json` data on ephemeral instances is volatile. Treat local client storage configurations as the definitive operational source of truth.
-- **Leaderboard Sync Behavior:** The Supabase leaderboard acts as a secondary, long-term cross-session storage node updated at game end. In-game sessions rely primarily on `localStorage`.
-- **Verification Audits:** Donation validations remain fully manual to keep the infrastructure footprint lean. Do not write programmatic webhooks or processing scripts to automate payment validation.
-- **Database Views Execution Bounds:** The `donor_leaderboard` relation is an encapsulated SQL View asset; structural update or insertion tasks target checking rules incorrectly and will fail.
-- **Local Identity Life Cycle Limitations:** Client-side token caches (`State.user._credential`) exist strictly within active browser memory contexts and do not survive page reloads. The initialization block handles profile syncing across page reloads via dedicated Supabase calls instead.
-- **Generation Tickets & Question Bank Data Layer (June 30, 2026):** Custom Room generation ticket refund-on-failure follows the same pattern as entry fee refunds in the WebSocket startup flow. The rewarded-ad ticket cap is enforced server-side in `backend/app/services/tickets.py`, not only by future client UI. The reviewable question bank seed file lives at `supabase/seeds/seed_question_bank.py`.
-- **Frontend Fork Decision (June 19, 2026):** Resolved the Milestone 31 architecture question — frontend physically splits into `web/` and `app/`; backend remains single and shared across both targets; gating of premium features (Team mode, leaderboard) is UI-only, never backend-side.
-- **Visual Identity Pivot (June 20, 2026):** The Milestone 31 Clash Royale-inspired UI direction is superseded. New target: Neo-Brutalism, modeled on a reference mockup (dark charcoal background, thick black borders, hard offset shadows, flat green/red/cream color blocking).
-- **Home Screen Structure Exploration (June 22, 2026):** Three structural directions were mocked up against the Neo-Brutalism palette: (1) a direct reskin of the original stacked-button list with brutalist borders/shadows — rejected, felt like a reskin rather than a real structural change; (2) a restructured version with a single dominant primary CTA, a two-tile Create/Join row, and a de-emphasized utility row — **selected as the base direction**; (3) a zine/collage variant adding a torn zigzag section divider, a giant translucent "?" watermark, taped sticker badges, a ticket-notched CTA, alternating-rotation tiles, and a scrolling marquee footer — explored, but explicitly **not selected**; logged here so it isn't re-proposed from scratch. Direction (2) was finalized with one adjustment: the decorative retro-monitor icon was swapped for a dedicated trophy badge, since trophy iconography is a core identity element used across results, leaderboard, and the economy, and needed to stay visually present on the home hero rather than be replaced by a generic icon. See "Locked Home Screen Composition" above for the final structure and `forge-neo-brutalism-home-final.html` for the implementation reference.
-- **Typography Decision — Hero Wordmark (June 22, 2026):** Resolved the open question from the original Neo-Brutalism plan. Archivo Black is used for the "FORGE" hero wordmark only, with a green-fill/black-stroke/red-offset-shadow duotone stamp treatment. Press Start 2P remains the typeface for every other UI element (buttons, labels, taglines, badges, footer) — it is not being phased out, just no longer used at poster scale.
-- **Usability Rule — No Rotating Functional Inputs (June 22, 2026):** Firm rule, not a style preference: name-entry and room-code fields must always render perfectly level regardless of any decorative rotation/collage treatment applied elsewhere on a screen. This rule should carry forward to lobby, game, and results screens as their own Neo-Brutalism passes happen.
-- **`/mnt/c` WSL Friction (June 2026):** Repo lives at `/mnt/c/QuizApp/forge`. This filesystem bridge has twice caused tooling failures invisible from the Linux side: (1) directory-level `mv`/rename operations hitting silent `Permission denied` with no useful diagnostic, (2) `npx cap sync android` failing with a corrupted `.bin` shim due to broken symlinks (`rm -rf node_modules package-lock.json && npm install` fixed it). If either recurs, suspect the `/mnt/c` bridge before suspecting the command itself. Long-term fix under consideration: relocate repo to `~/forge` on the native Linux filesystem.
->>>>>>> Settingsss
+- `power_up_purchases` table: `google_id, power_up_type, purchased_at` (analytics only)
 
 ---
 
 ## ✅ Milestone Tracker
 
-<<<<<<< HEAD
+
 | # | Description | Status |
 |---|-------------|--------|
-| 1–16 | Initial architecture through session persistence | ✅ Done |
-| 17 | Google Federated Authentication | ✅ Done |
-| 18 | Compliance pages & base navigation | ✅ Done |
-| 19 | Streaks and multiplier scoring | ✅ Done |
-| 20 | Team Mode | ✅ Done |
-| 21 | Room locking | ✅ Done |
-| 22 | UI input stabilization | ✅ Done |
-| 23 | Solo mode + coin economy + CI/CD | ✅ Done |
-| 24 | LocalStorage economy persistence | ✅ Done |
-| 25 | Monetization setup (landing + Chai4Me) | ✅ Done |
-| 26 | Cookie consent | ✅ Done |
-| 27 | Supabase global leaderboard | ✅ Done |
-| 28 | Play Store pipeline | 🔲 Blocked (PAN verification) |
-| 29 | Security hardening | ✅ Done |
-| 29.5 | App branding assets (icons/splash) | ✅ Done |
-| 29.6 | Amazon App Store submission | ✅ Done |
-| 30 | AdSense compliance expansion | ✅ Done |
-| 31 | Strategic pivot — frontend fork resolved | ✅ Done |
-| 31.5 | Physical folder split (web/ + app/) | 🔲 Next |
-| 32 | App: remove out-of-scope compliance assets | ✅ Done |
-| 33 | App: feature gating (web restricted) | 🔲 Queued |
-| 34 | App: Neo-Brutalism home screen | ✅ Done |
-| **ADS** | **⚡ AdMob integration — JUMPS QUEUE when approved** | ⏳ Awaiting approval |
-| 35 | Tiered room stakes (Casual/Pro/High Stakes entry fees) | 🔲 Queued |
-| 36 | Power-up system (Topic Veto, Lifeline, Time Freeze, Double Down) | 🔲 Queued |
-| 37 | Trophy ELO redesign (delta formula + floors + tier labels) | 🔲 Queued |
-| 38 | Trophy tier-up ceremony (full-screen animation + shareable card) | 🔲 Queued |
-| 39 | Async Challenge Mode (ghost system, cached questions, share link) | 🔲 Queued |
-| 40 | Daily Lucky Draw (slot machine UI, rewarded ad second spin) | 🔲 Queued |
-| 41 | Knowledge Domain badges (per-category win tracking, Supabase) | 🔲 Queued |
-| 42 | Weekly Topic Bounties (2x trophy multiplier, weekly notification) | 🔲 Queued |
-| 43 | Sync 1v1 Duel Mode (Blind Draft topic system, matchmaking queue) | 🔲 Queued |
-| 44 | Bot opponent fallback for unmatched 1v1 queue | 🔲 Queued |
-| 45 | Weekly progression rewards (10 wins → 100 coin bonus) | 🔲 Queued |
-| 46 | Cosmetic unlocks (name color, badge frames at trophy milestones) | 🔲 Queued |
-| 47 | Google Play Store submission (pending PAN clearance) | 🔲 Blocked |
+| 1-16 | Initial architecture through session persistence | Done |
+| 17 | Google Federated Authentication | Done |
+| 18 | Compliance pages & base navigation | Done |
+| 19 | Streaks and multiplier scoring | Done |
+| 20 | Team Mode | Done |
+| 21 | Room locking | Done |
+| 22 | UI input stabilization | Done |
+| 23 | Solo mode + coin economy + CI/CD | Done |
+| 24 | LocalStorage economy persistence | Done |
+| 25 | Monetization setup (landing + Chai4Me) | Done |
+| 26 | Cookie consent | Done |
+| 27 | Supabase global leaderboard | Done |
+| 28 | Play Store pipeline | Blocked (PAN verification) |
+| 29 | Security hardening | Done |
+| 29.5 | App branding assets (icons/splash) | Done |
+| 29.6 | Amazon App Store submission | Done |
+| 30 | AdSense compliance expansion | Done |
+| 31 | Strategic pivot - frontend fork resolved | Done |
+| 31.5 | Physical folder split (`frontend/web` + `frontend/app`) | Done |
+| 32 | App: remove out-of-scope compliance assets | Done |
+| 33 | App: feature gating (web restricted) | Queued |
+| 34 | App: Neo-Brutalism home screen | Done |
+| 35 | Generation Tickets - Real Spendable Currency | Done |
+| 36 | Seed Question Bank data layer | In Progress |
 
 ---
 
-## 🐛 Decisions Log & Known Issues
+## Decisions Log & Known Issues
 
-- **Ads jump the queue:** When AdMob approval comes through, stop everything else and integrate ads first. One focused session to wire all 5 rewarded ad placements, test with test IDs, switch to production IDs, push APK. Resume normal milestones after first ad impression confirmed.
-- **Economy source of truth:** Supabase is authoritative. The backend `profiles.json` is a secondary cache that syncs from Supabase. `localStorage` is for ephemeral UI state only — never the economy ground truth.
-- **Power-ups are pre-purchase, not in-game purchases:** Player buys power-ups before a game starts (from lobby), not mid-round. This avoids timing complexity in the WebSocket game loop.
-- **Async Challenge questions cached:** When Player A starts a challenge, Gemini generates questions once and stores them in Supabase `challenges` table. Player B gets identical questions. Never re-generate.
-- **1v1 matchmaking tolerance:** ±100 trophies within 30s wait. If no match, offer bot. Never force a wildly mismatched game.
-- **Trophy floors are local UI only:** Backend enforces floors via `max(floor, trophies - delta)`. Frontend never shows negative deltas past the floor.
-- **Domain badges are display only:** Never gate gameplay behind domain badges. They are identity/cosmetic only.
+- **Ads jump the queue:** When AdMob approval comes through, stop everything else and integrate ads first. One focused session to wire rewarded ad placements, test with test IDs, switch to production IDs, and push APK.
+- **Workflow Split Decision (June 18, 2026):** The website codebase is frozen. App builds are the active frontier.
+- **Frontend Fork Decision (June 19, 2026):** Frontend physically splits into `frontend/web/` and `frontend/app/`; backend remains single and shared across both targets.
+- **Ticket Sync Source-of-Truth (June 30, 2026):** Generation tickets follow the same pattern as coins and trophies: the backend file-backed profile store is runtime truth, and Supabase `leaderboard` is only a display mirror. The mirror update lives in `frontend/app/index.html` inside `applyUserEconomy()`, which fetches `GET /tickets/{user_id}` and passes the result into `frontend/app/supabase-client.js` `lbUpsertPlayer()`.
+- **Generation Tickets & Question Bank Data Layer (June 30, 2026):** Custom Room generation ticket refund-on-failure follows the same pattern as entry fee refunds. The rewarded-ad ticket cap is enforced server-side in `backend/app/services/tickets.py`. The reviewable question bank seed file lives at `supabase/seeds/seed_question_bank.py`.
+- **Cloud Run state:** Runtime file storage is ephemeral. `profiles.json` is the backend runtime source of truth during a live process, and Supabase mirrors long-term display data after client sync.
+- **Leaderboard Sync Behavior:** The Supabase leaderboard is a secondary cross-session/display mirror updated at game end.
 - **Rewarded ad timing rule:** Never show a rewarded ad prompt during an active game. Only in lobby, post-game results, or home screen.
-- **Fire OS / Google Sign-In:** Fire OS detected via user agent (`/\bKF[A-Z]{2,4}\b/`); guest play shown instead since Fire OS has no Google Play Services.
-- **BGM unlock:** `AudioContext.resume()` must be called synchronously within a direct user gesture handler. No workarounds work reliably on Capacitor WebView.
-- **WSL `/mnt/c` friction:** Repo at `/mnt/c/QuizApp/forge`. This bridge has caused silent `mv` failures and broken npm symlinks. Long-term: relocate to `~/forge`.
-- **New APK checklist:** Any `frontend/app/` or `android/` change → `npx cap sync` → versionCode bump → Generate Signed Bundle → store upload. Backend-only changes never need a new APK.
-- **Cloud Run state:** Ephemeral filesystem. `profiles.json` wipes on scale-to-zero. Supabase is the real persistence layer.
-- **Keystore:** `keystore.properties` (not `key.properties`) at `forge/android/keystore.properties`.
-- **Amazon App Store:** Strips and re-signs APKs. No Play App Signing needed. Same APK goes to both stores.
-- **Gemini reliability:** Wrapped in `asyncio.timeout` (12s) with silent fallback to local question bank.
-- **Frontend local dev server:** Must run from `forge/frontend/app/`, not `forge/`. Screens load via `goTo()` / `fetch()` through `index.html`. Always develop via `index.html#home`.
+- **Fire OS / Google Sign-In:** Fire OS has no Google Play Services; guest play is shown instead.
+- **BGM unlock:** `AudioContext.resume()` must be called synchronously within a direct user gesture handler.
+- **WSL `/mnt/c` friction:** Repo at `/mnt/c/QuizApp/forge` has caused silent `mv` failures and broken npm symlinks. Long-term: relocate to `~/forge`.
+- **New APK checklist:** Any `frontend/app/` or `android/` change -> `npx cap sync` -> versionCode bump -> Generate Signed Bundle -> store upload. Backend-only changes never need a new APK.
+- **Keystore:** `keystore.properties` lives at `forge/android/keystore.properties`.
+- **Amazon App Store:** Strips and re-signs APKs. No Play App Signing needed.
+- **Gemini reliability:** Generation is timeout-wrapped with fallback questions.
+- **Frontend local dev server:** Must run from `forge/frontend/app/`, not `forge/`. Screens load through `index.html`.
+- **Visual Identity Pivot (June 20, 2026):** Neo-Brutalism supersedes the older Clash Royale-inspired direction.
+- **No Rotating Functional Inputs:** Name-entry and room-code fields must always render level.
 
 ---
 
-## 📋 Implementation Guidelines
+## Implementation Guidelines
 
 1. **Code standards:** Self-documenting code with Python typing and descriptive docstrings.
-2. **Deliverable format:** Complete file replacements, not diffs or snippets. Gemini CLI used to apply.
-3. **Workflow:** Architectural plan reviewed before implementation. Explicit confirmation before any destructive operation.
-4. **Ads first rule:** AdMob approval → pause everything → integrate ads → resume milestones.
-5. **Economy integrity:** Never award coins or trophies outside the defined rule table. No shortcuts.
-6. **Power-ups are cosmetic difficulty modifiers, not pay-to-win:** Both players have equal access. Both players see when a power-up is used.
-7. **$0 infrastructure:** No paid cloud integrations. Free tiers only.
-8. **ARM64 builds:** Always use `docker buildx --platform linux/amd64 --push`.
-9. **Visual split:** Website uses blue/yellow/pixel-arcade palette (frozen). App uses Neo-Brutalism palette (active).
-10. **Website freeze:** All general development targets the app track by default unless explicitly instructed otherwise.
-11. **No over-engineering:** Async Challenge Mode before Sync 1v1. Simple systems before complex ones.
-12. **Ads are contextual, never intrusive:** Rewarded only. No banners, no interstitials, no forced views.
-=======
-1. **Code Standards:** Maintain highly structured, self-documenting code supported by clean Python typing and descriptive docstrings.
-2. **Asynchronous Patterns:** Document the underlying reasoning behind any asynchronous code patterns or WebSocket message transitions clearly.
-3. **Modular Strategy:** Build software components through small, isolated modules. Focus on modifying one target file at a time.
-4. **Context Maintenance:** Keep this `CLAUDE.md` documentation file updated as milestones are met.
-5. **Infrastructure Costs:** Maintain a strict $0 infrastructure cost model. Do not implement paid cloud integrations.
-6. **Architecture Compatibility:** Flag potential dependencies or compatibility blocks related to ARM64 execution proactively.
-7. **Problem Resolution:** Identify and resolve systemic roots of codebase defects rather than patching superficial symptoms.
-8. **Environment Swapping:** Production distributions point directly to active cloud cluster paths; local testing environments switch endpoints automatically based on the host routing origin.
-9. **Visual Design Matrix:**
-   - **Website Styling Blueprint:** Blue/White base color schemes, *Press Start 2P* and *Nunito* typography layouts, Accent Gold components (`#FFD93D`), flat Kahoot-style buttons. (Frozen — never touched by app-track style work.)
-   - **App Styling Blueprint:** **Neo-Brutalism.** Charcoal backgrounds, thick black borders (2.5–3px) on every interactive surface, hard offset drop-shadows with zero blur, flat green/red/cream color blocking (no gradients), blocky low-radius buttons and tiles (pills reserved only for the currency readout and name field), Archivo Black for the hero wordmark only, Press Start 2P everywhere else. Home screen composition locked — see "Locked Home Screen Composition" above.
-10. **Device Operations:** Execute native terminal commands using Windows PowerShell exclusively.
-11. **Advertising Integrity:** Never integrate low-tier, high-intrusion ad networks.
-12. **Database Protection:** Ensure Row-Level Security (RLS) configurations remain active on all Supabase tables at all times; never disable them.
-13. **AdSense Entry Constraint:** The web application track must always land unauthenticated cold users directly onto `landing.html` to ensure crawler compliance. This routing constraint does not apply to native app builds once they fork from the web workflow.
-14. **Context Provision over Drafting:** Provide complete file contents instead of abbreviated code placeholders during context transitions.
-15. **Production Build Protocol:** Always execute a full refresh and synchronization process before submitting software builds to the app stores. This guarantees the latest frontend optimizations match your deployed native runtime layers.
-16. **Website Freeze Rule:** The website branch is frozen as of Milestone 31. Do not introduce feature changes to web-track assets unless explicitly instructed to do so. Treat all general development requests as targeting the app track by default.
->>>>>>> Settingsss
+2. **Workflow:** Keep changes scoped and avoid touching frozen website assets unless explicitly requested.
+3. **Economy integrity:** File-backed backend state is runtime truth; Supabase mirrors display/cross-session data through explicit sync paths.
+4. **$0 infrastructure:** No paid cloud integrations. Free tiers only.
+5. **ARM64 builds:** Always use `docker buildx --platform linux/amd64 --push` for Cloud Run images.
+6. **Visual split:** Website uses the frozen blue/yellow pixel-arcade palette. App uses active Neo-Brutalism direction.
+7. **Ads are contextual, never intrusive:** Rewarded only. No banners, interstitials, popunders, or forced views.
+8. **Database protection:** Keep RLS active on Supabase tables.
+9. **Context maintenance:** Update `CLAUDE.md` after major milestones.
+10. **Device operations:** Execute native terminal commands using Windows PowerShell exclusively.
