@@ -106,6 +106,7 @@ class Room(BaseModel):
     points_gained: dict[str, int] = Field(default_factory=dict)
     locked: bool = False  # If True, no more players can join
     entry_fees: dict[str, float] = Field(default_factory=dict)
+    generation_ticket_user_id: Optional[str] = None
     economy_finalized: bool = False
 
     # ── Team mode fields ───────────────────────────────────────────────────────
