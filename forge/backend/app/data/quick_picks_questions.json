@@ -1,0 +1,5022 @@
+{
+  "Movies": [
+    {
+      "question": "Which director is closely associated with the films 'Inception' and 'Dunkirk'?",
+      "options": [
+        "Christopher Nolan",
+        "Denis Villeneuve",
+        "David Fincher",
+        "Ridley Scott"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which director is closely associated with the films 'Inception' and 'Dunkirk'?",
+      "options": [
+        "Denis Villeneuve",
+        "David Fincher",
+        "Ridley Scott",
+        "Christopher Nolan"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which director is closely associated with the films 'Inception' and 'Dunkirk'?",
+      "options": [
+        "David Fincher",
+        "Ridley Scott",
+        "Christopher Nolan",
+        "Denis Villeneuve"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which director is closely associated with the films 'Inception' and 'Dunkirk'?",
+      "options": [
+        "Ridley Scott",
+        "Christopher Nolan",
+        "Denis Villeneuve",
+        "David Fincher"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which director is closely associated with the films 'Inception' and 'Dunkirk'?",
+      "options": [
+        "Christopher Nolan",
+        "Denis Villeneuve",
+        "David Fincher",
+        "Ridley Scott"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "In 'The Lord of the Rings' films, what is the name of Aragorn's sword after it is reforged?",
+      "options": [
+        "Glamdring",
+        "Sting",
+        "Anduril",
+        "Narsil"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: In 'The Lord of the Rings' films, what is the name of Aragorn's sword after it is reforged?",
+      "options": [
+        "Sting",
+        "Anduril",
+        "Narsil",
+        "Glamdring"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: In 'The Lord of the Rings' films, what is the name of Aragorn's sword after it is reforged?",
+      "options": [
+        "Anduril",
+        "Narsil",
+        "Glamdring",
+        "Sting"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: In 'The Lord of the Rings' films, what is the name of Aragorn's sword after it is reforged?",
+      "options": [
+        "Narsil",
+        "Glamdring",
+        "Sting",
+        "Anduril"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: In 'The Lord of the Rings' films, what is the name of Aragorn's sword after it is reforged?",
+      "options": [
+        "Glamdring",
+        "Sting",
+        "Anduril",
+        "Narsil"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which film won Best Picture at the Oscars for the 2019 movie year?",
+      "options": [
+        "Parasite",
+        "1917",
+        "Joker",
+        "Once Upon a Time in Hollywood"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which film won Best Picture at the Oscars for the 2019 movie year?",
+      "options": [
+        "1917",
+        "Joker",
+        "Once Upon a Time in Hollywood",
+        "Parasite"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which film won Best Picture at the Oscars for the 2019 movie year?",
+      "options": [
+        "Joker",
+        "Once Upon a Time in Hollywood",
+        "Parasite",
+        "1917"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which film won Best Picture at the Oscars for the 2019 movie year?",
+      "options": [
+        "Once Upon a Time in Hollywood",
+        "Parasite",
+        "1917",
+        "Joker"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which film won Best Picture at the Oscars for the 2019 movie year?",
+      "options": [
+        "Parasite",
+        "1917",
+        "Joker",
+        "Once Upon a Time in Hollywood"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the fictional mineral central to the economy of Wakanda in 'Black Panther'?",
+      "options": [
+        "Unobtainium",
+        "Promethium",
+        "Vibranium",
+        "Adamantium"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What is the fictional mineral central to the economy of Wakanda in 'Black Panther'?",
+      "options": [
+        "Promethium",
+        "Vibranium",
+        "Adamantium",
+        "Unobtainium"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What is the fictional mineral central to the economy of Wakanda in 'Black Panther'?",
+      "options": [
+        "Vibranium",
+        "Adamantium",
+        "Unobtainium",
+        "Promethium"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What is the fictional mineral central to the economy of Wakanda in 'Black Panther'?",
+      "options": [
+        "Adamantium",
+        "Unobtainium",
+        "Promethium",
+        "Vibranium"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What is the fictional mineral central to the economy of Wakanda in 'Black Panther'?",
+      "options": [
+        "Unobtainium",
+        "Promethium",
+        "Vibranium",
+        "Adamantium"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which actor played Maximus in 'Gladiator'?",
+      "options": [
+        "Russell Crowe",
+        "Joaquin Phoenix",
+        "Eric Bana",
+        "Mel Gibson"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which actor played Maximus in 'Gladiator'?",
+      "options": [
+        "Joaquin Phoenix",
+        "Eric Bana",
+        "Mel Gibson",
+        "Russell Crowe"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which actor played Maximus in 'Gladiator'?",
+      "options": [
+        "Eric Bana",
+        "Mel Gibson",
+        "Russell Crowe",
+        "Joaquin Phoenix"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which actor played Maximus in 'Gladiator'?",
+      "options": [
+        "Mel Gibson",
+        "Russell Crowe",
+        "Joaquin Phoenix",
+        "Eric Bana"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which actor played Maximus in 'Gladiator'?",
+      "options": [
+        "Russell Crowe",
+        "Joaquin Phoenix",
+        "Eric Bana",
+        "Mel Gibson"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which animated film features the song 'Remember Me'?",
+      "options": [
+        "Moana",
+        "Soul",
+        "Coco",
+        "Encanto"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which animated film features the song 'Remember Me'?",
+      "options": [
+        "Soul",
+        "Coco",
+        "Encanto",
+        "Moana"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which animated film features the song 'Remember Me'?",
+      "options": [
+        "Coco",
+        "Encanto",
+        "Moana",
+        "Soul"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which animated film features the song 'Remember Me'?",
+      "options": [
+        "Encanto",
+        "Moana",
+        "Soul",
+        "Coco"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which animated film features the song 'Remember Me'?",
+      "options": [
+        "Moana",
+        "Soul",
+        "Coco",
+        "Encanto"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "In 'The Matrix', what color pill does Neo take?",
+      "options": [
+        "Red",
+        "Blue",
+        "Green",
+        "White"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: In 'The Matrix', what color pill does Neo take?",
+      "options": [
+        "Blue",
+        "Green",
+        "White",
+        "Red"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: In 'The Matrix', what color pill does Neo take?",
+      "options": [
+        "Green",
+        "White",
+        "Red",
+        "Blue"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: In 'The Matrix', what color pill does Neo take?",
+      "options": [
+        "White",
+        "Red",
+        "Blue",
+        "Green"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: In 'The Matrix', what color pill does Neo take?",
+      "options": [
+        "Red",
+        "Blue",
+        "Green",
+        "White"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which franchise features the character Ellen Ripley?",
+      "options": [
+        "Terminator",
+        "Blade Runner",
+        "Alien",
+        "Predator"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which franchise features the character Ellen Ripley?",
+      "options": [
+        "Blade Runner",
+        "Alien",
+        "Predator",
+        "Terminator"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which franchise features the character Ellen Ripley?",
+      "options": [
+        "Alien",
+        "Predator",
+        "Terminator",
+        "Blade Runner"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which franchise features the character Ellen Ripley?",
+      "options": [
+        "Predator",
+        "Terminator",
+        "Blade Runner",
+        "Alien"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which franchise features the character Ellen Ripley?",
+      "options": [
+        "Terminator",
+        "Blade Runner",
+        "Alien",
+        "Predator"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Who composed the iconic score for 'Star Wars'?",
+      "options": [
+        "John Williams",
+        "Hans Zimmer",
+        "Howard Shore",
+        "James Horner"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Who composed the iconic score for 'Star Wars'?",
+      "options": [
+        "Hans Zimmer",
+        "Howard Shore",
+        "James Horner",
+        "John Williams"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Who composed the iconic score for 'Star Wars'?",
+      "options": [
+        "Howard Shore",
+        "James Horner",
+        "John Williams",
+        "Hans Zimmer"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Who composed the iconic score for 'Star Wars'?",
+      "options": [
+        "James Horner",
+        "John Williams",
+        "Hans Zimmer",
+        "Howard Shore"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Who composed the iconic score for 'Star Wars'?",
+      "options": [
+        "John Williams",
+        "Hans Zimmer",
+        "Howard Shore",
+        "James Horner"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which movie popularized the quote 'You can't handle the truth!'?",
+      "options": [
+        "Philadelphia",
+        "The Pelican Brief",
+        "A Few Good Men",
+        "The Firm"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which movie popularized the quote 'You can't handle the truth!'?",
+      "options": [
+        "The Pelican Brief",
+        "A Few Good Men",
+        "The Firm",
+        "Philadelphia"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which movie popularized the quote 'You can't handle the truth!'?",
+      "options": [
+        "A Few Good Men",
+        "The Firm",
+        "Philadelphia",
+        "The Pelican Brief"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which movie popularized the quote 'You can't handle the truth!'?",
+      "options": [
+        "The Firm",
+        "Philadelphia",
+        "The Pelican Brief",
+        "A Few Good Men"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which movie popularized the quote 'You can't handle the truth!'?",
+      "options": [
+        "Philadelphia",
+        "The Pelican Brief",
+        "A Few Good Men",
+        "The Firm"
+      ],
+      "correct_index": 2
+    }
+  ],
+  "Space & Astronomy": [
+    {
+      "question": "Which planet has the largest moon in the Solar System, Ganymede?",
+      "options": [
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which planet has the largest moon in the Solar System, Ganymede?",
+      "options": [
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Jupiter"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which planet has the largest moon in the Solar System, Ganymede?",
+      "options": [
+        "Uranus",
+        "Neptune",
+        "Jupiter",
+        "Saturn"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which planet has the largest moon in the Solar System, Ganymede?",
+      "options": [
+        "Neptune",
+        "Jupiter",
+        "Saturn",
+        "Uranus"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which planet has the largest moon in the Solar System, Ganymede?",
+      "options": [
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What type of galaxy is the Milky Way?",
+      "options": [
+        "Irregular",
+        "Ring",
+        "Barred spiral",
+        "Elliptical"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What type of galaxy is the Milky Way?",
+      "options": [
+        "Ring",
+        "Barred spiral",
+        "Elliptical",
+        "Irregular"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What type of galaxy is the Milky Way?",
+      "options": [
+        "Barred spiral",
+        "Elliptical",
+        "Irregular",
+        "Ring"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What type of galaxy is the Milky Way?",
+      "options": [
+        "Elliptical",
+        "Irregular",
+        "Ring",
+        "Barred spiral"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What type of galaxy is the Milky Way?",
+      "options": [
+        "Irregular",
+        "Ring",
+        "Barred spiral",
+        "Elliptical"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which telescope was launched in 2021 as Hubble's major infrared successor?",
+      "options": [
+        "James Webb Space Telescope",
+        "Kepler",
+        "Chandra",
+        "Spitzer"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which telescope was launched in 2021 as Hubble's major infrared successor?",
+      "options": [
+        "Kepler",
+        "Chandra",
+        "Spitzer",
+        "James Webb Space Telescope"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which telescope was launched in 2021 as Hubble's major infrared successor?",
+      "options": [
+        "Chandra",
+        "Spitzer",
+        "James Webb Space Telescope",
+        "Kepler"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which telescope was launched in 2021 as Hubble's major infrared successor?",
+      "options": [
+        "Spitzer",
+        "James Webb Space Telescope",
+        "Kepler",
+        "Chandra"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which telescope was launched in 2021 as Hubble's major infrared successor?",
+      "options": [
+        "James Webb Space Telescope",
+        "Kepler",
+        "Chandra",
+        "Spitzer"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the boundary around a black hole called?",
+      "options": [
+        "Accretion edge",
+        "Gravity shell",
+        "Event horizon",
+        "Photon belt"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What is the boundary around a black hole called?",
+      "options": [
+        "Gravity shell",
+        "Event horizon",
+        "Photon belt",
+        "Accretion edge"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What is the boundary around a black hole called?",
+      "options": [
+        "Event horizon",
+        "Photon belt",
+        "Accretion edge",
+        "Gravity shell"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What is the boundary around a black hole called?",
+      "options": [
+        "Photon belt",
+        "Accretion edge",
+        "Gravity shell",
+        "Event horizon"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What is the boundary around a black hole called?",
+      "options": [
+        "Accretion edge",
+        "Gravity shell",
+        "Event horizon",
+        "Photon belt"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which planet is famous for its Great Red Spot?",
+      "options": [
+        "Jupiter",
+        "Mars",
+        "Saturn",
+        "Venus"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which planet is famous for its Great Red Spot?",
+      "options": [
+        "Mars",
+        "Saturn",
+        "Venus",
+        "Jupiter"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which planet is famous for its Great Red Spot?",
+      "options": [
+        "Saturn",
+        "Venus",
+        "Jupiter",
+        "Mars"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which planet is famous for its Great Red Spot?",
+      "options": [
+        "Venus",
+        "Jupiter",
+        "Mars",
+        "Saturn"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which planet is famous for its Great Red Spot?",
+      "options": [
+        "Jupiter",
+        "Mars",
+        "Saturn",
+        "Venus"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the name of NASA's rover that landed in Jezero Crater in 2021?",
+      "options": [
+        "Opportunity",
+        "Spirit",
+        "Perseverance",
+        "Curiosity"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What is the name of NASA's rover that landed in Jezero Crater in 2021?",
+      "options": [
+        "Spirit",
+        "Perseverance",
+        "Curiosity",
+        "Opportunity"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What is the name of NASA's rover that landed in Jezero Crater in 2021?",
+      "options": [
+        "Perseverance",
+        "Curiosity",
+        "Opportunity",
+        "Spirit"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What is the name of NASA's rover that landed in Jezero Crater in 2021?",
+      "options": [
+        "Curiosity",
+        "Opportunity",
+        "Spirit",
+        "Perseverance"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What is the name of NASA's rover that landed in Jezero Crater in 2021?",
+      "options": [
+        "Opportunity",
+        "Spirit",
+        "Perseverance",
+        "Curiosity"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which moon has thick nitrogen-rich atmosphere and methane lakes?",
+      "options": [
+        "Titan",
+        "Europa",
+        "Io",
+        "Triton"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which moon has thick nitrogen-rich atmosphere and methane lakes?",
+      "options": [
+        "Europa",
+        "Io",
+        "Triton",
+        "Titan"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which moon has thick nitrogen-rich atmosphere and methane lakes?",
+      "options": [
+        "Io",
+        "Triton",
+        "Titan",
+        "Europa"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which moon has thick nitrogen-rich atmosphere and methane lakes?",
+      "options": [
+        "Triton",
+        "Titan",
+        "Europa",
+        "Io"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which moon has thick nitrogen-rich atmosphere and methane lakes?",
+      "options": [
+        "Titan",
+        "Europa",
+        "Io",
+        "Triton"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is a supernova?",
+      "options": [
+        "A comet tail",
+        "A galaxy collision only",
+        "A stellar explosion",
+        "A new moon"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What is a supernova?",
+      "options": [
+        "A galaxy collision only",
+        "A stellar explosion",
+        "A new moon",
+        "A comet tail"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What is a supernova?",
+      "options": [
+        "A stellar explosion",
+        "A new moon",
+        "A comet tail",
+        "A galaxy collision only"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What is a supernova?",
+      "options": [
+        "A new moon",
+        "A comet tail",
+        "A galaxy collision only",
+        "A stellar explosion"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What is a supernova?",
+      "options": [
+        "A comet tail",
+        "A galaxy collision only",
+        "A stellar explosion",
+        "A new moon"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which star is closest to Earth after the Sun?",
+      "options": [
+        "Proxima Centauri",
+        "Sirius",
+        "Betelgeuse",
+        "Vega"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which star is closest to Earth after the Sun?",
+      "options": [
+        "Sirius",
+        "Betelgeuse",
+        "Vega",
+        "Proxima Centauri"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which star is closest to Earth after the Sun?",
+      "options": [
+        "Betelgeuse",
+        "Vega",
+        "Proxima Centauri",
+        "Sirius"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which star is closest to Earth after the Sun?",
+      "options": [
+        "Vega",
+        "Proxima Centauri",
+        "Sirius",
+        "Betelgeuse"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which star is closest to Earth after the Sun?",
+      "options": [
+        "Proxima Centauri",
+        "Sirius",
+        "Betelgeuse",
+        "Vega"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What do astronomers call a planet outside our Solar System?",
+      "options": [
+        "Dwarf star",
+        "Planetesimal belt",
+        "Exoplanet",
+        "Rogue moon"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What do astronomers call a planet outside our Solar System?",
+      "options": [
+        "Planetesimal belt",
+        "Exoplanet",
+        "Rogue moon",
+        "Dwarf star"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What do astronomers call a planet outside our Solar System?",
+      "options": [
+        "Exoplanet",
+        "Rogue moon",
+        "Dwarf star",
+        "Planetesimal belt"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What do astronomers call a planet outside our Solar System?",
+      "options": [
+        "Rogue moon",
+        "Dwarf star",
+        "Planetesimal belt",
+        "Exoplanet"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What do astronomers call a planet outside our Solar System?",
+      "options": [
+        "Dwarf star",
+        "Planetesimal belt",
+        "Exoplanet",
+        "Rogue moon"
+      ],
+      "correct_index": 2
+    }
+  ],
+  "Video Games": [
+    {
+      "question": "Which studio developed 'The Legend of Zelda: Breath of the Wild'?",
+      "options": [
+        "Nintendo EPD",
+        "Game Freak",
+        "Monolith Productions",
+        "HAL Laboratory"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which studio developed 'The Legend of Zelda: Breath of the Wild'?",
+      "options": [
+        "Game Freak",
+        "Monolith Productions",
+        "HAL Laboratory",
+        "Nintendo EPD"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which studio developed 'The Legend of Zelda: Breath of the Wild'?",
+      "options": [
+        "Monolith Productions",
+        "HAL Laboratory",
+        "Nintendo EPD",
+        "Game Freak"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which studio developed 'The Legend of Zelda: Breath of the Wild'?",
+      "options": [
+        "HAL Laboratory",
+        "Nintendo EPD",
+        "Game Freak",
+        "Monolith Productions"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which studio developed 'The Legend of Zelda: Breath of the Wild'?",
+      "options": [
+        "Nintendo EPD",
+        "Game Freak",
+        "Monolith Productions",
+        "HAL Laboratory"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "In 'Minecraft', which material is required to craft an enchanting table?",
+      "options": [
+        "Quartz",
+        "Granite",
+        "Obsidian",
+        "Copper"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: In 'Minecraft', which material is required to craft an enchanting table?",
+      "options": [
+        "Granite",
+        "Obsidian",
+        "Copper",
+        "Quartz"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: In 'Minecraft', which material is required to craft an enchanting table?",
+      "options": [
+        "Obsidian",
+        "Copper",
+        "Quartz",
+        "Granite"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: In 'Minecraft', which material is required to craft an enchanting table?",
+      "options": [
+        "Copper",
+        "Quartz",
+        "Granite",
+        "Obsidian"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: In 'Minecraft', which material is required to craft an enchanting table?",
+      "options": [
+        "Quartz",
+        "Granite",
+        "Obsidian",
+        "Copper"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which game series features the city of Rapture?",
+      "options": [
+        "BioShock",
+        "Dishonored",
+        "Half-Life",
+        "Portal"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which game series features the city of Rapture?",
+      "options": [
+        "Dishonored",
+        "Half-Life",
+        "Portal",
+        "BioShock"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which game series features the city of Rapture?",
+      "options": [
+        "Half-Life",
+        "Portal",
+        "BioShock",
+        "Dishonored"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which game series features the city of Rapture?",
+      "options": [
+        "Portal",
+        "BioShock",
+        "Dishonored",
+        "Half-Life"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which game series features the city of Rapture?",
+      "options": [
+        "BioShock",
+        "Dishonored",
+        "Half-Life",
+        "Portal"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which company created the PlayStation console line?",
+      "options": [
+        "Nintendo",
+        "Microsoft",
+        "Sony",
+        "Sega"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which company created the PlayStation console line?",
+      "options": [
+        "Microsoft",
+        "Sony",
+        "Sega",
+        "Nintendo"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which company created the PlayStation console line?",
+      "options": [
+        "Sony",
+        "Sega",
+        "Nintendo",
+        "Microsoft"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which company created the PlayStation console line?",
+      "options": [
+        "Sega",
+        "Nintendo",
+        "Microsoft",
+        "Sony"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which company created the PlayStation console line?",
+      "options": [
+        "Nintendo",
+        "Microsoft",
+        "Sony",
+        "Sega"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which 'Elden Ring' author helped build the game's world lore?",
+      "options": [
+        "George R. R. Martin",
+        "Brandon Sanderson",
+        "Neil Gaiman",
+        "Patrick Rothfuss"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which 'Elden Ring' author helped build the game's world lore?",
+      "options": [
+        "Brandon Sanderson",
+        "Neil Gaiman",
+        "Patrick Rothfuss",
+        "George R. R. Martin"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which 'Elden Ring' author helped build the game's world lore?",
+      "options": [
+        "Neil Gaiman",
+        "Patrick Rothfuss",
+        "George R. R. Martin",
+        "Brandon Sanderson"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which 'Elden Ring' author helped build the game's world lore?",
+      "options": [
+        "Patrick Rothfuss",
+        "George R. R. Martin",
+        "Brandon Sanderson",
+        "Neil Gaiman"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which 'Elden Ring' author helped build the game's world lore?",
+      "options": [
+        "George R. R. Martin",
+        "Brandon Sanderson",
+        "Neil Gaiman",
+        "Patrick Rothfuss"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "In 'Portal', what company built the testing facility?",
+      "options": [
+        "Abstergo",
+        "Shinra",
+        "Aperture Science",
+        "Black Mesa"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: In 'Portal', what company built the testing facility?",
+      "options": [
+        "Shinra",
+        "Aperture Science",
+        "Black Mesa",
+        "Abstergo"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: In 'Portal', what company built the testing facility?",
+      "options": [
+        "Aperture Science",
+        "Black Mesa",
+        "Abstergo",
+        "Shinra"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: In 'Portal', what company built the testing facility?",
+      "options": [
+        "Black Mesa",
+        "Abstergo",
+        "Shinra",
+        "Aperture Science"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: In 'Portal', what company built the testing facility?",
+      "options": [
+        "Abstergo",
+        "Shinra",
+        "Aperture Science",
+        "Black Mesa"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which franchise introduced the character Master Chief?",
+      "options": [
+        "Halo",
+        "Gears of War",
+        "Mass Effect",
+        "Destiny"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which franchise introduced the character Master Chief?",
+      "options": [
+        "Gears of War",
+        "Mass Effect",
+        "Destiny",
+        "Halo"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which franchise introduced the character Master Chief?",
+      "options": [
+        "Mass Effect",
+        "Destiny",
+        "Halo",
+        "Gears of War"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which franchise introduced the character Master Chief?",
+      "options": [
+        "Destiny",
+        "Halo",
+        "Gears of War",
+        "Mass Effect"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which franchise introduced the character Master Chief?",
+      "options": [
+        "Halo",
+        "Gears of War",
+        "Mass Effect",
+        "Destiny"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What genre is 'Stardew Valley' best known for?",
+      "options": [
+        "Rhythm game",
+        "Tactical shooter",
+        "Farming life sim",
+        "Battle royale"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What genre is 'Stardew Valley' best known for?",
+      "options": [
+        "Tactical shooter",
+        "Farming life sim",
+        "Battle royale",
+        "Rhythm game"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What genre is 'Stardew Valley' best known for?",
+      "options": [
+        "Farming life sim",
+        "Battle royale",
+        "Rhythm game",
+        "Tactical shooter"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What genre is 'Stardew Valley' best known for?",
+      "options": [
+        "Battle royale",
+        "Rhythm game",
+        "Tactical shooter",
+        "Farming life sim"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What genre is 'Stardew Valley' best known for?",
+      "options": [
+        "Rhythm game",
+        "Tactical shooter",
+        "Farming life sim",
+        "Battle royale"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which game popularized the phrase 'The cake is a lie'?",
+      "options": [
+        "Portal",
+        "Undertale",
+        "The Stanley Parable",
+        "Braid"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which game popularized the phrase 'The cake is a lie'?",
+      "options": [
+        "Undertale",
+        "The Stanley Parable",
+        "Braid",
+        "Portal"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which game popularized the phrase 'The cake is a lie'?",
+      "options": [
+        "The Stanley Parable",
+        "Braid",
+        "Portal",
+        "Undertale"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which game popularized the phrase 'The cake is a lie'?",
+      "options": [
+        "Braid",
+        "Portal",
+        "Undertale",
+        "The Stanley Parable"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which game popularized the phrase 'The cake is a lie'?",
+      "options": [
+        "Portal",
+        "Undertale",
+        "The Stanley Parable",
+        "Braid"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which company publishes the 'Assassin's Creed' series?",
+      "options": [
+        "Square Enix",
+        "Bandai Namco",
+        "Ubisoft",
+        "Capcom"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which company publishes the 'Assassin's Creed' series?",
+      "options": [
+        "Bandai Namco",
+        "Ubisoft",
+        "Capcom",
+        "Square Enix"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which company publishes the 'Assassin's Creed' series?",
+      "options": [
+        "Ubisoft",
+        "Capcom",
+        "Square Enix",
+        "Bandai Namco"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which company publishes the 'Assassin's Creed' series?",
+      "options": [
+        "Capcom",
+        "Square Enix",
+        "Bandai Namco",
+        "Ubisoft"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which company publishes the 'Assassin's Creed' series?",
+      "options": [
+        "Square Enix",
+        "Bandai Namco",
+        "Ubisoft",
+        "Capcom"
+      ],
+      "correct_index": 2
+    }
+  ],
+  "World Geography": [
+    {
+      "question": "Which country is home to the ancient city of Petra?",
+      "options": [
+        "Jordan",
+        "Egypt",
+        "Turkey",
+        "Morocco"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which country is home to the ancient city of Petra?",
+      "options": [
+        "Egypt",
+        "Turkey",
+        "Morocco",
+        "Jordan"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which country is home to the ancient city of Petra?",
+      "options": [
+        "Turkey",
+        "Morocco",
+        "Jordan",
+        "Egypt"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which country is home to the ancient city of Petra?",
+      "options": [
+        "Morocco",
+        "Jordan",
+        "Egypt",
+        "Turkey"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which country is home to the ancient city of Petra?",
+      "options": [
+        "Jordan",
+        "Egypt",
+        "Turkey",
+        "Morocco"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which river is the longest in South America?",
+      "options": [
+        "Orinoco",
+        "Sao Francisco",
+        "Amazon",
+        "Parana"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which river is the longest in South America?",
+      "options": [
+        "Sao Francisco",
+        "Amazon",
+        "Parana",
+        "Orinoco"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which river is the longest in South America?",
+      "options": [
+        "Amazon",
+        "Parana",
+        "Orinoco",
+        "Sao Francisco"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which river is the longest in South America?",
+      "options": [
+        "Parana",
+        "Orinoco",
+        "Sao Francisco",
+        "Amazon"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which river is the longest in South America?",
+      "options": [
+        "Orinoco",
+        "Sao Francisco",
+        "Amazon",
+        "Parana"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which country has both Atlantic and Mediterranean coastlines?",
+      "options": [
+        "Morocco",
+        "Italy",
+        "Greece",
+        "Croatia"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which country has both Atlantic and Mediterranean coastlines?",
+      "options": [
+        "Italy",
+        "Greece",
+        "Croatia",
+        "Morocco"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which country has both Atlantic and Mediterranean coastlines?",
+      "options": [
+        "Greece",
+        "Croatia",
+        "Morocco",
+        "Italy"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which country has both Atlantic and Mediterranean coastlines?",
+      "options": [
+        "Croatia",
+        "Morocco",
+        "Italy",
+        "Greece"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which country has both Atlantic and Mediterranean coastlines?",
+      "options": [
+        "Morocco",
+        "Italy",
+        "Greece",
+        "Croatia"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the capital of Canada?",
+      "options": [
+        "Vancouver",
+        "Montreal",
+        "Ottawa",
+        "Toronto"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What is the capital of Canada?",
+      "options": [
+        "Montreal",
+        "Ottawa",
+        "Toronto",
+        "Vancouver"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What is the capital of Canada?",
+      "options": [
+        "Ottawa",
+        "Toronto",
+        "Vancouver",
+        "Montreal"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What is the capital of Canada?",
+      "options": [
+        "Toronto",
+        "Vancouver",
+        "Montreal",
+        "Ottawa"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What is the capital of Canada?",
+      "options": [
+        "Vancouver",
+        "Montreal",
+        "Ottawa",
+        "Toronto"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which desert covers much of northern Africa?",
+      "options": [
+        "Sahara",
+        "Gobi",
+        "Kalahari",
+        "Atacama"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which desert covers much of northern Africa?",
+      "options": [
+        "Gobi",
+        "Kalahari",
+        "Atacama",
+        "Sahara"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which desert covers much of northern Africa?",
+      "options": [
+        "Kalahari",
+        "Atacama",
+        "Sahara",
+        "Gobi"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which desert covers much of northern Africa?",
+      "options": [
+        "Atacama",
+        "Sahara",
+        "Gobi",
+        "Kalahari"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which desert covers much of northern Africa?",
+      "options": [
+        "Sahara",
+        "Gobi",
+        "Kalahari",
+        "Atacama"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which mountain range separates Europe and Asia in Russia?",
+      "options": [
+        "Carpathians",
+        "Caucasus",
+        "Ural Mountains",
+        "Alps"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which mountain range separates Europe and Asia in Russia?",
+      "options": [
+        "Caucasus",
+        "Ural Mountains",
+        "Alps",
+        "Carpathians"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which mountain range separates Europe and Asia in Russia?",
+      "options": [
+        "Ural Mountains",
+        "Alps",
+        "Carpathians",
+        "Caucasus"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which mountain range separates Europe and Asia in Russia?",
+      "options": [
+        "Alps",
+        "Carpathians",
+        "Caucasus",
+        "Ural Mountains"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which mountain range separates Europe and Asia in Russia?",
+      "options": [
+        "Carpathians",
+        "Caucasus",
+        "Ural Mountains",
+        "Alps"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which island is divided between Haiti and the Dominican Republic?",
+      "options": [
+        "Hispaniola",
+        "Jamaica",
+        "Cuba",
+        "Puerto Rico"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which island is divided between Haiti and the Dominican Republic?",
+      "options": [
+        "Jamaica",
+        "Cuba",
+        "Puerto Rico",
+        "Hispaniola"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which island is divided between Haiti and the Dominican Republic?",
+      "options": [
+        "Cuba",
+        "Puerto Rico",
+        "Hispaniola",
+        "Jamaica"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which island is divided between Haiti and the Dominican Republic?",
+      "options": [
+        "Puerto Rico",
+        "Hispaniola",
+        "Jamaica",
+        "Cuba"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which island is divided between Haiti and the Dominican Republic?",
+      "options": [
+        "Hispaniola",
+        "Jamaica",
+        "Cuba",
+        "Puerto Rico"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which country surrounds Lesotho?",
+      "options": [
+        "Namibia",
+        "Zimbabwe",
+        "South Africa",
+        "Botswana"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which country surrounds Lesotho?",
+      "options": [
+        "Zimbabwe",
+        "South Africa",
+        "Botswana",
+        "Namibia"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which country surrounds Lesotho?",
+      "options": [
+        "South Africa",
+        "Botswana",
+        "Namibia",
+        "Zimbabwe"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which country surrounds Lesotho?",
+      "options": [
+        "Botswana",
+        "Namibia",
+        "Zimbabwe",
+        "South Africa"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which country surrounds Lesotho?",
+      "options": [
+        "Namibia",
+        "Zimbabwe",
+        "South Africa",
+        "Botswana"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What is the capital of South Korea?",
+      "options": [
+        "Seoul",
+        "Busan",
+        "Incheon",
+        "Daegu"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What is the capital of South Korea?",
+      "options": [
+        "Busan",
+        "Incheon",
+        "Daegu",
+        "Seoul"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What is the capital of South Korea?",
+      "options": [
+        "Incheon",
+        "Daegu",
+        "Seoul",
+        "Busan"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What is the capital of South Korea?",
+      "options": [
+        "Daegu",
+        "Seoul",
+        "Busan",
+        "Incheon"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What is the capital of South Korea?",
+      "options": [
+        "Seoul",
+        "Busan",
+        "Incheon",
+        "Daegu"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which sea lies between Saudi Arabia and Africa?",
+      "options": [
+        "Caspian Sea",
+        "Arabian Sea",
+        "Red Sea",
+        "Black Sea"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which sea lies between Saudi Arabia and Africa?",
+      "options": [
+        "Arabian Sea",
+        "Red Sea",
+        "Black Sea",
+        "Caspian Sea"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which sea lies between Saudi Arabia and Africa?",
+      "options": [
+        "Red Sea",
+        "Black Sea",
+        "Caspian Sea",
+        "Arabian Sea"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which sea lies between Saudi Arabia and Africa?",
+      "options": [
+        "Black Sea",
+        "Caspian Sea",
+        "Arabian Sea",
+        "Red Sea"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which sea lies between Saudi Arabia and Africa?",
+      "options": [
+        "Caspian Sea",
+        "Arabian Sea",
+        "Red Sea",
+        "Black Sea"
+      ],
+      "correct_index": 2
+    }
+  ],
+  "Science": [
+    {
+      "question": "What force keeps planets in orbit around the Sun?",
+      "options": [
+        "Gravity",
+        "Magnetism",
+        "Friction",
+        "Buoyancy"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What force keeps planets in orbit around the Sun?",
+      "options": [
+        "Magnetism",
+        "Friction",
+        "Buoyancy",
+        "Gravity"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What force keeps planets in orbit around the Sun?",
+      "options": [
+        "Friction",
+        "Buoyancy",
+        "Gravity",
+        "Magnetism"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What force keeps planets in orbit around the Sun?",
+      "options": [
+        "Buoyancy",
+        "Gravity",
+        "Magnetism",
+        "Friction"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What force keeps planets in orbit around the Sun?",
+      "options": [
+        "Gravity",
+        "Magnetism",
+        "Friction",
+        "Buoyancy"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which subatomic particle has a negative electric charge?",
+      "options": [
+        "Neutron",
+        "Photon",
+        "Electron",
+        "Proton"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which subatomic particle has a negative electric charge?",
+      "options": [
+        "Photon",
+        "Electron",
+        "Proton",
+        "Neutron"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which subatomic particle has a negative electric charge?",
+      "options": [
+        "Electron",
+        "Proton",
+        "Neutron",
+        "Photon"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which subatomic particle has a negative electric charge?",
+      "options": [
+        "Proton",
+        "Neutron",
+        "Photon",
+        "Electron"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which subatomic particle has a negative electric charge?",
+      "options": [
+        "Neutron",
+        "Photon",
+        "Electron",
+        "Proton"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What is the chemical symbol for sodium?",
+      "options": [
+        "Na",
+        "S",
+        "So",
+        "Sd"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What is the chemical symbol for sodium?",
+      "options": [
+        "S",
+        "So",
+        "Sd",
+        "Na"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What is the chemical symbol for sodium?",
+      "options": [
+        "So",
+        "Sd",
+        "Na",
+        "S"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What is the chemical symbol for sodium?",
+      "options": [
+        "Sd",
+        "Na",
+        "S",
+        "So"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What is the chemical symbol for sodium?",
+      "options": [
+        "Na",
+        "S",
+        "So",
+        "Sd"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which scale is used to measure earthquake magnitude?",
+      "options": [
+        "pH",
+        "Kelvin",
+        "Moment magnitude",
+        "Beaufort"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which scale is used to measure earthquake magnitude?",
+      "options": [
+        "Kelvin",
+        "Moment magnitude",
+        "Beaufort",
+        "pH"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which scale is used to measure earthquake magnitude?",
+      "options": [
+        "Moment magnitude",
+        "Beaufort",
+        "pH",
+        "Kelvin"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which scale is used to measure earthquake magnitude?",
+      "options": [
+        "Beaufort",
+        "pH",
+        "Kelvin",
+        "Moment magnitude"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which scale is used to measure earthquake magnitude?",
+      "options": [
+        "pH",
+        "Kelvin",
+        "Moment magnitude",
+        "Beaufort"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What is the main gas plants take in for photosynthesis?",
+      "options": [
+        "Carbon dioxide",
+        "Oxygen",
+        "Nitrogen",
+        "Helium"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What is the main gas plants take in for photosynthesis?",
+      "options": [
+        "Oxygen",
+        "Nitrogen",
+        "Helium",
+        "Carbon dioxide"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What is the main gas plants take in for photosynthesis?",
+      "options": [
+        "Nitrogen",
+        "Helium",
+        "Carbon dioxide",
+        "Oxygen"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What is the main gas plants take in for photosynthesis?",
+      "options": [
+        "Helium",
+        "Carbon dioxide",
+        "Oxygen",
+        "Nitrogen"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What is the main gas plants take in for photosynthesis?",
+      "options": [
+        "Carbon dioxide",
+        "Oxygen",
+        "Nitrogen",
+        "Helium"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which scientist proposed the theory of general relativity?",
+      "options": [
+        "Isaac Newton",
+        "James Clerk Maxwell",
+        "Albert Einstein",
+        "Niels Bohr"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which scientist proposed the theory of general relativity?",
+      "options": [
+        "James Clerk Maxwell",
+        "Albert Einstein",
+        "Niels Bohr",
+        "Isaac Newton"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which scientist proposed the theory of general relativity?",
+      "options": [
+        "Albert Einstein",
+        "Niels Bohr",
+        "Isaac Newton",
+        "James Clerk Maxwell"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which scientist proposed the theory of general relativity?",
+      "options": [
+        "Niels Bohr",
+        "Isaac Newton",
+        "James Clerk Maxwell",
+        "Albert Einstein"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which scientist proposed the theory of general relativity?",
+      "options": [
+        "Isaac Newton",
+        "James Clerk Maxwell",
+        "Albert Einstein",
+        "Niels Bohr"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What is the pH of a neutral solution at room temperature?",
+      "options": [
+        "7",
+        "0",
+        "3",
+        "14"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What is the pH of a neutral solution at room temperature?",
+      "options": [
+        "0",
+        "3",
+        "14",
+        "7"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What is the pH of a neutral solution at room temperature?",
+      "options": [
+        "3",
+        "14",
+        "7",
+        "0"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What is the pH of a neutral solution at room temperature?",
+      "options": [
+        "14",
+        "7",
+        "0",
+        "3"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What is the pH of a neutral solution at room temperature?",
+      "options": [
+        "7",
+        "0",
+        "3",
+        "14"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which type of electromagnetic radiation has the shortest wavelength?",
+      "options": [
+        "Microwaves",
+        "Infrared",
+        "Gamma rays",
+        "Radio waves"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which type of electromagnetic radiation has the shortest wavelength?",
+      "options": [
+        "Infrared",
+        "Gamma rays",
+        "Radio waves",
+        "Microwaves"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which type of electromagnetic radiation has the shortest wavelength?",
+      "options": [
+        "Gamma rays",
+        "Radio waves",
+        "Microwaves",
+        "Infrared"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which type of electromagnetic radiation has the shortest wavelength?",
+      "options": [
+        "Radio waves",
+        "Microwaves",
+        "Infrared",
+        "Gamma rays"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which type of electromagnetic radiation has the shortest wavelength?",
+      "options": [
+        "Microwaves",
+        "Infrared",
+        "Gamma rays",
+        "Radio waves"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What is the SI unit of electric current?",
+      "options": [
+        "Ampere",
+        "Volt",
+        "Ohm",
+        "Watt"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What is the SI unit of electric current?",
+      "options": [
+        "Volt",
+        "Ohm",
+        "Watt",
+        "Ampere"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What is the SI unit of electric current?",
+      "options": [
+        "Ohm",
+        "Watt",
+        "Ampere",
+        "Volt"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What is the SI unit of electric current?",
+      "options": [
+        "Watt",
+        "Ampere",
+        "Volt",
+        "Ohm"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What is the SI unit of electric current?",
+      "options": [
+        "Ampere",
+        "Volt",
+        "Ohm",
+        "Watt"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which organelle is often called the powerhouse of the cell?",
+      "options": [
+        "Golgi apparatus",
+        "Nucleus",
+        "Mitochondrion",
+        "Ribosome"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which organelle is often called the powerhouse of the cell?",
+      "options": [
+        "Nucleus",
+        "Mitochondrion",
+        "Ribosome",
+        "Golgi apparatus"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which organelle is often called the powerhouse of the cell?",
+      "options": [
+        "Mitochondrion",
+        "Ribosome",
+        "Golgi apparatus",
+        "Nucleus"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which organelle is often called the powerhouse of the cell?",
+      "options": [
+        "Ribosome",
+        "Golgi apparatus",
+        "Nucleus",
+        "Mitochondrion"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which organelle is often called the powerhouse of the cell?",
+      "options": [
+        "Golgi apparatus",
+        "Nucleus",
+        "Mitochondrion",
+        "Ribosome"
+      ],
+      "correct_index": 2
+    }
+  ],
+  "Biology": [
+    {
+      "question": "What molecule carries genetic instructions in most living organisms?",
+      "options": [
+        "DNA",
+        "ATP",
+        "Insulin",
+        "Collagen"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What molecule carries genetic instructions in most living organisms?",
+      "options": [
+        "ATP",
+        "Insulin",
+        "Collagen",
+        "DNA"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What molecule carries genetic instructions in most living organisms?",
+      "options": [
+        "Insulin",
+        "Collagen",
+        "DNA",
+        "ATP"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What molecule carries genetic instructions in most living organisms?",
+      "options": [
+        "Collagen",
+        "DNA",
+        "ATP",
+        "Insulin"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What molecule carries genetic instructions in most living organisms?",
+      "options": [
+        "DNA",
+        "ATP",
+        "Insulin",
+        "Collagen"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which blood cells are primarily responsible for carrying oxygen?",
+      "options": [
+        "Platelets",
+        "Neurons",
+        "Red blood cells",
+        "White blood cells"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which blood cells are primarily responsible for carrying oxygen?",
+      "options": [
+        "Neurons",
+        "Red blood cells",
+        "White blood cells",
+        "Platelets"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which blood cells are primarily responsible for carrying oxygen?",
+      "options": [
+        "Red blood cells",
+        "White blood cells",
+        "Platelets",
+        "Neurons"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which blood cells are primarily responsible for carrying oxygen?",
+      "options": [
+        "White blood cells",
+        "Platelets",
+        "Neurons",
+        "Red blood cells"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which blood cells are primarily responsible for carrying oxygen?",
+      "options": [
+        "Platelets",
+        "Neurons",
+        "Red blood cells",
+        "White blood cells"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What process do plants use to make sugars from light?",
+      "options": [
+        "Photosynthesis",
+        "Fermentation",
+        "Respiration",
+        "Transpiration"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What process do plants use to make sugars from light?",
+      "options": [
+        "Fermentation",
+        "Respiration",
+        "Transpiration",
+        "Photosynthesis"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What process do plants use to make sugars from light?",
+      "options": [
+        "Respiration",
+        "Transpiration",
+        "Photosynthesis",
+        "Fermentation"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What process do plants use to make sugars from light?",
+      "options": [
+        "Transpiration",
+        "Photosynthesis",
+        "Fermentation",
+        "Respiration"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What process do plants use to make sugars from light?",
+      "options": [
+        "Photosynthesis",
+        "Fermentation",
+        "Respiration",
+        "Transpiration"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which part of the brain helps coordinate balance and movement?",
+      "options": [
+        "Hypothalamus",
+        "Hippocampus",
+        "Cerebellum",
+        "Medulla"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which part of the brain helps coordinate balance and movement?",
+      "options": [
+        "Hippocampus",
+        "Cerebellum",
+        "Medulla",
+        "Hypothalamus"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which part of the brain helps coordinate balance and movement?",
+      "options": [
+        "Cerebellum",
+        "Medulla",
+        "Hypothalamus",
+        "Hippocampus"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which part of the brain helps coordinate balance and movement?",
+      "options": [
+        "Medulla",
+        "Hypothalamus",
+        "Hippocampus",
+        "Cerebellum"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which part of the brain helps coordinate balance and movement?",
+      "options": [
+        "Hypothalamus",
+        "Hippocampus",
+        "Cerebellum",
+        "Medulla"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What is the basic unit of life?",
+      "options": [
+        "Cell",
+        "Atom",
+        "Tissue",
+        "Organ"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What is the basic unit of life?",
+      "options": [
+        "Atom",
+        "Tissue",
+        "Organ",
+        "Cell"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What is the basic unit of life?",
+      "options": [
+        "Tissue",
+        "Organ",
+        "Cell",
+        "Atom"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What is the basic unit of life?",
+      "options": [
+        "Organ",
+        "Cell",
+        "Atom",
+        "Tissue"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What is the basic unit of life?",
+      "options": [
+        "Cell",
+        "Atom",
+        "Tissue",
+        "Organ"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which system includes the heart and blood vessels?",
+      "options": [
+        "Endocrine system",
+        "Skeletal system",
+        "Circulatory system",
+        "Digestive system"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which system includes the heart and blood vessels?",
+      "options": [
+        "Skeletal system",
+        "Circulatory system",
+        "Digestive system",
+        "Endocrine system"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which system includes the heart and blood vessels?",
+      "options": [
+        "Circulatory system",
+        "Digestive system",
+        "Endocrine system",
+        "Skeletal system"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which system includes the heart and blood vessels?",
+      "options": [
+        "Digestive system",
+        "Endocrine system",
+        "Skeletal system",
+        "Circulatory system"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which system includes the heart and blood vessels?",
+      "options": [
+        "Endocrine system",
+        "Skeletal system",
+        "Circulatory system",
+        "Digestive system"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which enzyme begins starch digestion in the mouth?",
+      "options": [
+        "Amylase",
+        "Pepsin",
+        "Lipase",
+        "Lactase"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which enzyme begins starch digestion in the mouth?",
+      "options": [
+        "Pepsin",
+        "Lipase",
+        "Lactase",
+        "Amylase"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which enzyme begins starch digestion in the mouth?",
+      "options": [
+        "Lipase",
+        "Lactase",
+        "Amylase",
+        "Pepsin"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which enzyme begins starch digestion in the mouth?",
+      "options": [
+        "Lactase",
+        "Amylase",
+        "Pepsin",
+        "Lipase"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which enzyme begins starch digestion in the mouth?",
+      "options": [
+        "Amylase",
+        "Pepsin",
+        "Lipase",
+        "Lactase"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What term describes an organism that makes its own food?",
+      "options": [
+        "Decomposer",
+        "Carnivore",
+        "Autotroph",
+        "Parasite"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What term describes an organism that makes its own food?",
+      "options": [
+        "Carnivore",
+        "Autotroph",
+        "Parasite",
+        "Decomposer"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What term describes an organism that makes its own food?",
+      "options": [
+        "Autotroph",
+        "Parasite",
+        "Decomposer",
+        "Carnivore"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What term describes an organism that makes its own food?",
+      "options": [
+        "Parasite",
+        "Decomposer",
+        "Carnivore",
+        "Autotroph"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What term describes an organism that makes its own food?",
+      "options": [
+        "Decomposer",
+        "Carnivore",
+        "Autotroph",
+        "Parasite"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which vitamin is produced in human skin after sunlight exposure?",
+      "options": [
+        "Vitamin D",
+        "Vitamin A",
+        "Vitamin C",
+        "Vitamin K"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which vitamin is produced in human skin after sunlight exposure?",
+      "options": [
+        "Vitamin A",
+        "Vitamin C",
+        "Vitamin K",
+        "Vitamin D"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which vitamin is produced in human skin after sunlight exposure?",
+      "options": [
+        "Vitamin C",
+        "Vitamin K",
+        "Vitamin D",
+        "Vitamin A"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which vitamin is produced in human skin after sunlight exposure?",
+      "options": [
+        "Vitamin K",
+        "Vitamin D",
+        "Vitamin A",
+        "Vitamin C"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which vitamin is produced in human skin after sunlight exposure?",
+      "options": [
+        "Vitamin D",
+        "Vitamin A",
+        "Vitamin C",
+        "Vitamin K"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which structure controls what enters and leaves a cell?",
+      "options": [
+        "Nucleolus",
+        "Chromosome",
+        "Cell membrane",
+        "Cell wall"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which structure controls what enters and leaves a cell?",
+      "options": [
+        "Chromosome",
+        "Cell membrane",
+        "Cell wall",
+        "Nucleolus"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which structure controls what enters and leaves a cell?",
+      "options": [
+        "Cell membrane",
+        "Cell wall",
+        "Nucleolus",
+        "Chromosome"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which structure controls what enters and leaves a cell?",
+      "options": [
+        "Cell wall",
+        "Nucleolus",
+        "Chromosome",
+        "Cell membrane"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which structure controls what enters and leaves a cell?",
+      "options": [
+        "Nucleolus",
+        "Chromosome",
+        "Cell membrane",
+        "Cell wall"
+      ],
+      "correct_index": 2
+    }
+  ],
+  "AI & Tech": [
+    {
+      "question": "What does GPU stand for?",
+      "options": [
+        "Graphics Processing Unit",
+        "General Program Utility",
+        "Global Processing Unit",
+        "Graph Protocol Unit"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What does GPU stand for?",
+      "options": [
+        "General Program Utility",
+        "Global Processing Unit",
+        "Graph Protocol Unit",
+        "Graphics Processing Unit"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What does GPU stand for?",
+      "options": [
+        "Global Processing Unit",
+        "Graph Protocol Unit",
+        "Graphics Processing Unit",
+        "General Program Utility"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What does GPU stand for?",
+      "options": [
+        "Graph Protocol Unit",
+        "Graphics Processing Unit",
+        "General Program Utility",
+        "Global Processing Unit"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What does GPU stand for?",
+      "options": [
+        "Graphics Processing Unit",
+        "General Program Utility",
+        "Global Processing Unit",
+        "Graph Protocol Unit"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which field focuses on training models from data rather than hand-coded rules?",
+      "options": [
+        "Compiler design",
+        "Database indexing",
+        "Machine learning",
+        "Packet switching"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which field focuses on training models from data rather than hand-coded rules?",
+      "options": [
+        "Database indexing",
+        "Machine learning",
+        "Packet switching",
+        "Compiler design"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which field focuses on training models from data rather than hand-coded rules?",
+      "options": [
+        "Machine learning",
+        "Packet switching",
+        "Compiler design",
+        "Database indexing"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which field focuses on training models from data rather than hand-coded rules?",
+      "options": [
+        "Packet switching",
+        "Compiler design",
+        "Database indexing",
+        "Machine learning"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which field focuses on training models from data rather than hand-coded rules?",
+      "options": [
+        "Compiler design",
+        "Database indexing",
+        "Machine learning",
+        "Packet switching"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What does API stand for?",
+      "options": [
+        "Application Programming Interface",
+        "Automated Program Index",
+        "Applied Protocol Internet",
+        "Application Process Input"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What does API stand for?",
+      "options": [
+        "Automated Program Index",
+        "Applied Protocol Internet",
+        "Application Process Input",
+        "Application Programming Interface"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What does API stand for?",
+      "options": [
+        "Applied Protocol Internet",
+        "Application Process Input",
+        "Application Programming Interface",
+        "Automated Program Index"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What does API stand for?",
+      "options": [
+        "Application Process Input",
+        "Application Programming Interface",
+        "Automated Program Index",
+        "Applied Protocol Internet"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What does API stand for?",
+      "options": [
+        "Application Programming Interface",
+        "Automated Program Index",
+        "Applied Protocol Internet",
+        "Application Process Input"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which company originally developed Android before Google acquired it?",
+      "options": [
+        "Nokia",
+        "Danger",
+        "Android Inc.",
+        "Palm"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which company originally developed Android before Google acquired it?",
+      "options": [
+        "Danger",
+        "Android Inc.",
+        "Palm",
+        "Nokia"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which company originally developed Android before Google acquired it?",
+      "options": [
+        "Android Inc.",
+        "Palm",
+        "Nokia",
+        "Danger"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which company originally developed Android before Google acquired it?",
+      "options": [
+        "Palm",
+        "Nokia",
+        "Danger",
+        "Android Inc."
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which company originally developed Android before Google acquired it?",
+      "options": [
+        "Nokia",
+        "Danger",
+        "Android Inc.",
+        "Palm"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "In AI, what is a token most commonly used to represent?",
+      "options": [
+        "A chunk of text",
+        "A battery cell",
+        "A network cable",
+        "A CPU core"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: In AI, what is a token most commonly used to represent?",
+      "options": [
+        "A battery cell",
+        "A network cable",
+        "A CPU core",
+        "A chunk of text"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: In AI, what is a token most commonly used to represent?",
+      "options": [
+        "A network cable",
+        "A CPU core",
+        "A chunk of text",
+        "A battery cell"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: In AI, what is a token most commonly used to represent?",
+      "options": [
+        "A CPU core",
+        "A chunk of text",
+        "A battery cell",
+        "A network cable"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: In AI, what is a token most commonly used to represent?",
+      "options": [
+        "A chunk of text",
+        "A battery cell",
+        "A network cable",
+        "A CPU core"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which data structure uses first-in, first-out ordering?",
+      "options": [
+        "Tree",
+        "Graph",
+        "Queue",
+        "Stack"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which data structure uses first-in, first-out ordering?",
+      "options": [
+        "Graph",
+        "Queue",
+        "Stack",
+        "Tree"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which data structure uses first-in, first-out ordering?",
+      "options": [
+        "Queue",
+        "Stack",
+        "Tree",
+        "Graph"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which data structure uses first-in, first-out ordering?",
+      "options": [
+        "Stack",
+        "Tree",
+        "Graph",
+        "Queue"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which data structure uses first-in, first-out ordering?",
+      "options": [
+        "Tree",
+        "Graph",
+        "Queue",
+        "Stack"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What does HTTPS add to HTTP?",
+      "options": [
+        "Encryption via TLS",
+        "Faster images",
+        "Offline storage",
+        "Automatic compression only"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What does HTTPS add to HTTP?",
+      "options": [
+        "Faster images",
+        "Offline storage",
+        "Automatic compression only",
+        "Encryption via TLS"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What does HTTPS add to HTTP?",
+      "options": [
+        "Offline storage",
+        "Automatic compression only",
+        "Encryption via TLS",
+        "Faster images"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What does HTTPS add to HTTP?",
+      "options": [
+        "Automatic compression only",
+        "Encryption via TLS",
+        "Faster images",
+        "Offline storage"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What does HTTPS add to HTTP?",
+      "options": [
+        "Encryption via TLS",
+        "Faster images",
+        "Offline storage",
+        "Automatic compression only"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which language is strongly associated with data science and AI prototyping?",
+      "options": [
+        "CSS",
+        "SQL only",
+        "Python",
+        "HTML"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which language is strongly associated with data science and AI prototyping?",
+      "options": [
+        "SQL only",
+        "Python",
+        "HTML",
+        "CSS"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which language is strongly associated with data science and AI prototyping?",
+      "options": [
+        "Python",
+        "HTML",
+        "CSS",
+        "SQL only"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which language is strongly associated with data science and AI prototyping?",
+      "options": [
+        "HTML",
+        "CSS",
+        "SQL only",
+        "Python"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which language is strongly associated with data science and AI prototyping?",
+      "options": [
+        "CSS",
+        "SQL only",
+        "Python",
+        "HTML"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What is overfitting in machine learning?",
+      "options": [
+        "Learning training data too specifically",
+        "Using too little memory",
+        "Encrypting all weights",
+        "Removing all labels"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What is overfitting in machine learning?",
+      "options": [
+        "Using too little memory",
+        "Encrypting all weights",
+        "Removing all labels",
+        "Learning training data too specifically"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What is overfitting in machine learning?",
+      "options": [
+        "Encrypting all weights",
+        "Removing all labels",
+        "Learning training data too specifically",
+        "Using too little memory"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What is overfitting in machine learning?",
+      "options": [
+        "Removing all labels",
+        "Learning training data too specifically",
+        "Using too little memory",
+        "Encrypting all weights"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What is overfitting in machine learning?",
+      "options": [
+        "Learning training data too specifically",
+        "Using too little memory",
+        "Encrypting all weights",
+        "Removing all labels"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which model type is designed to generate text by predicting likely next tokens?",
+      "options": [
+        "Raster renderer",
+        "Packet router",
+        "Large language model",
+        "Relational database"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which model type is designed to generate text by predicting likely next tokens?",
+      "options": [
+        "Packet router",
+        "Large language model",
+        "Relational database",
+        "Raster renderer"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which model type is designed to generate text by predicting likely next tokens?",
+      "options": [
+        "Large language model",
+        "Relational database",
+        "Raster renderer",
+        "Packet router"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which model type is designed to generate text by predicting likely next tokens?",
+      "options": [
+        "Relational database",
+        "Raster renderer",
+        "Packet router",
+        "Large language model"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which model type is designed to generate text by predicting likely next tokens?",
+      "options": [
+        "Raster renderer",
+        "Packet router",
+        "Large language model",
+        "Relational database"
+      ],
+      "correct_index": 2
+    }
+  ],
+  "Football": [
+    {
+      "question": "Which country won the 2022 FIFA World Cup?",
+      "options": [
+        "Argentina",
+        "France",
+        "Brazil",
+        "Germany"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which country won the 2022 FIFA World Cup?",
+      "options": [
+        "France",
+        "Brazil",
+        "Germany",
+        "Argentina"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which country won the 2022 FIFA World Cup?",
+      "options": [
+        "Brazil",
+        "Germany",
+        "Argentina",
+        "France"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which country won the 2022 FIFA World Cup?",
+      "options": [
+        "Germany",
+        "Argentina",
+        "France",
+        "Brazil"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which country won the 2022 FIFA World Cup?",
+      "options": [
+        "Argentina",
+        "France",
+        "Brazil",
+        "Germany"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which club is associated with the stadium Old Trafford?",
+      "options": [
+        "Arsenal",
+        "Chelsea",
+        "Manchester United",
+        "Liverpool"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which club is associated with the stadium Old Trafford?",
+      "options": [
+        "Chelsea",
+        "Manchester United",
+        "Liverpool",
+        "Arsenal"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which club is associated with the stadium Old Trafford?",
+      "options": [
+        "Manchester United",
+        "Liverpool",
+        "Arsenal",
+        "Chelsea"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which club is associated with the stadium Old Trafford?",
+      "options": [
+        "Liverpool",
+        "Arsenal",
+        "Chelsea",
+        "Manchester United"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which club is associated with the stadium Old Trafford?",
+      "options": [
+        "Arsenal",
+        "Chelsea",
+        "Manchester United",
+        "Liverpool"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "In football, what does VAR stand for?",
+      "options": [
+        "Video Assistant Referee",
+        "Verified Attack Review",
+        "Virtual Area Replay",
+        "Video Advantage Rule"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: In football, what does VAR stand for?",
+      "options": [
+        "Verified Attack Review",
+        "Virtual Area Replay",
+        "Video Advantage Rule",
+        "Video Assistant Referee"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: In football, what does VAR stand for?",
+      "options": [
+        "Virtual Area Replay",
+        "Video Advantage Rule",
+        "Video Assistant Referee",
+        "Verified Attack Review"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: In football, what does VAR stand for?",
+      "options": [
+        "Video Advantage Rule",
+        "Video Assistant Referee",
+        "Verified Attack Review",
+        "Virtual Area Replay"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: In football, what does VAR stand for?",
+      "options": [
+        "Video Assistant Referee",
+        "Verified Attack Review",
+        "Virtual Area Replay",
+        "Video Advantage Rule"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which player is known for the 'Hand of God' goal?",
+      "options": [
+        "Lionel Messi",
+        "Zinedine Zidane",
+        "Diego Maradona",
+        "Pele"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which player is known for the 'Hand of God' goal?",
+      "options": [
+        "Zinedine Zidane",
+        "Diego Maradona",
+        "Pele",
+        "Lionel Messi"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which player is known for the 'Hand of God' goal?",
+      "options": [
+        "Diego Maradona",
+        "Pele",
+        "Lionel Messi",
+        "Zinedine Zidane"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which player is known for the 'Hand of God' goal?",
+      "options": [
+        "Pele",
+        "Lionel Messi",
+        "Zinedine Zidane",
+        "Diego Maradona"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which player is known for the 'Hand of God' goal?",
+      "options": [
+        "Lionel Messi",
+        "Zinedine Zidane",
+        "Diego Maradona",
+        "Pele"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which nation has won the most men's FIFA World Cups?",
+      "options": [
+        "Brazil",
+        "Italy",
+        "Germany",
+        "Argentina"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which nation has won the most men's FIFA World Cups?",
+      "options": [
+        "Italy",
+        "Germany",
+        "Argentina",
+        "Brazil"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which nation has won the most men's FIFA World Cups?",
+      "options": [
+        "Germany",
+        "Argentina",
+        "Brazil",
+        "Italy"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which nation has won the most men's FIFA World Cups?",
+      "options": [
+        "Argentina",
+        "Brazil",
+        "Italy",
+        "Germany"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which nation has won the most men's FIFA World Cups?",
+      "options": [
+        "Brazil",
+        "Italy",
+        "Germany",
+        "Argentina"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How many players does one football team field at kickoff?",
+      "options": [
+        "9",
+        "12",
+        "11",
+        "10"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: How many players does one football team field at kickoff?",
+      "options": [
+        "12",
+        "11",
+        "10",
+        "9"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: How many players does one football team field at kickoff?",
+      "options": [
+        "11",
+        "10",
+        "9",
+        "12"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: How many players does one football team field at kickoff?",
+      "options": [
+        "10",
+        "9",
+        "12",
+        "11"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: How many players does one football team field at kickoff?",
+      "options": [
+        "9",
+        "12",
+        "11",
+        "10"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which tournament is Europe's top club competition?",
+      "options": [
+        "UEFA Champions League",
+        "FA Cup",
+        "Copa del Rey",
+        "Europa Conference League"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which tournament is Europe's top club competition?",
+      "options": [
+        "FA Cup",
+        "Copa del Rey",
+        "Europa Conference League",
+        "UEFA Champions League"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which tournament is Europe's top club competition?",
+      "options": [
+        "Copa del Rey",
+        "Europa Conference League",
+        "UEFA Champions League",
+        "FA Cup"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which tournament is Europe's top club competition?",
+      "options": [
+        "Europa Conference League",
+        "UEFA Champions League",
+        "FA Cup",
+        "Copa del Rey"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which tournament is Europe's top club competition?",
+      "options": [
+        "UEFA Champions League",
+        "FA Cup",
+        "Copa del Rey",
+        "Europa Conference League"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What color card means a player is sent off?",
+      "options": [
+        "Blue",
+        "White",
+        "Red",
+        "Yellow"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What color card means a player is sent off?",
+      "options": [
+        "White",
+        "Red",
+        "Yellow",
+        "Blue"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What color card means a player is sent off?",
+      "options": [
+        "Red",
+        "Yellow",
+        "Blue",
+        "White"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What color card means a player is sent off?",
+      "options": [
+        "Yellow",
+        "Blue",
+        "White",
+        "Red"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What color card means a player is sent off?",
+      "options": [
+        "Blue",
+        "White",
+        "Red",
+        "Yellow"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which country hosted the 2010 FIFA World Cup?",
+      "options": [
+        "South Africa",
+        "Brazil",
+        "Germany",
+        "Russia"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which country hosted the 2010 FIFA World Cup?",
+      "options": [
+        "Brazil",
+        "Germany",
+        "Russia",
+        "South Africa"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which country hosted the 2010 FIFA World Cup?",
+      "options": [
+        "Germany",
+        "Russia",
+        "South Africa",
+        "Brazil"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which country hosted the 2010 FIFA World Cup?",
+      "options": [
+        "Russia",
+        "South Africa",
+        "Brazil",
+        "Germany"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which country hosted the 2010 FIFA World Cup?",
+      "options": [
+        "South Africa",
+        "Brazil",
+        "Germany",
+        "Russia"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which award is given annually by France Football to a top player?",
+      "options": [
+        "Puskas Shield",
+        "FIFA Fair Play Cup",
+        "Ballon d'Or",
+        "Golden Boot"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which award is given annually by France Football to a top player?",
+      "options": [
+        "FIFA Fair Play Cup",
+        "Ballon d'Or",
+        "Golden Boot",
+        "Puskas Shield"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which award is given annually by France Football to a top player?",
+      "options": [
+        "Ballon d'Or",
+        "Golden Boot",
+        "Puskas Shield",
+        "FIFA Fair Play Cup"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which award is given annually by France Football to a top player?",
+      "options": [
+        "Golden Boot",
+        "Puskas Shield",
+        "FIFA Fair Play Cup",
+        "Ballon d'Or"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which award is given annually by France Football to a top player?",
+      "options": [
+        "Puskas Shield",
+        "FIFA Fair Play Cup",
+        "Ballon d'Or",
+        "Golden Boot"
+      ],
+      "correct_index": 2
+    }
+  ],
+  "Cricket": [
+    {
+      "question": "Which country won the 2011 Cricket World Cup?",
+      "options": [
+        "India",
+        "Sri Lanka",
+        "Australia",
+        "Pakistan"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which country won the 2011 Cricket World Cup?",
+      "options": [
+        "Sri Lanka",
+        "Australia",
+        "Pakistan",
+        "India"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which country won the 2011 Cricket World Cup?",
+      "options": [
+        "Australia",
+        "Pakistan",
+        "India",
+        "Sri Lanka"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which country won the 2011 Cricket World Cup?",
+      "options": [
+        "Pakistan",
+        "India",
+        "Sri Lanka",
+        "Australia"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which country won the 2011 Cricket World Cup?",
+      "options": [
+        "India",
+        "Sri Lanka",
+        "Australia",
+        "Pakistan"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "In cricket, what is a batter's score of zero called?",
+      "options": [
+        "Bagel",
+        "Nil-ball",
+        "Duck",
+        "Love"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: In cricket, what is a batter's score of zero called?",
+      "options": [
+        "Nil-ball",
+        "Duck",
+        "Love",
+        "Bagel"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: In cricket, what is a batter's score of zero called?",
+      "options": [
+        "Duck",
+        "Love",
+        "Bagel",
+        "Nil-ball"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: In cricket, what is a batter's score of zero called?",
+      "options": [
+        "Love",
+        "Bagel",
+        "Nil-ball",
+        "Duck"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: In cricket, what is a batter's score of zero called?",
+      "options": [
+        "Bagel",
+        "Nil-ball",
+        "Duck",
+        "Love"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "How many legal balls are usually bowled in one over?",
+      "options": [
+        "6",
+        "5",
+        "8",
+        "10"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: How many legal balls are usually bowled in one over?",
+      "options": [
+        "5",
+        "8",
+        "10",
+        "6"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: How many legal balls are usually bowled in one over?",
+      "options": [
+        "8",
+        "10",
+        "6",
+        "5"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: How many legal balls are usually bowled in one over?",
+      "options": [
+        "10",
+        "6",
+        "5",
+        "8"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: How many legal balls are usually bowled in one over?",
+      "options": [
+        "6",
+        "5",
+        "8",
+        "10"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which format is limited to 20 overs per side?",
+      "options": [
+        "ODI",
+        "The Hundred",
+        "T20",
+        "Test"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which format is limited to 20 overs per side?",
+      "options": [
+        "The Hundred",
+        "T20",
+        "Test",
+        "ODI"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which format is limited to 20 overs per side?",
+      "options": [
+        "T20",
+        "Test",
+        "ODI",
+        "The Hundred"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which format is limited to 20 overs per side?",
+      "options": [
+        "Test",
+        "ODI",
+        "The Hundred",
+        "T20"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which format is limited to 20 overs per side?",
+      "options": [
+        "ODI",
+        "The Hundred",
+        "T20",
+        "Test"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "What is the term for three wickets by a bowler in three consecutive deliveries?",
+      "options": [
+        "Hat-trick",
+        "Triple play",
+        "Powerplay",
+        "Yorker"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: What is the term for three wickets by a bowler in three consecutive deliveries?",
+      "options": [
+        "Triple play",
+        "Powerplay",
+        "Yorker",
+        "Hat-trick"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: What is the term for three wickets by a bowler in three consecutive deliveries?",
+      "options": [
+        "Powerplay",
+        "Yorker",
+        "Hat-trick",
+        "Triple play"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: What is the term for three wickets by a bowler in three consecutive deliveries?",
+      "options": [
+        "Yorker",
+        "Hat-trick",
+        "Triple play",
+        "Powerplay"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: What is the term for three wickets by a bowler in three consecutive deliveries?",
+      "options": [
+        "Hat-trick",
+        "Triple play",
+        "Powerplay",
+        "Yorker"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which trophy is contested by England and Australia in Test cricket?",
+      "options": [
+        "Asia Cup",
+        "Ranji Trophy",
+        "The Ashes",
+        "Border-Gavaskar Trophy"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which trophy is contested by England and Australia in Test cricket?",
+      "options": [
+        "Ranji Trophy",
+        "The Ashes",
+        "Border-Gavaskar Trophy",
+        "Asia Cup"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which trophy is contested by England and Australia in Test cricket?",
+      "options": [
+        "The Ashes",
+        "Border-Gavaskar Trophy",
+        "Asia Cup",
+        "Ranji Trophy"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which trophy is contested by England and Australia in Test cricket?",
+      "options": [
+        "Border-Gavaskar Trophy",
+        "Asia Cup",
+        "Ranji Trophy",
+        "The Ashes"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which trophy is contested by England and Australia in Test cricket?",
+      "options": [
+        "Asia Cup",
+        "Ranji Trophy",
+        "The Ashes",
+        "Border-Gavaskar Trophy"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which fielding position stands directly behind the batter?",
+      "options": [
+        "Wicketkeeper",
+        "Mid-on",
+        "Point",
+        "Long-off"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which fielding position stands directly behind the batter?",
+      "options": [
+        "Mid-on",
+        "Point",
+        "Long-off",
+        "Wicketkeeper"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which fielding position stands directly behind the batter?",
+      "options": [
+        "Point",
+        "Long-off",
+        "Wicketkeeper",
+        "Mid-on"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which fielding position stands directly behind the batter?",
+      "options": [
+        "Long-off",
+        "Wicketkeeper",
+        "Mid-on",
+        "Point"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which fielding position stands directly behind the batter?",
+      "options": [
+        "Wicketkeeper",
+        "Mid-on",
+        "Point",
+        "Long-off"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What does LBW stand for?",
+      "options": [
+        "Line behind wicket",
+        "Left bat wide",
+        "Leg before wicket",
+        "Late bat warning"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What does LBW stand for?",
+      "options": [
+        "Left bat wide",
+        "Leg before wicket",
+        "Late bat warning",
+        "Line behind wicket"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What does LBW stand for?",
+      "options": [
+        "Leg before wicket",
+        "Late bat warning",
+        "Line behind wicket",
+        "Left bat wide"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What does LBW stand for?",
+      "options": [
+        "Late bat warning",
+        "Line behind wicket",
+        "Left bat wide",
+        "Leg before wicket"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What does LBW stand for?",
+      "options": [
+        "Line behind wicket",
+        "Left bat wide",
+        "Leg before wicket",
+        "Late bat warning"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which Indian cricketer is nicknamed 'The Wall'?",
+      "options": [
+        "Rahul Dravid",
+        "Virat Kohli",
+        "MS Dhoni",
+        "Rohit Sharma"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which Indian cricketer is nicknamed 'The Wall'?",
+      "options": [
+        "Virat Kohli",
+        "MS Dhoni",
+        "Rohit Sharma",
+        "Rahul Dravid"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which Indian cricketer is nicknamed 'The Wall'?",
+      "options": [
+        "MS Dhoni",
+        "Rohit Sharma",
+        "Rahul Dravid",
+        "Virat Kohli"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which Indian cricketer is nicknamed 'The Wall'?",
+      "options": [
+        "Rohit Sharma",
+        "Rahul Dravid",
+        "Virat Kohli",
+        "MS Dhoni"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which Indian cricketer is nicknamed 'The Wall'?",
+      "options": [
+        "Rahul Dravid",
+        "Virat Kohli",
+        "MS Dhoni",
+        "Rohit Sharma"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which country won the first men's Cricket World Cup in 1975?",
+      "options": [
+        "England",
+        "India",
+        "West Indies",
+        "Australia"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Which country won the first men's Cricket World Cup in 1975?",
+      "options": [
+        "India",
+        "West Indies",
+        "Australia",
+        "England"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Which country won the first men's Cricket World Cup in 1975?",
+      "options": [
+        "West Indies",
+        "Australia",
+        "England",
+        "India"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Which country won the first men's Cricket World Cup in 1975?",
+      "options": [
+        "Australia",
+        "England",
+        "India",
+        "West Indies"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Which country won the first men's Cricket World Cup in 1975?",
+      "options": [
+        "England",
+        "India",
+        "West Indies",
+        "Australia"
+      ],
+      "correct_index": 2
+    }
+  ],
+  "General Knowledge": [
+    {
+      "question": "Which language has the most native speakers worldwide?",
+      "options": [
+        "Mandarin Chinese",
+        "English",
+        "Spanish",
+        "Hindi"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which language has the most native speakers worldwide?",
+      "options": [
+        "English",
+        "Spanish",
+        "Hindi",
+        "Mandarin Chinese"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which language has the most native speakers worldwide?",
+      "options": [
+        "Spanish",
+        "Hindi",
+        "Mandarin Chinese",
+        "English"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which language has the most native speakers worldwide?",
+      "options": [
+        "Hindi",
+        "Mandarin Chinese",
+        "English",
+        "Spanish"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which language has the most native speakers worldwide?",
+      "options": [
+        "Mandarin Chinese",
+        "English",
+        "Spanish",
+        "Hindi"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the currency of Japan?",
+      "options": [
+        "Yuan",
+        "Ringgit",
+        "Yen",
+        "Won"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What is the currency of Japan?",
+      "options": [
+        "Ringgit",
+        "Yen",
+        "Won",
+        "Yuan"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What is the currency of Japan?",
+      "options": [
+        "Yen",
+        "Won",
+        "Yuan",
+        "Ringgit"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What is the currency of Japan?",
+      "options": [
+        "Won",
+        "Yuan",
+        "Ringgit",
+        "Yen"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What is the currency of Japan?",
+      "options": [
+        "Yuan",
+        "Ringgit",
+        "Yen",
+        "Won"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which planet is known as the Red Planet?",
+      "options": [
+        "Mars",
+        "Venus",
+        "Mercury",
+        "Jupiter"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which planet is known as the Red Planet?",
+      "options": [
+        "Venus",
+        "Mercury",
+        "Jupiter",
+        "Mars"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which planet is known as the Red Planet?",
+      "options": [
+        "Mercury",
+        "Jupiter",
+        "Mars",
+        "Venus"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which planet is known as the Red Planet?",
+      "options": [
+        "Jupiter",
+        "Mars",
+        "Venus",
+        "Mercury"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which planet is known as the Red Planet?",
+      "options": [
+        "Mars",
+        "Venus",
+        "Mercury",
+        "Jupiter"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Who painted the Mona Lisa?",
+      "options": [
+        "Raphael",
+        "Caravaggio",
+        "Leonardo da Vinci",
+        "Michelangelo"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: Who painted the Mona Lisa?",
+      "options": [
+        "Caravaggio",
+        "Leonardo da Vinci",
+        "Michelangelo",
+        "Raphael"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: Who painted the Mona Lisa?",
+      "options": [
+        "Leonardo da Vinci",
+        "Michelangelo",
+        "Raphael",
+        "Caravaggio"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: Who painted the Mona Lisa?",
+      "options": [
+        "Michelangelo",
+        "Raphael",
+        "Caravaggio",
+        "Leonardo da Vinci"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: Who painted the Mona Lisa?",
+      "options": [
+        "Raphael",
+        "Caravaggio",
+        "Leonardo da Vinci",
+        "Michelangelo"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which ocean is the largest?",
+      "options": [
+        "Pacific Ocean",
+        "Atlantic Ocean",
+        "Indian Ocean",
+        "Arctic Ocean"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which ocean is the largest?",
+      "options": [
+        "Atlantic Ocean",
+        "Indian Ocean",
+        "Arctic Ocean",
+        "Pacific Ocean"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which ocean is the largest?",
+      "options": [
+        "Indian Ocean",
+        "Arctic Ocean",
+        "Pacific Ocean",
+        "Atlantic Ocean"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which ocean is the largest?",
+      "options": [
+        "Arctic Ocean",
+        "Pacific Ocean",
+        "Atlantic Ocean",
+        "Indian Ocean"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which ocean is the largest?",
+      "options": [
+        "Pacific Ocean",
+        "Atlantic Ocean",
+        "Indian Ocean",
+        "Arctic Ocean"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the hardest natural substance commonly found on Earth?",
+      "options": [
+        "Granite",
+        "Iron",
+        "Diamond",
+        "Quartz"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What is the hardest natural substance commonly found on Earth?",
+      "options": [
+        "Iron",
+        "Diamond",
+        "Quartz",
+        "Granite"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What is the hardest natural substance commonly found on Earth?",
+      "options": [
+        "Diamond",
+        "Quartz",
+        "Granite",
+        "Iron"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What is the hardest natural substance commonly found on Earth?",
+      "options": [
+        "Quartz",
+        "Granite",
+        "Iron",
+        "Diamond"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What is the hardest natural substance commonly found on Earth?",
+      "options": [
+        "Granite",
+        "Iron",
+        "Diamond",
+        "Quartz"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which instrument has keys, pedals, and strings?",
+      "options": [
+        "Piano",
+        "Violin",
+        "Trumpet",
+        "Flute"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which instrument has keys, pedals, and strings?",
+      "options": [
+        "Violin",
+        "Trumpet",
+        "Flute",
+        "Piano"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which instrument has keys, pedals, and strings?",
+      "options": [
+        "Trumpet",
+        "Flute",
+        "Piano",
+        "Violin"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which instrument has keys, pedals, and strings?",
+      "options": [
+        "Flute",
+        "Piano",
+        "Violin",
+        "Trumpet"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which instrument has keys, pedals, and strings?",
+      "options": [
+        "Piano",
+        "Violin",
+        "Trumpet",
+        "Flute"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the capital city of Australia?",
+      "options": [
+        "Melbourne",
+        "Perth",
+        "Canberra",
+        "Sydney"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What is the capital city of Australia?",
+      "options": [
+        "Perth",
+        "Canberra",
+        "Sydney",
+        "Melbourne"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What is the capital city of Australia?",
+      "options": [
+        "Canberra",
+        "Sydney",
+        "Melbourne",
+        "Perth"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What is the capital city of Australia?",
+      "options": [
+        "Sydney",
+        "Melbourne",
+        "Perth",
+        "Canberra"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What is the capital city of Australia?",
+      "options": [
+        "Melbourne",
+        "Perth",
+        "Canberra",
+        "Sydney"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Which company created the iPhone?",
+      "options": [
+        "Apple",
+        "Samsung",
+        "Nokia",
+        "Motorola"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Quick check: Which company created the iPhone?",
+      "options": [
+        "Samsung",
+        "Nokia",
+        "Motorola",
+        "Apple"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Which option correctly answers this: Which company created the iPhone?",
+      "options": [
+        "Nokia",
+        "Motorola",
+        "Apple",
+        "Samsung"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Trivia round: Which company created the iPhone?",
+      "options": [
+        "Motorola",
+        "Apple",
+        "Samsung",
+        "Nokia"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Pick the best answer: Which company created the iPhone?",
+      "options": [
+        "Apple",
+        "Samsung",
+        "Nokia",
+        "Motorola"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the largest mammal alive today?",
+      "options": [
+        "Giraffe",
+        "Hippopotamus",
+        "Blue whale",
+        "African elephant"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Quick check: What is the largest mammal alive today?",
+      "options": [
+        "Hippopotamus",
+        "Blue whale",
+        "African elephant",
+        "Giraffe"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "Which option correctly answers this: What is the largest mammal alive today?",
+      "options": [
+        "Blue whale",
+        "African elephant",
+        "Giraffe",
+        "Hippopotamus"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Trivia round: What is the largest mammal alive today?",
+      "options": [
+        "African elephant",
+        "Giraffe",
+        "Hippopotamus",
+        "Blue whale"
+      ],
+      "correct_index": 3
+    },
+    {
+      "question": "Pick the best answer: What is the largest mammal alive today?",
+      "options": [
+        "Giraffe",
+        "Hippopotamus",
+        "Blue whale",
+        "African elephant"
+      ],
+      "correct_index": 2
+    }
+  ]
+}

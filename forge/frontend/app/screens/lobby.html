@@ -440,7 +440,7 @@
       <div>
         <label class="input-label" for="input-topic">QUIZ TOPIC</label>
         <input id="input-topic" class="input-field" type="text"
-          placeholder="e.g. Marvel Movies, Space, Cricket..."
+          placeholder="e.g. Movies, Space & Astronomy, Cricket..."
           maxlength="60" autocomplete="off" autocorrect="off"
           oninput="lobbyOnTopicInput()" />
         <p class="topic-char-count"><span id="topic-char-count">0</span>/60</p>
@@ -534,10 +534,9 @@
    ═══════════════════════════════════════════════════════════ */
 
 const TOPIC_SUGGESTIONS = [
-  '🎬 Marvel Movies','🚀 Space & Astronomy','🏏 Cricket',
-  '🎮 Video Games','🌍 World Geography','🧪 Science',
-  '🎵 Music','⚽ Football','🍕 Food & Cuisine',
-  '🤖 AI & Tech','📚 Harry Potter','🦁 Animals',
+  'Movies','Space & Astronomy','Video Games',
+  'World Geography','Science','Biology',
+  'AI & Tech','Football','Cricket','General Knowledge',
 ];
 const AVATAR_COLOURS = ['#E63946','#2196F3','#06D6A0','#9B5DE5','#FF9F1C','#4FC3F7','#FFD93D','#FF6B9D'];
 const AVATARS        = ['😀','🤩','🧠','🦊','🐼','🦁','🐯','🤖','👾','🎩','🦄','🐸'];
@@ -886,10 +885,15 @@ function _renderTeamColumns() {
       <div class="team-topic-wrap">
         <span class="team-topic-sublabel">TOPIC SUGGESTION</span>
         <input id="${inputId}" class="team-topic-input ${colClass}" type="text"
-          placeholder="e.g. Bollywood..."
+          placeholder="e.g. Movies, Cricket, Science..."
           maxlength="60" value="${_escHtml(topicVal)}"
           oninput="lobbyTeamTopicInput('${tid}',this.value)"
           autocomplete="off" autocorrect="off"/>
+        <div class="topic-suggestions">
+          ${TOPIC_SUGGESTIONS.map(t =>
+            `<div class="topic-chip ${topicVal === t ? 'selected' : ''}" onclick="lobbyPickTeamTopic('${tid}','${t}')">${t}</div>`
+          ).join('')}
+        </div>
       </div>` : (topicVal
         ? `<p style="font-family:var(--font-pixel);font-size:6px;color:rgba(255,255,255,0.3);text-align:center;">${_escHtml(topicVal)}</p>`
         : (teamHost ? `<p class="team-empty-note">WAITING FOR ${teamHost.toUpperCase()}<br>TO PICK A TOPIC</p>` : ''));
@@ -967,6 +971,14 @@ function lobbyTeamTopicInput(teamId, value) {
   _teamTopics[teamId] = value;
   lobbyPushTeamInfo();
   _updateStartBtns();
+}
+
+/** Team host picks one of the no-cost Quick Pick topics */
+function lobbyPickTeamTopic(teamId, topic) {
+  Sound.click();
+  _teamTopics[teamId] = topic;
+  lobbyPushTeamInfo();
+  _renderTeamColumns();
 }
 
 /** Push team names + topics to server (debounced to avoid typing glitches) */
@@ -1061,7 +1073,7 @@ function lobbyStartClassic() {
   Sound.gameStart();
   const playMode = State.playMode === 'solo' ? 'solo' : 'classic';
   WS.send({ action:'start_game', topic, mode: State.mode||'medium', play_mode: playMode });
-  Toast.info('Generating your quiz...');
+  Toast.info(TOPIC_SUGGESTIONS.includes(topic) ? 'Loading Quick Pick questions...' : 'Generating your quiz...');
 }
 
 /** Team start — run randomizer animation then fire start_game */

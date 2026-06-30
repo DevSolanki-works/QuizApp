@@ -62,6 +62,7 @@ from app.services.profiles import (
     solo_rewards,
 )
 from app.services.tickets import TicketError, refund_ticket, spend_ticket
+from app.services.quick_picks import get_quick_pick_questions, is_quick_pick_topic
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -880,10 +881,13 @@ async def websocket_endpoint(
 
                 # ── Generate questions ────────────────────────────────────────
                 try:
-                    room.questions = await asyncio.wait_for(
-                        generate_questions(topic),
-                        timeout=GENERATION_TIMEOUT_SECONDS,
-                    )
+                    if is_quick_pick_topic(topic):
+                        room.questions = get_quick_pick_questions(topic)
+                    else:
+                        room.questions = await asyncio.wait_for(
+                            generate_questions(topic),
+                            timeout=GENERATION_TIMEOUT_SECONDS,
+                        )
                 except asyncio.TimeoutError:
                     logger.warning(
                         "Question generation timed out for room '%s'; using fallback", room_code

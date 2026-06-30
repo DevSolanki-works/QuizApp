@@ -116,7 +116,7 @@ class Room(BaseModel):
     team_names: dict[str, str] = Field(
         default_factory=lambda: {"A": "Team A", "B": "Team B"}
     )
-    # team_topics: { "A" → "Marvel Movies", "B" → "Cricket" }
+    # team_topics: { "A" → "Movies", "B" → "Cricket" }
     # Host triggers a random pick; the winner becomes room.topic
     team_topics: dict[str, str] = Field(default_factory=dict)
     # The resolved topic after randomisation (also used by classic/solo)
