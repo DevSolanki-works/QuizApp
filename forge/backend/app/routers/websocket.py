@@ -61,6 +61,7 @@ from app.services.profiles import (
     can_afford_entry,
     solo_rewards,
 )
+from app.services.tickets import TicketError, refund_ticket, spend_ticket
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -223,6 +224,15 @@ def _refund_room_entry_fees(room) -> None:
         if player and player.user_id:
             apply_delta(player.user_id, coins_delta=fee)
     room.entry_fees = {}
+
+
+def _refund_generation_ticket(room) -> None:
+    """Refund the host's generation ticket if quiz startup fails."""
+
+    user_id = getattr(room, "generation_ticket_user_id", None)
+    if user_id:
+        refund_ticket(user_id)
+        room.generation_ticket_user_id = None
 
 
 def _finalize_economy(
@@ -827,6 +837,32 @@ async def websocket_endpoint(
                     room.topic     = topic
                     chosen_team_id = None
 
+                if room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
+                    host_player = room.players.get(room.host)
+                    if not host_player or not host_player.user_id:
+                        if room.entry_fees:
+                            _refund_room_entry_fees(room)
+                        room.status = GameStatus.WAITING
+                        await send_to(websocket, {
+                            "type": "ERROR",
+                            "data": {"message": "Sign in to spend a generation ticket."},
+                        })
+                        continue
+                    try:
+                        spend_ticket(host_player.user_id)
+                        room.generation_ticket_user_id = host_player.user_id
+                    except TicketError:
+                        if room.entry_fees:
+                            _refund_room_entry_fees(room)
+                        room.status = GameStatus.WAITING
+                        await send_to(websocket, {
+                            "type": "ERROR",
+                            "data": {
+                                "message": "Out of generation tickets today. Watch an ad or buy more to keep playing."
+                            },
+                        })
+                        continue
+
                 starting_data: dict[str, Any] = {
                     "topic":           topic,
                     "mode":            room.mode.value,
@@ -859,6 +895,7 @@ async def websocket_endpoint(
                     )
                     if room.entry_fees:
                         _refund_room_entry_fees(room)
+                    _refund_generation_ticket(room)
                     room.status = GameStatus.WAITING
                     room.phase  = RoundPhase.LOBBY
                     await broadcast(room_code, {

@@ -46,6 +46,15 @@ class SyncRequest(BaseModel):
     trophies: int
 
 
+class BuyTicketsRequest(BaseModel):
+    user_id: str
+    num_tickets: int
+
+
+class TicketUserRequest(BaseModel):
+    user_id: str
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _generate_room_code() -> str:
@@ -148,6 +157,71 @@ async def delete_room(code: str):
         raise HTTPException(status_code=404, detail="Room not found")
     del state.rooms[code]
     return {"deleted": code}
+
+
+@router.get("/tickets/{user_id}")
+async def get_tickets(user_id: str):
+    """Return the user's current generation ticket state."""
+    from app.services.tickets import get_or_reset_tickets
+
+    return get_or_reset_tickets(user_id)
+
+
+@router.post("/tickets/buy")
+async def buy_tickets(
+    body: BuyTicketsRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Buy generation tickets with coins after verifying account ownership."""
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    try:
+        from app.services.tickets import buy_tickets_with_coins
+        return buy_tickets_with_coins(body.user_id, body.num_tickets)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Ticket purchase failed: %s", e)
+        raise HTTPException(status_code=500, detail="Ticket purchase failed")
+
+
+@router.post("/tickets/ad-grant")
+async def grant_ticket_for_ad(
+    body: TicketUserRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Grant one generation ticket after a rewarded ad completes."""
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    try:
+        from app.services.tickets import grant_ad_ticket
+        result = grant_ad_ticket(body.user_id)
+        if not result.get("ok"):
+            raise HTTPException(status_code=400, detail="Daily ad ticket cap reached.")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Ad ticket grant failed: %s", e)
+        raise HTTPException(status_code=500, detail="Ad ticket grant failed")
 
 
 @router.post("/economy/reward")

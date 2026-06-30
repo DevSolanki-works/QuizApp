@@ -281,6 +281,34 @@ uvicorn main:app --reload --port 8000
 | `donations` | Ledger tracking micro-transactions / incoming UPI claims. Transitions states: `pending` → `approved` → `rejected`. |
 | `donor_leaderboard` | **SQL VIEW.** Read-only node compilation. Aggregates and displays mathematical calculations summing approved transaction tallies. |
 
+
+### Implemented Schema Additions
+
+```sql
+alter table public.leaderboard
+  add column if not exists tickets_today int default 3,
+  add column if not exists ad_tickets_used_today int default 0,
+  add column if not exists last_ticket_date text default '';
+```
+
+```sql
+create table if not exists public.question_bank (
+  id uuid primary key default gen_random_uuid(),
+  category text not null,
+  question text not null,
+  options jsonb not null,
+  correct_idx int not null,
+  difficulty text default 'medium',
+  times_used int default 0,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_question_bank_category
+  on public.question_bank (category);
+
+alter table public.question_bank enable row level security;
+```
+
 ### Operational Logic
 
 - **Asynchronous Updates:** Ranking data updates run concurrently inside `applyUserEconomy()` via fire-and-forget patterns.
@@ -551,7 +579,8 @@ final = int(base * multi)
 | **32** | App Stream: Removal of out-of-scope compliance assets & Chai4Me logic from native wrapper. | ✅ Done |
 | **33** | App Stream: Realization of feature-gating routes blocking web access to premier arrays. | 🔲 Next |
 | **34** | App Stream: Neo-Brutalism visual skin implementation. Home screen composition **locked** June 22, 2026 (see "Locked Home Screen Composition") — ready to implement against `screens/home.html`. Remaining screens (lobby, game, results) still need their own composition pass before full milestone completion. | 🔄 In Progress |
-| **35** | Query management configurations (5/10/15/20 count array filters) + Social Share tooling. | 🔲 Backlog |
+| **35** | Generation Tickets — Real Spendable Currency. | ✅ Done |
+| **36** | Seed Question Bank data layer. Schema + reviewable seed file are complete; Quick Play UI remains future work. | 🔄 In Progress |
 
 ---
 
@@ -575,6 +604,7 @@ final = int(base * multi)
 - **Verification Audits:** Donation validations remain fully manual to keep the infrastructure footprint lean. Do not write programmatic webhooks or processing scripts to automate payment validation.
 - **Database Views Execution Bounds:** The `donor_leaderboard` relation is an encapsulated SQL View asset; structural update or insertion tasks target checking rules incorrectly and will fail.
 - **Local Identity Life Cycle Limitations:** Client-side token caches (`State.user._credential`) exist strictly within active browser memory contexts and do not survive page reloads. The initialization block handles profile syncing across page reloads via dedicated Supabase calls instead.
+- **Generation Tickets & Question Bank Data Layer (June 30, 2026):** Custom Room generation ticket refund-on-failure follows the same pattern as entry fee refunds in the WebSocket startup flow. The rewarded-ad ticket cap is enforced server-side in `backend/app/services/tickets.py`, not only by future client UI. The reviewable question bank seed file lives at `supabase/seeds/seed_question_bank.py`.
 - **Frontend Fork Decision (June 19, 2026):** Resolved the Milestone 31 architecture question — frontend physically splits into `web/` and `app/`; backend remains single and shared across both targets; gating of premium features (Team mode, leaderboard) is UI-only, never backend-side.
 - **Visual Identity Pivot (June 20, 2026):** The Milestone 31 Clash Royale-inspired UI direction is superseded. New target: Neo-Brutalism, modeled on a reference mockup (dark charcoal background, thick black borders, hard offset shadows, flat green/red/cream color blocking).
 - **Home Screen Structure Exploration (June 22, 2026):** Three structural directions were mocked up against the Neo-Brutalism palette: (1) a direct reskin of the original stacked-button list with brutalist borders/shadows — rejected, felt like a reskin rather than a real structural change; (2) a restructured version with a single dominant primary CTA, a two-tile Create/Join row, and a de-emphasized utility row — **selected as the base direction**; (3) a zine/collage variant adding a torn zigzag section divider, a giant translucent "?" watermark, taped sticker badges, a ticket-notched CTA, alternating-rotation tiles, and a scrolling marquee footer — explored, but explicitly **not selected**; logged here so it isn't re-proposed from scratch. Direction (2) was finalized with one adjustment: the decorative retro-monitor icon was swapped for a dedicated trophy badge, since trophy iconography is a core identity element used across results, leaderboard, and the economy, and needed to stay visually present on the home hero rather than be replaced by a generic icon. See "Locked Home Screen Composition" above for the final structure and `forge-neo-brutalism-home-final.html` for the implementation reference.
