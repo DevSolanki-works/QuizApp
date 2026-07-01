@@ -1,0 +1,3 @@
+# This directory holds bundled static data files.
+# quick_picks_questions.json — bundled question bank for Quick Pick topics
+# profiles.json — runtime file-backed profile store (gitignored)
