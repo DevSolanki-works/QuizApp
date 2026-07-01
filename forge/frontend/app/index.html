@@ -156,48 +156,6 @@
     }
     .screen.active { display: flex; }
 
-    .initial-landing-copy {
-      width: 100%;
-      min-height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 18px;
-      padding: 42px 24px 72px;
-      text-align: center;
-    }
-    .initial-landing-copy h1 {
-      font-family: var(--font-pixel);
-      font-size: clamp(18px, 5vw, 30px);
-      color: var(--yellow);
-      line-height: 1.5;
-    }
-    .initial-landing-copy p {
-      max-width: 660px;
-      margin: 0 auto;
-      font-size: 16px;
-      font-weight: 800;
-      line-height: 1.8;
-      color: rgba(255,255,255,0.78);
-    }
-    .initial-landing-links {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    .initial-landing-links a {
-      color: var(--yellow);
-      font-family: var(--font-pixel);
-      font-size: 7px;
-      text-decoration: none;
-      border: 1px solid rgba(255,217,61,0.35);
-      border-radius: var(--radius-pill);
-      padding: 10px 14px;
-      background: rgba(255,255,255,0.06);
-    }
-
     /* ── BUTTONS ─────────────────────────────────────────── */
     .btn {
       display: flex; align-items: center; justify-content: center;
@@ -421,75 +379,71 @@
       border: 1px solid rgba(255,255,255,0.18) !important; font-size: 5.5px;
     }
     .cookie-decline:hover { background: rgba(255,255,255,0.14); }
+
+    /* ── NOTIFICATION PERMISSION SHEET ───────────────────── */
+    #notif-permission-modal {
+      display: none; position: fixed; inset: 0; z-index: 8000;
+      background: rgba(9,15,80,0.96); backdrop-filter: blur(8px);
+      align-items: flex-end; justify-content: center;
+    }
+    .notif-sheet {
+      width: 100%; max-width: var(--max-w);
+      background: var(--bg-mid);
+      border: 1.5px solid rgba(255,255,255,0.12);
+      border-bottom: none; border-radius: 20px 20px 0 0;
+      padding: 28px 24px 44px;
+      display: flex; flex-direction: column; gap: 20px;
+      animation: sheet-up 0.35s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    @keyframes sheet-up {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .notif-sheet-title {
+      font-family: var(--font-pixel); font-size: 11px;
+      color: var(--white); text-align: center; letter-spacing: 1px; line-height: 1.6;
+    }
+    .notif-perks { display: flex; flex-direction: column; gap: 10px; }
+    .notif-perk {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .notif-perk-icon { font-size: 18px; flex-shrink: 0; }
+    .notif-perk-text {
+      font-family: var(--font-body); font-size: 13px; font-weight: 700;
+      color: rgba(255,255,255,0.75); line-height: 1.4;
+    }
+    .notif-close {
+      font-family: var(--font-pixel); font-size: 7px;
+      color: rgba(255,255,255,0.3); text-align: center;
+      cursor: pointer; padding: 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .notif-close:active { color: rgba(255,255,255,0.55); }
   </style>
 </head>
 <body>
 <!-- ═══════════════════════════════════════════
      SPLASH SCREEN
-     Shown instantly on app open, dismissed once
-     boot completes. Pure CSS — no JS dependency.
 ════════════════════════════════════════════ -->
 <div id="forge-splash" style="
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
+  position: fixed; inset: 0; z-index: 99999;
   background: #0D1B8E;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 0;
   transition: opacity 0.5s ease, transform 0.5s ease;
 ">
-  <!-- Trophy icon -->
-  <div style="
-    font-size: 52px;
-    line-height: 1;
-    margin-bottom: 24px;
-    animation: splash-trophy 1.2s cubic-bezier(0.34,1.56,0.64,1) both;
-  ">🏆</div>
-
-  <!-- FORGE wordmark -->
-  <div style="
-    font-family: 'Press Start 2P', monospace;
-    font-size: 32px;
-    color: #FFD93D;
-    letter-spacing: 8px;
-    line-height: 1;
-    animation: splash-title 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.15s both;
-  ">FORGE</div>
-
-  <!-- Subtitle -->
-  <div style="
-    font-family: 'Press Start 2P', monospace;
-    font-size: 6px;
-    color: rgba(255,255,255,0.3);
-    letter-spacing: 3px;
-    margin-top: 10px;
-    animation: splash-title 0.8s ease 0.3s both;
-  ">AI TRIVIA SHOWDOWN</div>
-
-  <!-- Loading dots -->
-  <div style="
-    display: flex;
-    gap: 7px;
-    margin-top: 48px;
-    animation: splash-title 0.6s ease 0.5s both;
-  ">
+  <div style="font-size:52px;line-height:1;margin-bottom:24px;animation:splash-trophy 1.2s cubic-bezier(0.34,1.56,0.64,1) both;">🏆</div>
+  <div style="font-family:'Press Start 2P',monospace;font-size:32px;color:#FFD93D;letter-spacing:8px;line-height:1;animation:splash-title 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.15s both;">FORGE</div>
+  <div style="font-family:'Press Start 2P',monospace;font-size:6px;color:rgba(255,255,255,0.3);letter-spacing:3px;margin-top:10px;animation:splash-title 0.8s ease 0.3s both;">AI TRIVIA SHOWDOWN</div>
+  <div style="display:flex;gap:7px;margin-top:48px;animation:splash-title 0.6s ease 0.5s both;">
     <div style="width:8px;height:8px;border-radius:50%;background:#FFD93D;animation:splash-dot 1.2s 0.6s infinite ease-in-out;"></div>
     <div style="width:8px;height:8px;border-radius:50%;background:#FFD93D;animation:splash-dot 1.2s 0.8s infinite ease-in-out;"></div>
     <div style="width:8px;height:8px;border-radius:50%;background:#FFD93D;animation:splash-dot 1.2s 1.0s infinite ease-in-out;"></div>
   </div>
-
-  <!-- Version -->
-  <div style="
-    position: absolute;
-    bottom: 32px;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 5px;
-    color: rgba(255,255,255,0.15);
-    letter-spacing: 1px;
-  ">v1.0.4</div>
+  <div style="position:absolute;bottom:32px;font-family:'Press Start 2P',monospace;font-size:5px;color:rgba(255,255,255,0.15);letter-spacing:1px;">v1.0.4</div>
 </div>
 
 <style>
@@ -506,27 +460,28 @@
     40%          { transform: scale(1.2); opacity: 1; }
   }
   #forge-splash.splash-out {
-    opacity: 0;
-    transform: scale(1.03);
-    pointer-events: none;
+    opacity: 0; transform: scale(1.03); pointer-events: none;
   }
 </style>
+
 <div id="app">
   <div id="toast-container"></div>
 
   <header id="app-header" style="
-    position:fixed; top:0; left:50%; transform:translateX(-50%);
-    width:100%; max-width:var(--max-w); height:var(--header-h);
-    z-index:1000; display:none;
+    position:fixed;top:0;left:50%;transform:translateX(-50%);
+    width:100%;max-width:var(--max-w);height:var(--header-h);
+    z-index:1000;display:none;
   "></header>
 
-  <section id="screen-home"    class="screen active"></section>
-  <section id="screen-lobby"   class="screen"></section>
-  <section id="screen-game"    class="screen"></section>
-  <section id="screen-results" class="screen"></section>
-  <section id="screen-leaderboard" class="screen"></section>
-  <section id="screen-settings" class="screen"></section>
+  <section id="screen-home"         class="screen active"></section>
+  <section id="screen-lobby"        class="screen"></section>
+  <section id="screen-game"         class="screen"></section>
+  <section id="screen-results"      class="screen"></section>
+  <section id="screen-leaderboard"  class="screen"></section>
+  <section id="screen-settings"     class="screen"></section>
+  <section id="screen-daily-reward" class="screen"></section>
 
+  <!-- COOKIE CONSENT BANNER -->
   <div id="cookie-banner" role="dialog" aria-modal="false" aria-label="Cookie consent">
     <p class="cookie-text">
       We use cookies and browser storage to save your high scores, mute settings,
@@ -542,24 +497,57 @@
       <button class="cookie-btn cookie-decline" onclick="cookieDecline()">NON-PERSONALISED ADS</button>
     </div>
   </div>
+
+  <!-- NOTIFICATION PERMISSION BOTTOM SHEET
+       Shown on first native app open, before home screen.
+       Explains why, then triggers the real OS permission dialog. -->
+  <div id="notif-permission-modal" onclick="_notifModalBgClick(event)">
+    <div class="notif-sheet" onclick="event.stopPropagation()">
+
+      <p class="notif-sheet-title">🔔 STAY IN THE GAME</p>
+
+      <div class="notif-perks">
+        <div class="notif-perk">
+          <span class="notif-perk-icon">🔥</span>
+          <span class="notif-perk-text">Daily streak reminders so you never lose your winning streak</span>
+        </div>
+        <div class="notif-perk">
+          <span class="notif-perk-icon">🎁</span>
+          <span class="notif-perk-text">Get nudged when your daily login reward is waiting</span>
+        </div>
+        <div class="notif-perk">
+          <span class="notif-perk-icon">⚡</span>
+          <span class="notif-perk-text">Challenge alerts and game updates</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="_notifRequestPermission()">
+        🔔 &nbsp;ALLOW NOTIFICATIONS
+      </button>
+
+      <div class="notif-close" onclick="_notifModalDismiss(false)">
+        NOT NOW — I'LL ENABLE IN SETTINGS
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
 /* ══════════════════════════════════════════════════════════
    CONFIG
    ══════════════════════════════════════════════════════════ */
-const PLATFORM = window.FORGE_PLATFORM || {};
+const PLATFORM      = window.FORGE_PLATFORM || {};
 const IS_NATIVE_APP = !!PLATFORM.isNativeApp;
-const IS_FIRE_OS = !!PLATFORM.isFireOS;
+const IS_FIRE_OS    = !!PLATFORM.isFireOS;
 const IS_APP_TARGET = PLATFORM.target === 'app';
-const IS_LOCAL_DEV = !!PLATFORM.isLocalDev;
+const IS_LOCAL_DEV  = !!PLATFORM.isLocalDev;
 
 const API_BASE = PLATFORM.backendHttp || (
   IS_LOCAL_DEV
     ? 'http://127.0.0.1:8000'
     : 'https://forge-backend-878124462453.us-central1.run.app'
 );
-const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
+const WS_BASE = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 
 const GOOGLE_CLIENT_ID = '878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com';
 
@@ -575,12 +563,14 @@ const Session = {
       isHost:     State.isHost,
       playMode:   State.playMode,
       user: State.user ? {
-        id:          State.user.id,
-        name:        State.user.name,
-        email:       State.user.email,
-        picture:     State.user.picture,
-        _credential: State.user._credential,
-        // intentionally omit coins and trophies — always fetched fresh from Supabase
+        id:               State.user.id,
+        name:             State.user.name,
+        email:            State.user.email,
+        picture:          State.user.picture,
+        _credential:      State.user._credential,
+        last_reward_date: State.user.last_reward_date,
+        reward_day:       State.user.reward_day,
+        // intentionally omit coins/trophies — always fetched fresh from Supabase
       } : null,
     };
     localStorage.setItem(this.KEY, JSON.stringify(data));
@@ -636,8 +626,6 @@ async function applyUserEconomy(economy) {
   let baseCoins    = _safeEconomyNumber(State.user.coins);
   let baseTrophies = _safeEconomyNumber(State.user.trophies);
 
-  // Android's backend profile cache can lag behind Supabase. Treat the
-  // GAME_OVER payload as a delta and always apply it to the newest row.
   if (typeof lbFetchProfile === 'function') {
     try {
       const fresh = await lbFetchProfile(State.user.id);
@@ -653,9 +641,9 @@ async function applyUserEconomy(economy) {
     }
   }
 
-  const coinDelta    = _safeEconomyNumber(economy.coins_delta);
-  const trophyDelta  = _safeEconomyNumber(economy.trophies_delta);
-  const backendCoins = _safeEconomyNumber(economy.coins);
+  const coinDelta       = _safeEconomyNumber(economy.coins_delta);
+  const trophyDelta     = _safeEconomyNumber(economy.trophies_delta);
+  const backendCoins    = _safeEconomyNumber(economy.coins);
   const backendTrophies = _safeEconomyNumber(economy.trophies);
 
   if (coinDelta !== null) {
@@ -670,7 +658,7 @@ async function applyUserEconomy(economy) {
     State.user.trophies = Math.max(0, Math.round(backendTrophies));
   }
 
-  if (economy.coins !== undefined) economy.coins = State.user.coins;
+  if (economy.coins !== undefined)   economy.coins    = State.user.coins;
   if (economy.trophies !== undefined) economy.trophies = State.user.trophies;
 
   Session.save();
@@ -680,12 +668,12 @@ async function applyUserEconomy(economy) {
     let tickets = null;
     try {
       tickets = await API.getTickets(State.user.id);
-      State.user.tickets_today = tickets.tickets_today;
-      State.user.ad_tickets_used_today = tickets.ad_tickets_used_today;
-      State.user.last_ticket_date = tickets.last_ticket_date;
+      State.user.tickets_today          = tickets.tickets_today;
+      State.user.ad_tickets_used_today  = tickets.ad_tickets_used_today;
+      State.user.last_ticket_date       = tickets.last_ticket_date;
       Session.save();
     } catch (e) {
-      console.warn('[Tickets] Mirror fetch failed, leaving Supabase ticket fields unchanged:', e);
+      console.warn('[Tickets] Mirror fetch failed:', e);
     }
     syncTasks.push(
       lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, tickets)
@@ -704,8 +692,10 @@ if (_savedSession) {
   State.playMode   = _savedSession.playMode   || 'classic';
   State.user       = _savedSession.user       || null;
   if (State.user) {
-    if (State.user.coins    === undefined) State.user.coins    = 200;
-    if (State.user.trophies === undefined) State.user.trophies = 50;
+    if (State.user.coins            === undefined) State.user.coins            = 200;
+    if (State.user.trophies         === undefined) State.user.trophies         = 50;
+    if (State.user.last_reward_date === undefined) State.user.last_reward_date = '';
+    if (State.user.reward_day       === undefined) State.user.reward_day       = 0;
   }
 }
 
@@ -713,27 +703,23 @@ if (_savedSession) {
    ROUTER
    ══════════════════════════════════════════════════════════ */
 const Screens = {
-  home        : { id: 'screen-home',        file: 'screens/home.html'        },
-  lobby       : { id: 'screen-lobby',       file: 'screens/lobby.html'       },
-  game        : { id: 'screen-game',        file: 'screens/game.html'        },
-  results     : { id: 'screen-results',     file: 'screens/results.html'     },
-  leaderboard : { id: 'screen-leaderboard', file: 'screens/leaderboard.html' },
-  settings    : { id: 'screen-settings',    file: 'screens/settings.html'    },
+  home         : { id: 'screen-home',         file: 'screens/home.html'         },
+  lobby        : { id: 'screen-lobby',        file: 'screens/lobby.html'        },
+  game         : { id: 'screen-game',         file: 'screens/game.html'         },
+  results      : { id: 'screen-results',      file: 'screens/results.html'      },
+  leaderboard  : { id: 'screen-leaderboard',  file: 'screens/leaderboard.html'  },
+  settings     : { id: 'screen-settings',     file: 'screens/settings.html'     },
+  'daily-reward': { id: 'screen-daily-reward', file: 'screens/daily-reward.html' },
 };
 
-/*
- * Screen guards — each returns true if navigation to that screen is valid.
- * Prevents direct URL access to mid-game screens (e.g. /#results, /#game).
- * landing and home are always accessible (no guard needed).
- */
 const SCREEN_GUARDS = {
-  lobby  : () => !!(State.roomCode && State.playerName),
-  game   : () => !!(State.roomCode && State.playerName && State.ws),
-  results: () => !!(State.scores && Object.keys(State.scores).length > 0),
+  lobby        : () => !!(State.roomCode && State.playerName),
+  game         : () => !!(State.roomCode && State.playerName && State.ws),
+  results      : () => !!(State.scores && Object.keys(State.scores).length > 0),
+  'daily-reward': () => !!(State.user),
 };
 
 async function goTo(name, skipHash = false) {
-  // Guard check — redirect if required state is missing
   const guard = SCREEN_GUARDS[name];
   if (guard && !guard()) {
     console.warn(`[Router] Guard blocked '${name}' → redirecting to 'home'`);
@@ -746,7 +732,6 @@ async function goTo(name, skipHash = false) {
   const el = document.getElementById(cfg.id);
   if (!el) return;
 
-  // Load screen HTML if not already loaded
   if (!el.dataset.loaded) {
     try {
       const res  = await fetch(cfg.file);
@@ -754,7 +739,6 @@ async function goTo(name, skipHash = false) {
       const html = await res.text();
       el.innerHTML = html;
       el.dataset.loaded = 'true';
-      // Re-execute any <script> blocks inside the loaded HTML
       el.querySelectorAll('script').forEach(old => {
         const s = document.createElement('script');
         s.textContent = old.textContent;
@@ -767,22 +751,18 @@ async function goTo(name, skipHash = false) {
     }
   }
 
-  // Activate screen
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   el.classList.add('active');
   if (!skipHash) window.location.hash = name;
   State.currentScreen = name;
 
-  // Hide footer during gameplay
   const footer = document.getElementById('app-footer');
   if (footer) footer.classList.toggle('game-active', name === 'game');
 
-  // Call screen lifecycle hook if defined
-  const hook = `on${name.charAt(0).toUpperCase() + name.slice(1)}Show`;
+  const hook = `on${name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('')}Show`;
   if (typeof window[hook] === 'function') window[hook]();
 }
 
-// Single hashchange listener — guarded via goTo()
 window.addEventListener('hashchange', () => {
   const h = window.location.hash.replace('#', '') || 'home';
   goTo(h, true);
@@ -850,18 +830,9 @@ const API = {
     return r.json();
   },
 
-  /*
-   * Sync backend profile store with Supabase state.
-   * Requires a live Google ID token (only available in the same browser session
-   * as sign-in). On page reload, _credential is gone — sync is skipped silently.
-   * The Supabase boot-sync path handles cross-device/cross-session consistency.
-   */
   async syncProfile(userId, coins, trophies) {
     const credential = State.user?._credential;
-    if (!credential) {
-      console.debug('[API] syncProfile: no live credential, skipping backend sync');
-      return;
-    }
+    if (!credential) return;
     return fetch(`${API_BASE}/economy/sync`, {
       method  : 'POST',
       headers : {
@@ -945,28 +916,23 @@ function spawnStars(container) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   SOUND ENGINE — clean rewrite
-   Single AudioContext, unlocked on first gesture.
-   BGM auto-starts after unlock if enabled.
+   SOUND ENGINE
    ══════════════════════════════════════════════════════════ */
 const Sound = {
   _ctx        : null,
   _masterGain : null,
   _bgInterval : null,
-  _unlocked   : false,   // true once AudioContext is running
+  _unlocked   : false,
   sfxEnabled  : true,
   bgmEnabled  : true,
   muted       : false,
 
-  /* ── INIT (idempotent) ──────────────────────────────── */
   init() {
     if (this._ctx) return;
     try {
       this._ctx = new (window.AudioContext || window.webkitAudioContext)();
       this._masterGain = this._ctx.createGain();
       this._masterGain.connect(this._ctx.destination);
-
-      // Read persisted settings
       try {
         const s = JSON.parse(localStorage.getItem('forge_settings_v1') || '{}');
         const vol       = s.volume != null ? s.volume / 100 : 1;
@@ -982,20 +948,15 @@ const Sound = {
     }
   },
 
-  /* ── UNLOCK (called from gesture handler) ───────────── */
   unlock() {
     if (this._unlocked) return;
     this.init();
     if (!this._ctx) return;
-
     const doUnlock = () => {
       if (this._unlocked) return;
       this._unlocked = true;
-      console.log('[Sound] Unlocked');
-      // Start BGM now that context is running
       if (this.bgmEnabled) this._startBgmNow();
     };
-
     if (this._ctx.state === 'running') {
       doUnlock();
     } else {
@@ -1003,7 +964,6 @@ const Sound = {
     }
   },
 
-  /* ── INTERNAL: play a single tone ───────────────────── */
   _tone(freq, type, duration, volume, startTime) {
     if (!this._ctx || !this._masterGain) return;
     try {
@@ -1020,18 +980,15 @@ const Sound = {
     } catch (_) {}
   },
 
-  /* ── INTERNAL: actually start the BGM interval ──────── */
   _startBgmNow() {
-    if (this._bgInterval) return;   // already running
+    if (this._bgInterval) return;
     const notes = [261, 329, 392, 440, 523, 392, 329, 261];
     let i = 0;
     this._bgInterval = setInterval(() => {
       if (!this._ctx || !this._unlocked) return;
-      if (!this.bgmEnabled)             { this.stopBgMusic(); return; }
+      if (!this.bgmEnabled) { this.stopBgMusic(); return; }
       if (this._ctx.state !== 'running') return;
       const t = this._ctx.currentTime;
-      this._tone('triangle', 'triangle', 0.55, 0.325, t);
-      // inline to avoid extra fn call overhead
       try {
         const osc  = this._ctx.createOscillator();
         const gain = this._ctx.createGain();
@@ -1048,14 +1005,9 @@ const Sound = {
     }, 500);
   },
 
-  /* ── PUBLIC: BGM control ─────────────────────────────── */
   startBgMusic() {
     if (!this.bgmEnabled) return;
-    if (this._unlocked) {
-      this._startBgmNow();
-    }
-    // If not unlocked yet, BGM will auto-start when unlock() is called
-    // (which happens on the first user gesture)
+    if (this._unlocked) this._startBgmNow();
   },
 
   stopBgMusic() {
@@ -1063,24 +1015,14 @@ const Sound = {
     this._bgInterval = null;
   },
 
-  /* ── PUBLIC: SFX ─────────────────────────────────────── */
-  click() {
-    if (!this.sfxEnabled || !this._unlocked) return;
-    this._tone(700, 'sine', 0.06, 0.22, this._ctx.currentTime);
-  },
-
-  tick() {
-    if (!this.sfxEnabled || !this._unlocked) return;
-    this._tone(1050, 'square', 0.04, 0.18, this._ctx.currentTime);
-  },
-
+  click()      { if (!this.sfxEnabled || !this._unlocked) return; this._tone(700, 'sine', 0.06, 0.22, this._ctx.currentTime); },
+  tick()       { if (!this.sfxEnabled || !this._unlocked) return; this._tone(1050, 'square', 0.04, 0.18, this._ctx.currentTime); },
   playerJoin() {
     if (!this.sfxEnabled || !this._unlocked) return;
     const t = this._ctx.currentTime;
     this._tone(880,  'sine', 0.12, 0.28, t);
     this._tone(1100, 'sine', 0.18, 0.22, t + 0.10);
   },
-
   correct() {
     if (!this.sfxEnabled || !this._unlocked) return;
     const t = this._ctx.currentTime;
@@ -1089,22 +1031,17 @@ const Sound = {
     this._tone(784,  'sine', 0.20, 0.45, t + 0.20);
     this._tone(1047, 'sine', 0.35, 0.40, t + 0.32);
   },
-
   wrong() {
     if (!this.sfxEnabled || !this._unlocked) return;
     const t = this._ctx.currentTime;
     this._tone(220, 'sawtooth', 0.18, 0.35, t);
     this._tone(155, 'sawtooth', 0.22, 0.28, t + 0.18);
   },
-
   gameStart() {
     if (!this.sfxEnabled || !this._unlocked) return;
     const t = this._ctx.currentTime;
-    [523, 659, 784, 1047].forEach((f, i) =>
-      this._tone(f, 'square', 0.14, 0.28, t + i * 0.14)
-    );
+    [523, 659, 784, 1047].forEach((f, i) => this._tone(f, 'square', 0.14, 0.28, t + i * 0.14));
   },
-
   combo() {
     if (!this.sfxEnabled || !this._unlocked) return;
     const t = this._ctx.currentTime;
@@ -1114,7 +1051,6 @@ const Sound = {
     this._tone(1047, 'square', 0.18, 0.50, t + 0.27);
     this._tone(1319, 'sine',   0.28, 0.55, t + 0.39);
   },
-
   gameOver() {
     if (!this.sfxEnabled || !this._unlocked) return;
     const t = this._ctx.currentTime;
@@ -1122,14 +1058,11 @@ const Sound = {
     const times = [0, 0.14, 0.28, 0.40, 0.54, 0.68];
     notes.forEach((f, i) => this._tone(f, 'sine', 0.22, 0.40, t + times[i]));
   },
-
-  /* ── PUBLIC: volume ──────────────────────────────────── */
   setVolume(val) {
     if (!this._masterGain || !this._ctx) return;
     this._masterGain.gain.setTargetAtTime(val, this._ctx.currentTime, 0.05);
     this.muted = (val === 0);
   },
-
   toggleMute() {
     this.muted = !this.muted;
     this.setVolume(this.muted ? 0 : 1);
@@ -1139,92 +1072,245 @@ const Sound = {
 };
 
 /* ══════════════════════════════════════════════════════════
-   STREAK NOTIFICATIONS
-   Uses @capacitor/local-notifications to schedule a daily
-   reminder if the player hasn't played today.
-   Only active when the user has enabled streak reminders
-   in Settings and is signed in.
+   NOTIFICATION PERMISSION FLOW
+   Shown once on first native app open, before home screen.
+   The OS dialog only fires when user taps Allow in our sheet.
+   ══════════════════════════════════════════════════════════ */
+const NOTIF_ASKED_KEY = 'forge_notif_asked_v1';
+
+async function _maybeShowNotifPermission() {
+  // Only in native app — web has no local notifications
+  if (!IS_NATIVE_APP) return;
+  // Don't ask again if we already asked (regardless of their choice)
+  if (localStorage.getItem(NOTIF_ASKED_KEY)) return;
+
+  const plugin = window.Capacitor?.Plugins?.LocalNotifications;
+  if (!plugin) return;
+
+  // If already granted, just mark as asked and move on
+  try {
+    const { display } = await plugin.checkPermissions();
+    if (display === 'granted') {
+      localStorage.setItem(NOTIF_ASKED_KEY, '1');
+      return;
+    }
+  } catch (_) {}
+
+  // Show our explanation sheet, then user taps Allow → OS dialog fires
+  return new Promise((resolve) => {
+    const modal = document.getElementById('notif-permission-modal');
+    if (!modal) { resolve(); return; }
+    modal.style.display = 'flex';
+    // Store resolve so the button handlers can call it
+    window._notifPermissionResolve = resolve;
+  });
+}
+
+async function _notifRequestPermission() {
+  const modal  = document.getElementById('notif-permission-modal');
+  const plugin = window.Capacitor?.Plugins?.LocalNotifications;
+
+  localStorage.setItem(NOTIF_ASKED_KEY, '1');
+
+  if (plugin) {
+    try {
+      await plugin.requestPermissions();
+    } catch (_) {}
+  }
+
+  if (modal) modal.style.display = 'none';
+  if (window._notifPermissionResolve) {
+    window._notifPermissionResolve();
+    window._notifPermissionResolve = null;
+  }
+}
+
+function _notifModalDismiss(fromBg = false) {
+  const modal = document.getElementById('notif-permission-modal');
+  localStorage.setItem(NOTIF_ASKED_KEY, '1');  // mark as asked — won't show again
+  if (modal) modal.style.display = 'none';
+  if (window._notifPermissionResolve) {
+    window._notifPermissionResolve();
+    window._notifPermissionResolve = null;
+  }
+}
+
+function _notifModalBgClick(e) {
+  if (e.target === document.getElementById('notif-permission-modal')) {
+    _notifModalDismiss(true);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   STREAK NOTIFICATIONS — rewritten
+   Schedules 4 daily reminders: 8am, 1pm, 6pm, 10pm.
+   All 4 are cancelled when the player completes a game,
+   then rescheduled for the next morning.
+   IDs: 1001 (8am), 1002 (1pm), 1003 (6pm), 1004 (10pm)
    ══════════════════════════════════════════════════════════ */
 const StreakNotif = {
+  // [id, hour, minute]
+  SLOTS: [
+    [1001, 8,  0],
+    [1002, 13, 0],
+    [1003, 18, 0],
+    [1004, 22, 0],
+  ],
 
-  NOTIF_ID: 1001,   // fixed ID so we can cancel/replace it
+  async _getPlugin() {
+    const plugin = window.Capacitor?.Plugins?.LocalNotifications;
+    if (!plugin) return null;
+    // Check permission — don't request here (that's handled by the boot flow)
+    try {
+      const { display } = await plugin.checkPermissions();
+      return display === 'granted' ? plugin : null;
+    } catch (_) {
+      return null;
+    }
+  },
 
-  /** Call this after every game end and on app resume */
+  /** Cancel all streak reminders (call when player completes a game today) */
+  async cancel() {
+    try {
+      const plugin = window.Capacitor?.Plugins?.LocalNotifications;
+      if (!plugin) return;
+      await plugin.cancel({
+        notifications: this.SLOTS.map(([id]) => ({ id })),
+      });
+    } catch (_) {}
+  },
+
+  /**
+   * Schedule remaining reminders for today + tomorrow's full set.
+   * Skips any today slots that have already passed.
+   * Call: after game over (so today's remaining slots still fire if they
+   * haven't passed), and on app resume.
+   */
   async schedule() {
     try {
       const settings = JSON.parse(localStorage.getItem('forge_settings_v1') || '{}');
-      if (!settings['streak-notif']) return;   // user turned it off
-      if (!State.user) return;                  // guests don't have streaks to protect
+      if (!settings['streak-notif']) return;
+      if (!State.user) return;
 
-      const plugin = window.Capacitor?.Plugins?.LocalNotifications;
-      if (!plugin) return;   // not in native app
+      const plugin = await this._getPlugin();
+      if (!plugin) return;
 
-      // Check permission first
-      const { display } = await plugin.checkPermissions();
-      if (display !== 'granted') {
-        const { display: granted } = await plugin.requestPermissions();
-        if (granted !== 'granted') return;
+      await this.cancel();   // clear stale ones first
+
+      const streakCount = State._homeStreak || 1;
+      const now         = new Date();
+      const notifications = [];
+
+      // Today's remaining slots
+      for (const [id, hour, min] of this.SLOTS) {
+        const fire = new Date();
+        fire.setHours(hour, min, 0, 0);
+        if (fire > now) {
+          notifications.push({
+            id,
+            title: '🔥 Streak reminder!',
+            body : `You haven't played today. Keep your ${streakCount}-day streak alive!`,
+            schedule: { at: fire, allowWhileIdle: true },
+            sound: null,
+            smallIcon: 'ic_stat_forge',
+            actionTypeId: '',
+            extra: null,
+          });
+        }
       }
 
-      // Cancel any previously scheduled reminder first
-      await this.cancel();
-
-      // Schedule for 8 PM today local time
-      // If it's already past 8 PM, schedule for 8 PM tomorrow
-      const now   = new Date();
-      const fire  = new Date();
-      fire.setHours(20, 0, 0, 0);   // 8:00 PM
-      if (fire <= now) {
-        fire.setDate(fire.getDate() + 1);   // push to tomorrow
-      }
-
-      await plugin.schedule({
-        notifications: [{
-          id      : this.NOTIF_ID,
-          title   : '🔥 Don\'t break your streak!',
-          body    : `You haven't played today. Keep your ${State._homeStreak || 1}-day streak alive!`,
+      // Tomorrow's full set (always schedule these so something fires
+      // even if today's remaining slots are all in the past)
+      for (const [id, hour, min] of this.SLOTS) {
+        const fire = new Date();
+        fire.setDate(fire.getDate() + 1);
+        fire.setHours(hour, min, 0, 0);
+        // Use IDs 2001-2004 for tomorrow to avoid collision
+        const tomorrowId = id + 1000;
+        notifications.push({
+          id: tomorrowId,
+          title: '🔥 Don\'t break your streak!',
+          body : `Play today to keep your ${streakCount}-day streak going!`,
           schedule: { at: fire, allowWhileIdle: true },
-          sound   : null,
-          smallIcon: 'ic_stat_forge',   // use your app icon name
+          sound: null,
+          smallIcon: 'ic_stat_forge',
           actionTypeId: '',
-          extra   : null,
-        }],
-      });
+          extra: null,
+        });
+      }
 
-      console.log('[StreakNotif] Scheduled for', fire.toLocaleTimeString());
+      if (notifications.length) {
+        await plugin.schedule({ notifications });
+        console.log(`[StreakNotif] Scheduled ${notifications.length} reminders`);
+      }
     } catch (e) {
       console.warn('[StreakNotif] Schedule failed:', e);
     }
   },
 
-  /** Cancel the pending reminder — call after user plays */
-  async cancel() {
+  /** Cancel today's reminders only — player already played today */
+  async cancelToday() {
     try {
       const plugin = window.Capacitor?.Plugins?.LocalNotifications;
       if (!plugin) return;
-      await plugin.cancel({ notifications: [{ id: this.NOTIF_ID }] });
+      // Cancel today's IDs (1001-1004)
+      await plugin.cancel({
+        notifications: this.SLOTS.map(([id]) => ({ id })),
+      });
     } catch (_) {}
   },
 };
 
 window.StreakNotif = StreakNotif;
 
-// ── APP LIFECYCLE — pause audio when app backgrounds ──────
-/* ── AUDIO UNLOCK + APP LIFECYCLE ──────────────────────────
-   One trusted gesture unlocks the AudioContext.
-   visibilitychange + Capacitor pause/resume handle BGM.
-   ─────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   DAILY REWARD CHECK
+   Called from onHomeShow — shows reward screen if unclaimed.
+   ══════════════════════════════════════════════════════════ */
+function _drTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function checkAndShowDailyReward() {
+  if (!State.user?.id) return;   // guests don't get rewards
+
+  const today      = _drTodayStr();
+  const lastClaimed = State.user.last_reward_date || '';
+
+  if (lastClaimed === today) return;  // already claimed, skip
+
+  // Also verify against Supabase in case another device claimed it
+  try {
+    if (typeof lbFetchProfile === 'function') {
+      const fresh = await lbFetchProfile(State.user.id);
+      if (fresh) {
+        State.user.last_reward_date = fresh.last_reward_date || '';
+        State.user.reward_day       = fresh.reward_day       || 0;
+        if (State.user.last_reward_date === today) {
+          Session.save();
+          return;  // claimed on another device today
+        }
+      }
+    }
+  } catch (_) {}
+
+  // Reward is unclaimed — navigate to the daily reward screen
+  await goTo('daily-reward');
+}
+
+/* ══════════════════════════════════════════════════════════
+   AUDIO UNLOCK + APP LIFECYCLE
+   ══════════════════════════════════════════════════════════ */
 (function () {
   function _unlock() {
     Sound.init();
     Sound.unlock();
   }
 
-  // Trusted gesture events — non-passive so they fire in sync with tap
   document.addEventListener('touchend', _unlock, false);
   document.addEventListener('mouseup',  _unlock, false);
 
-  // App backgrounded / foregrounded (web)
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       Sound.stopBgMusic();
@@ -1239,7 +1325,6 @@ window.StreakNotif = StreakNotif;
     }
   });
 
-  // Capacitor native pause/resume
   document.addEventListener('pause', () => {
     Sound.stopBgMusic();
     if (Sound._ctx) Sound._ctx.suspend().catch(() => {});
@@ -1298,27 +1383,33 @@ async function handleGoogleLogin(response) {
     const user = await API.verifyGoogleToken(response.credential);
     user._credential = response.credential;
 
-    // Supabase is the only source of truth
     try {
       if (typeof lbFetchProfile === 'function') {
         const fresh = await lbFetchProfile(user.id);
         if (fresh) {
-          user.coins    = fresh.coins;
-          user.trophies = fresh.trophies;
+          user.coins            = fresh.coins;
+          user.trophies         = fresh.trophies;
+          user.last_reward_date = fresh.last_reward_date || '';
+          user.reward_day       = fresh.reward_day       || 0;
           if (fresh.display_name) user.name = fresh.display_name;
         } else {
-          // First time this Google account has played — use backend defaults
-          user.coins    = user.coins    ?? 200;
-          user.trophies = user.trophies ?? 50;
+          user.coins            = user.coins    ?? 200;
+          user.trophies         = user.trophies ?? 50;
+          user.last_reward_date = '';
+          user.reward_day       = 0;
         }
       } else {
-        user.coins    = null; // Supabase not ready
+        user.coins    = null;
         user.trophies = null;
+        user.last_reward_date = '';
+        user.reward_day       = 0;
       }
     } catch (e) {
       console.warn('[Login] Supabase unreachable:', e);
       user.coins    = null;
       user.trophies = null;
+      user.last_reward_date = '';
+      user.reward_day       = 0;
     }
 
     State.user = user;
@@ -1336,12 +1427,10 @@ async function handleGoogleLogin(response) {
 
 let _googleNativeInitialized = false;
 async function nativeGoogleSignIn() {
-  // Fire OS has no Google Play Services — sign-in is impossible
   if (IS_FIRE_OS) {
     Toast.info('Google Sign-In is not available on Fire OS. Play as a guest!');
     return;
   }
-
   const plugin = window.Capacitor?.Plugins?.GoogleSignIn;
   if (!plugin) {
     Toast.error('Google Sign-In is unavailable on this build.');
@@ -1363,9 +1452,6 @@ window.nativeGoogleSignIn = nativeGoogleSignIn;
 
 /* ══════════════════════════════════════════════════════════
    SUPABASE READY HELPER
-   Polls until supabase-client.js (deferred) has loaded and
-   exported lbFetchProfile. Resolves false after 5s timeout
-   so boot always continues regardless.
    ══════════════════════════════════════════════════════════ */
 function waitForSupabase(timeoutMs = 5000) {
   return new Promise((resolve) => {
@@ -1384,16 +1470,20 @@ function waitForSupabase(timeoutMs = 5000) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   BOOT
-   Always ends with a screen being shown.
-   Order of preference:
-     1. Restore active room session (hash = lobby/game/results)
-     2. Explicit #home hash (returning player)
-     3. Landing page (default — required for AdSense)
+   BOOT SEQUENCE
+   Order:
+   1. Health ping
+   2. Notification permission (native, first open only)
+   3. Supabase profile sync
+   4. Navigate to correct screen
+   5. Dismiss splash
    ══════════════════════════════════════════════════════════ */
 (async () => {
   try {
     API.health().catch(() => {});
+
+    // Step 1: notification permission prompt (blocks until user responds)
+    await _maybeShowNotifPermission();
 
     const hash = window.location.hash.replace('#', '') || 'home';
 
@@ -1403,8 +1493,10 @@ function waitForSupabase(timeoutMs = 5000) {
         try {
           const fresh = await lbFetchProfile(State.user.id);
           if (fresh) {
-            State.user.coins    = fresh.coins;
-            State.user.trophies = fresh.trophies;
+            State.user.coins            = fresh.coins;
+            State.user.trophies         = fresh.trophies;
+            State.user.last_reward_date = fresh.last_reward_date || '';
+            State.user.reward_day       = fresh.reward_day       || 0;
             if (fresh.display_name) State.user.name = fresh.display_name;
             Session.save();
           } else {
@@ -1439,7 +1531,7 @@ function waitForSupabase(timeoutMs = 5000) {
 
     await goTo('home', true);
     _dismissSplash();
-    
+
   } catch (e) {
     console.error('[Boot] Unexpected error, falling back to home:', e);
     try {
@@ -1454,9 +1546,7 @@ function waitForSupabase(timeoutMs = 5000) {
       }
     }
   }
-  // ── DISMISS SPLASH ─────────────────────────────────────────
-  // Called after goTo('home') resolves so the home screen is
-  // ready before the splash fades out — no blank frame visible.
+
   function _dismissSplash() {
     const splash = document.getElementById('forge-splash');
     if (!splash) return;
