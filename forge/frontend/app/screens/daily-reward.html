@@ -1,0 +1,411 @@
+<!--
+  DAILY REWARD SCREEN — Forge App Track
+  Shows a 7-day reward cycle on home screen load when reward is unclaimed.
+  Days 1-6: +10 coins each. Day 7: +100 coins (then cycle resets to day 1).
+  Claim is gated by last_reward_date in Supabase — safe against simple replays.
+  Auto-dismisses 2s after claim. Manual dismiss also available.
+-->
+<style>
+  .dr-overlay {
+    position: fixed; inset: 0; z-index: 800;
+    background: rgba(9, 15, 80, 0.96);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    display: flex; align-items: flex-end; justify-content: center;
+    animation: dr-bg-in 0.3s ease both;
+  }
+  @keyframes dr-bg-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .dr-sheet {
+    width: 100%; max-width: var(--max-w);
+    background: var(--bg-mid);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-bottom: none;
+    border-radius: 24px 24px 0 0;
+    padding: 28px 22px 44px;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 24px;
+    animation: dr-sheet-up 0.35s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes dr-sheet-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  /* ── HEADER ─────────────────────────────────────────────── */
+  .dr-header { text-align: center; display: flex; flex-direction: column; gap: 8px; }
+  .dr-emoji  { font-size: 52px; line-height: 1; animation: dr-bounce 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.2s both; }
+  @keyframes dr-bounce {
+    from { transform: scale(0) rotate(-15deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0deg);   opacity: 1; }
+  }
+  .dr-title {
+    font-family: var(--font-pixel); font-size: 12px;
+    color: var(--yellow); letter-spacing: 1px; line-height: 1.5;
+  }
+  .dr-subtitle {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,255,255,0.4); letter-spacing: 0.5px; line-height: 2;
+  }
+
+  /* ── 7-DAY GRID ─────────────────────────────────────────── */
+  .dr-days {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 6px; width: 100%;
+  }
+  .dr-day {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 5px;
+    padding: 10px 4px; border-radius: 10px;
+    border: 1.5px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  /* Claimed day */
+  .dr-day.claimed {
+    background: rgba(6,214,160,0.1);
+    border-color: rgba(6,214,160,0.3);
+  }
+  /* Today's unclaimed reward */
+  .dr-day.today {
+    background: rgba(255,217,61,0.12);
+    border-color: rgba(255,217,61,0.45);
+    box-shadow: 0 0 16px rgba(255,217,61,0.15);
+  }
+  /* Day 7 (big reward) */
+  .dr-day.jackpot {
+    background: rgba(155,93,229,0.12);
+    border-color: rgba(155,93,229,0.4);
+  }
+  .dr-day.jackpot.today {
+    background: rgba(155,93,229,0.2);
+    border-color: rgba(155,93,229,0.7);
+    box-shadow: 0 0 20px rgba(155,93,229,0.25);
+  }
+  /* Future locked day */
+  .dr-day.future { opacity: 0.35; }
+
+  .dr-day-num {
+    font-family: var(--font-pixel); font-size: 5px;
+    color: rgba(255,255,255,0.35); letter-spacing: 0.5px;
+  }
+  .dr-day.today .dr-day-num  { color: var(--yellow); }
+  .dr-day.claimed .dr-day-num { color: var(--green); }
+
+  .dr-day-icon { font-size: 16px; line-height: 1; }
+  .dr-day.claimed .dr-day-icon::after { content: ''; }
+
+  .dr-day-reward {
+    font-family: var(--font-pixel); font-size: 5px;
+    color: rgba(255,255,255,0.5); line-height: 1.4; text-align: center;
+  }
+  .dr-day.today   .dr-day-reward { color: var(--yellow); }
+  .dr-day.claimed .dr-day-reward { color: var(--green); }
+  .dr-day.jackpot .dr-day-reward { color: #c4a0ff; }
+  .dr-day.jackpot.today .dr-day-reward { color: #d9bfff; }
+
+  /* ── CLAIM SECTION ──────────────────────────────────────── */
+  .dr-claim-box {
+    width: 100%; padding: 20px;
+    border-radius: var(--radius-lg);
+    background: rgba(255,217,61,0.08);
+    border: 1.5px solid rgba(255,217,61,0.25);
+    display: flex; flex-direction: column;
+    align-items: center; gap: 10px; text-align: center;
+  }
+  .dr-claim-label {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.5); letter-spacing: 0.5px;
+  }
+  .dr-claim-amount {
+    font-family: var(--font-pixel); font-size: 28px;
+    color: var(--yellow); line-height: 1;
+    text-shadow: 0 0 20px rgba(255,217,61,0.4);
+    animation: dr-amount-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.3s both;
+  }
+  @keyframes dr-amount-pop {
+    from { transform: scale(0.5); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .dr-claim-desc {
+    font-family: var(--font-body); font-size: 13px; font-weight: 700;
+    color: rgba(255,255,255,0.55); line-height: 1.5;
+  }
+
+  /* Claimed state */
+  .dr-claimed-msg {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--green); letter-spacing: 0.5px; text-align: center;
+    animation: dr-claimed-in 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes dr-claimed-in {
+    from { transform: scale(0.5); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  .dr-streak-note {
+    font-family: var(--font-pixel); font-size: 5.5px;
+    color: rgba(255,255,255,0.3); letter-spacing: 0.3px;
+    line-height: 2; text-align: center;
+  }
+
+  .dr-close {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,255,255,0.25); cursor: pointer;
+    padding: 4px; -webkit-tap-highlight-color: transparent;
+    letter-spacing: 0.3px;
+  }
+  .dr-close:active { color: rgba(255,255,255,0.5); }
+</style>
+
+<div class="dr-overlay" id="dr-overlay" onclick="drHandleOverlayClick(event)">
+  <div class="dr-sheet" onclick="event.stopPropagation()">
+
+    <!-- HEADER -->
+    <div class="dr-header">
+      <span class="dr-emoji" id="dr-emoji">🎁</span>
+      <p class="dr-title">DAILY REWARD</p>
+      <p class="dr-subtitle" id="dr-subtitle">COME BACK EVERY DAY FOR BIGGER REWARDS!</p>
+    </div>
+
+    <!-- 7-DAY GRID -->
+    <div class="dr-days" id="dr-days-grid">
+      <!-- Populated by drRender() -->
+    </div>
+
+    <!-- CLAIM SECTION -->
+    <div class="dr-claim-box" id="dr-claim-box">
+      <!-- Populated by drRender() -->
+    </div>
+
+    <p class="dr-streak-note" id="dr-streak-note">
+      DAY 7 BONUS: +100 COINS · RESETS AFTER DAY 7
+    </p>
+
+    <div class="dr-close" id="dr-close-btn" onclick="drDismiss()">MAYBE LATER</div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   DAILY REWARD SCREEN — Forge App Track
+   ══════════════════════════════════════════════════════════ */
+
+// Reward amounts per day in the 7-day cycle (1-indexed, day 7 = jackpot)
+const DR_REWARDS = [10, 10, 10, 10, 10, 10, 100];
+const DR_ICONS   = ['🪙','🪙','🪙','🪙','🪙','🪙','💎'];
+
+let _drClaiming = false;
+
+/* ── LIFECYCLE ────────────────────────────────────────────── */
+
+function onDailyRewardShow() {
+  _drClaiming = false;
+  drRender();
+}
+
+/* ── RENDER ───────────────────────────────────────────────── */
+
+function drRender() {
+  const profile    = State.user;
+  if (!profile) { drDismiss(); return; }
+
+  const today       = _drTodayStr();
+  const lastDate    = profile.last_reward_date || '';
+  const rewardDay   = Number(profile.reward_day || 0);  // last claimed day (1-7), 0 = never
+  const alreadyClaimed = (lastDate === today);
+
+  // Next day in cycle — wraps 7→1
+  const todayDay = alreadyClaimed
+    ? rewardDay                           // already claimed, show what we claimed
+    : (rewardDay % 7) + 1;               // next unclaimed day
+
+  const coins = DR_REWARDS[todayDay - 1];
+  const icon  = DR_ICONS[todayDay - 1];
+
+  // Header emoji based on today's day
+  const emojiEl = document.getElementById('dr-emoji');
+  if (emojiEl) emojiEl.textContent = todayDay === 7 ? '💎' : '🎁';
+
+  // Build 7-day grid
+  const grid = document.getElementById('dr-days-grid');
+  if (grid) {
+    let html = '';
+    for (let d = 1; d <= 7; d++) {
+      let cls = 'dr-day';
+      // Determine state
+      if (alreadyClaimed) {
+        if (d < todayDay)       cls += ' claimed';
+        else if (d === todayDay) cls += ' claimed';  // today already claimed
+        else                    cls += ' future';
+      } else {
+        // Continuing from a previous streak
+        if (d < todayDay)       cls += ' claimed';
+        else if (d === todayDay) cls += ' today';
+        else                    cls += ' future';
+      }
+      if (d === 7) cls += ' jackpot';
+
+      const dayReward = DR_REWARDS[d - 1];
+      const dayIcon   = DR_ICONS[d - 1];
+      const rewardTxt = d === 7 ? '+100' : '+10';
+
+      html += `
+        <div class="${cls}">
+          <span class="dr-day-num">D${d}</span>
+          <span class="dr-day-icon">${d < todayDay || (alreadyClaimed && d === todayDay) ? '✓' : dayIcon}</span>
+          <span class="dr-day-reward">${rewardTxt}<br>🪙</span>
+        </div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  // Claim box
+  const claimBox = document.getElementById('dr-claim-box');
+  if (!claimBox) return;
+
+  if (alreadyClaimed) {
+    claimBox.style.background = 'rgba(6,214,160,0.08)';
+    claimBox.style.borderColor = 'rgba(6,214,160,0.25)';
+    claimBox.innerHTML = `
+      <p class="dr-claimed-msg">✓ REWARD CLAIMED!</p>
+      <p class="dr-claim-desc">Come back tomorrow for Day ${(todayDay % 7) + 1}'s reward.</p>`;
+
+    const closeBtn = document.getElementById('dr-close-btn');
+    if (closeBtn) closeBtn.textContent = 'CLOSE';
+
+    // Auto-dismiss after 2s if already claimed
+    setTimeout(drDismiss, 2000);
+  } else {
+    claimBox.style.background = '';
+    claimBox.style.borderColor = '';
+    const dayLabel = todayDay === 7
+      ? 'DAY 7 JACKPOT REWARD'
+      : `DAY ${todayDay} REWARD`;
+    claimBox.innerHTML = `
+      <p class="dr-claim-label">${dayLabel}</p>
+      <p class="dr-claim-amount">+${coins} 🪙</p>
+      <p class="dr-claim-desc">Claim your daily login bonus!</p>
+      <button class="btn btn-primary" style="margin-top:4px;"
+              onclick="drClaim(${todayDay}, ${coins})">
+        🎁 &nbsp;CLAIM REWARD
+      </button>`;
+
+    const closeBtn = document.getElementById('dr-close-btn');
+    if (closeBtn) closeBtn.textContent = 'MAYBE LATER';
+  }
+}
+
+/* ── CLAIM ────────────────────────────────────────────────── */
+
+async function drClaim(day, coins) {
+  if (_drClaiming) return;
+  _drClaiming = true;
+
+  try {
+    Sound.click();
+    const today = _drTodayStr();
+    const db    = _initSupabase ? _initSupabase() : null;
+
+    if (!db || !State.user?.id) {
+      Toast.error('Sign in to claim rewards.');
+      _drClaiming = false;
+      return;
+    }
+
+    // Atomic upsert — Supabase enforces last_reward_date server-side
+    // If another session already claimed today, the date won't advance
+    const { data, error } = await db
+      .from('leaderboard')
+      .upsert({
+        google_id:        State.user.id,
+        display_name:     State.user.name || 'PLAYER',
+        last_reward_date: today,
+        reward_day:       day,
+        // Apply coin delta on top of existing balance
+        coins:            (Number(State.user.coins) || 0) + coins,
+        trophies:         Number(State.user.trophies) || 50,
+        updated_at:       new Date().toISOString(),
+      }, { onConflict: 'google_id' })
+      .select('coins, reward_day, last_reward_date')
+      .single();
+
+    if (error) {
+      console.error('[DailyReward] Upsert failed:', error.message);
+      Toast.error('Could not claim reward. Try again.');
+      _drClaiming = false;
+      return;
+    }
+
+    // Update local State from server response (source of truth)
+    State.user.coins           = data.coins;
+    State.user.reward_day      = data.reward_day;
+    State.user.last_reward_date = data.last_reward_date;
+    Session.save();
+
+    // Show claimed state
+    const claimBox = document.getElementById('dr-claim-box');
+    if (claimBox) {
+      claimBox.style.background   = 'rgba(6,214,160,0.08)';
+      claimBox.style.borderColor  = 'rgba(6,214,160,0.25)';
+      claimBox.innerHTML = `
+        <p class="dr-claimed-msg">✓ +${coins} COINS CLAIMED!</p>
+        <p class="dr-claim-desc">Come back tomorrow for Day ${(day % 7) + 1}'s reward.</p>`;
+    }
+
+    // Update the day grid to show claimed state
+    const dayEls = document.querySelectorAll('.dr-day');
+    dayEls.forEach((el, i) => {
+      if (i + 1 === day) {
+        el.classList.remove('today');
+        el.classList.add('claimed');
+        const iconEl = el.querySelector('.dr-day-icon');
+        if (iconEl) iconEl.textContent = '✓';
+      }
+    });
+
+    // Update close button
+    const closeBtn = document.getElementById('dr-close-btn');
+    if (closeBtn) closeBtn.textContent = 'CLOSE';
+
+    Toast.success(`+${coins} coins claimed!`);
+    Sound.correct();
+
+    // Auto-dismiss after 2s
+    setTimeout(drDismiss, 2000);
+
+  } catch (e) {
+    console.error('[DailyReward] Claim error:', e);
+    Toast.error('Something went wrong. Try again.');
+    _drClaiming = false;
+  }
+}
+
+/* ── DISMISS ──────────────────────────────────────────────── */
+
+function drDismiss() {
+  const overlay = document.getElementById('dr-overlay');
+  if (!overlay) return;
+
+  // Fade out then remove screen
+  overlay.style.transition = 'opacity 0.3s ease';
+  overlay.style.opacity    = '0';
+  setTimeout(() => {
+    goTo('home', true);
+  }, 300);
+}
+
+function drHandleOverlayClick(e) {
+  if (e.target === document.getElementById('dr-overlay')) drDismiss();
+}
+
+/* ── UTILS ────────────────────────────────────────────────── */
+
+function _drTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+</script>
