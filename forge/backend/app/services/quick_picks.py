@@ -166,9 +166,20 @@ def get_quick_pick_questions(topic: str, count: int = 10) -> list[Question]:
     with _lock:
         recent     = _recent_questions[canonical]
         recent_set = set(recent)
-        fresh      = [row for row in rows if row["question"] not in recent_set]
-        pool       = fresh if len(fresh) >= count else rows
-        selected   = random.sample(pool, count)
+
+        # Deduplicate rows by question text before anything else —
+        # guards against duplicate entries in the JSON bank.
+        seen_texts: set[str] = set()
+        deduped: list[dict] = []
+        for row in rows:
+            q = row.get("question", "")
+            if q not in seen_texts:
+                seen_texts.add(q)
+                deduped.append(row)
+
+        fresh  = [row for row in deduped if row["question"] not in recent_set]
+        pool   = fresh if len(fresh) >= count else deduped
+        selected = random.sample(pool, count)
         for row in selected:
             recent.append(row["question"])
         return [Question(**row) for row in selected]
