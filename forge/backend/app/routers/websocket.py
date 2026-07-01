@@ -882,7 +882,17 @@ async def websocket_endpoint(
                 # ── Generate questions ────────────────────────────────────────
                 try:
                     if is_quick_pick_topic(topic):
-                        room.questions = get_quick_pick_questions(topic)
+                        try:
+                            room.questions = get_quick_pick_questions(topic)
+                        except ValueError as qp_err:
+                            logger.warning(
+                                "Quick Picks unavailable for '%s': %s — falling back to Gemini",
+                                topic, qp_err,
+                            )
+                            room.questions = await asyncio.wait_for(
+                                generate_questions(topic),
+                                timeout=GENERATION_TIMEOUT_SECONDS,
+                            )
                     else:
                         room.questions = await asyncio.wait_for(
                             generate_questions(topic),
