@@ -679,6 +679,8 @@ function onHomeShow() {
   _hRenderNavProfile();
   _hRenderCurrency();
   _hLoadStats();
+  // Check and show daily reward if unclaimed
+  await checkAndShowDailyReward();
 }
 
 /* ── PROFILE RENDERING ────────────────────────────────────── */
