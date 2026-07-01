@@ -509,10 +509,9 @@ final = int(base * multi)
 leaderboard        : google_id (PK), display_name, coins, trophies,
                      daily_streak, last_played_date, updated_at,
                      tickets_today, ad_tickets_used_today, last_ticket_date
+                     last_reward_date (text), reward_day (int)
 donations          : id (PK), upi_txn_id, status, amount
 donor_leaderboard  : SQL VIEW - read only
-question_bank      : id (PK), category, question, options, correct_idx,
-                     difficulty, times_used, created_at
 ```
 
 ### Implemented Schema Additions
@@ -577,7 +576,9 @@ alter table public.question_bank enable row level security;
 | 33 | App: feature gating (web restricted) | Queued |
 | 34 | App: Neo-Brutalism home screen | Done |
 | 35 | Generation Tickets - Real Spendable Currency | Done |
-| 36 | Seed Question Bank data layer | In Progress |
+| 36 | Quick Picks question bank (JSON, 50q/topic, duplicate-safe) | Done |
+| 37 | Daily Login Reward (7-day cycle, Supabase-backed) | Done |
+| 38 | Notification permission flow + 4-slot daily reminders | Done |
 
 ---
 
@@ -601,7 +602,9 @@ alter table public.question_bank enable row level security;
 - **Frontend local dev server:** Must run from `forge/frontend/app/`, not `forge/`. Screens load through `index.html`.
 - **Visual Identity Pivot (June 20, 2026):** Neo-Brutalism supersedes the older Clash Royale-inspired direction.
 - **No Rotating Functional Inputs:** Name-entry and room-code fields must always render level.
-
+- Quick Picks bank lives as bundled JSON in backend/app/data/ — not Supabase. Instant load, offline-safe, zero quota. Supabase migration for question_bank table removed from scope.
+- Generation ticket enforcement deferred until AdMob is live — 3/day limit would hurt UX with no ad-based refill path.
+- Daily reward: client-side coin apply + Supabase upsert, gated by last_reward_date. Amounts (10/10/10/10/10/10/100) are too small to be worth attacking.
 ---
 
 ## Implementation Guidelines
