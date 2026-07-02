@@ -224,6 +224,38 @@ async def grant_ticket_for_ad(
         raise HTTPException(status_code=500, detail="Ad ticket grant failed")
 
 
+@router.post("/tickets/signin-bonus")
+async def grant_signin_bonus_endpoint(
+    body: TicketUserRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    Grant the once-per-day sign-in ticket bonus.
+
+    Safe to call on every app boot for a signed-in user — grant_signin_bonus()
+    is idempotent per calendar day (gated by last_signin_ticket_date), so a
+    repeat call on the same day simply returns ok: False with the unchanged
+    ticket state rather than granting twice.
+    """
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    try:
+        from app.services.tickets import grant_signin_bonus
+        return grant_signin_bonus(body.user_id)
+    except Exception as e:
+        logger.error("Sign-in ticket bonus failed: %s", e)
+        raise HTTPException(status_code=500, detail="Sign-in bonus failed")
+
+
 @router.post("/economy/reward")
 async def ad_coin_reward(
     body: RewardRequest,
@@ -297,4 +329,3 @@ async def sync_profile_endpoint(
     except Exception as e:
         logger.error("Economy sync failed: %s", e)
         raise HTTPException(status_code=500, detail="Sync failed")
-    

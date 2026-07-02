@@ -5,6 +5,8 @@
     - PROFILE nav item = Sign In trigger when logged out, profile info when logged in
     - 🔥 stat shows daily streak (Supabase-backed, resets if day skipped)
     - Join room overlay
+  Milestone 39 — added:
+    - 🎟️ Generation ticket pill in topbar next to coins/trophies
 -->
 <style>
   .home-wrap {
@@ -55,7 +57,7 @@
     font-size: 5.5px; color: var(--green); letter-spacing: 0.3px;
   }
 
-  .h-topbar-right { display: flex; align-items: center; gap: 7px; }
+  .h-topbar-right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
   .h-currency-pill {
     display: flex; align-items: center; gap: 5px;
@@ -68,6 +70,20 @@
     font-family: var(--font-pixel);
     font-size: 7px; color: var(--yellow);
   }
+
+  /* Ticket pill — distinct tint so it reads as a separate resource from coins/trophies */
+  .h-currency-pill.h-ticket-pill {
+    background: rgba(155,93,229,0.14);
+    border-color: rgba(155,93,229,0.35);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .h-currency-pill.h-ticket-pill .h-currency-val { color: #c4a0ff; }
+  .h-currency-pill.h-ticket-pill.h-ticket-empty {
+    background: rgba(239,35,60,0.12);
+    border-color: rgba(239,35,60,0.35);
+  }
+  .h-currency-pill.h-ticket-pill.h-ticket-empty .h-currency-val { color: var(--red); }
 
   /* Sign-in prompt in top bar (shown when logged out) */
   .h-signin-topbar {
@@ -411,6 +427,65 @@
     transition: background 0.15s;
   }
   .h-signout-btn:active { background: rgba(239,35,60,0.2); }
+
+  /* ── TICKET DETAIL SHEET (tap the ticket pill) ──────────── */
+  #h-ticket-modal {
+    display: none; position: fixed; inset: 0; z-index: 700;
+    background: rgba(9,15,80,0.95); backdrop-filter: blur(8px);
+    align-items: flex-end; justify-content: center;
+  }
+  .h-ticket-sheet {
+    width: 100%; max-width: var(--max-w);
+    background: var(--bg-mid);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-bottom: none; border-radius: 20px 20px 0 0;
+    padding: 28px 24px 40px;
+    display: flex; flex-direction: column; gap: 18px;
+    animation: sheet-up 0.3s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  .h-ticket-title {
+    font-family: var(--font-pixel); font-size: 11px;
+    color: var(--white); text-align: center; letter-spacing: 1px;
+  }
+  .h-ticket-count-display {
+    text-align: center; display: flex; flex-direction: column; gap: 4px;
+  }
+  .h-ticket-count-big {
+    font-family: var(--font-pixel); font-size: 34px; color: #c4a0ff;
+    text-shadow: 0 0 20px rgba(155,93,229,0.4);
+  }
+  .h-ticket-count-label {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,255,255,0.4); letter-spacing: 0.5px;
+  }
+  .h-ticket-info-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .h-ticket-info-icon { font-size: 18px; flex-shrink: 0; }
+  .h-ticket-info-text {
+    font-family: var(--font-body); font-size: 13px; font-weight: 700;
+    color: rgba(255,255,255,0.75); line-height: 1.4;
+  }
+  .h-ticket-buy-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-radius: 12px;
+    background: rgba(255,217,61,0.08); border: 1.5px solid rgba(255,217,61,0.25);
+  }
+  .h-ticket-buy-label {
+    font-family: var(--font-pixel); font-size: 7px; color: var(--yellow);
+  }
+  .h-ticket-buy-btn {
+    padding: 9px 16px; border-radius: var(--radius-pill);
+    background: var(--yellow); color: var(--text-dark);
+    border: none; font-family: var(--font-pixel); font-size: 7px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 3px 0 var(--yellow-dark);
+  }
+  .h-ticket-buy-btn:active { transform: translateY(2px); box-shadow: none; }
+  .h-ticket-buy-btn:disabled { opacity: 0.4; pointer-events: none; }
 </style>
 
 <div class="home-wrap">
@@ -432,6 +507,10 @@
       <div class="h-currency-pill">
         <span style="font-size:12px;">🏆</span>
         <span class="h-currency-val" id="h-trophies">—</span>
+      </div>
+      <div class="h-currency-pill h-ticket-pill" id="h-ticket-pill" onclick="hOpenTicketSheet()">
+        <span style="font-size:12px;">🎟️</span>
+        <span class="h-currency-val" id="h-tickets">—</span>
       </div>
     </div>
   </div>
@@ -560,6 +639,10 @@
         <span class="h-signin-perk-text">Coins and trophies saved across all your devices</span>
       </div>
       <div class="h-signin-perk">
+        <span class="h-signin-perk-icon">🎟️</span>
+        <span class="h-signin-perk-text">3 free AI quiz generations every day, plus a bonus ticket just for signing in</span>
+      </div>
+      <div class="h-signin-perk">
         <span class="h-signin-perk-icon">🔥</span>
         <span class="h-signin-perk-text">Daily streak tracking — don't break your chain!</span>
       </div>
@@ -633,6 +716,42 @@
 </div>
 
 <!-- ═══════════════════════════════════════════
+     TICKET DETAIL SHEET (tap the ticket pill)
+════════════════════════════════════════════ -->
+<div id="h-ticket-modal" onclick="hCloseTicketSheet(event)">
+  <div class="h-ticket-sheet" onclick="event.stopPropagation()">
+
+    <p class="h-ticket-title">🎟️ GENERATION TICKETS</p>
+
+    <div class="h-ticket-count-display">
+      <span class="h-ticket-count-big" id="h-ticket-sheet-count">0</span>
+      <span class="h-ticket-count-label">TICKETS LEFT TODAY</span>
+    </div>
+
+    <div class="h-ticket-info-row">
+      <span class="h-ticket-info-icon">✨</span>
+      <span class="h-ticket-info-text">Quick Pick topics are always free — no ticket needed, ever.</span>
+    </div>
+    <div class="h-ticket-info-row">
+      <span class="h-ticket-info-icon">🤖</span>
+      <span class="h-ticket-info-text">A custom AI-generated topic (any mode) uses 1 ticket. You get 3 free per day, plus 1 for signing in.</span>
+    </div>
+    <div class="h-ticket-info-row">
+      <span class="h-ticket-info-icon">🔄</span>
+      <span class="h-ticket-info-text">Tickets reset to 3 free every day at midnight — they don't carry over.</span>
+    </div>
+
+    <div class="h-ticket-buy-row">
+      <span class="h-ticket-buy-label">BUY 1 TICKET<br>50 🪙</span>
+      <button class="h-ticket-buy-btn" id="h-ticket-buy-btn" onclick="hBuyTicket()">BUY</button>
+    </div>
+
+    <div class="h-signin-close" onclick="hCloseTicketSheet()">CLOSE</div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
      JOIN ROOM OVERLAY
 ════════════════════════════════════════════ -->
 <div id="h-join-overlay" onclick="hJoinOverlayClose()" style="
@@ -667,7 +786,7 @@
 
 <script>
 /* ══════════════════════════════════════════════════════════
-   HOME SCREEN LOGIC — Milestone 34
+   HOME SCREEN LOGIC — Milestone 34, ticket pill added Milestone 39
    ══════════════════════════════════════════════════════════ */
 
 function onHomeShow() {
@@ -746,9 +865,16 @@ function _hRankLabel(trophies) {
 function _hRenderCurrency() {
   const coinsEl    = document.getElementById('h-coins');
   const trophiesEl = document.getElementById('h-trophies');
+  const ticketsEl  = document.getElementById('h-tickets');
+  const ticketPill = document.getElementById('h-ticket-pill');
   if (!State.user) return;
   if (coinsEl)    coinsEl.textContent    = State.user.coins    != null ? Number(State.user.coins).toLocaleString()    : '—';
   if (trophiesEl) trophiesEl.textContent = State.user.trophies != null ? Number(State.user.trophies).toLocaleString() : '—';
+  if (ticketsEl) {
+    const t = State.user.tickets_today;
+    ticketsEl.textContent = t != null ? String(t) : '—';
+    if (ticketPill) ticketPill.classList.toggle('h-ticket-empty', t === 0);
+  }
 }
 
 /* ── STATS (async) ────────────────────────────────────────── */
@@ -799,6 +925,76 @@ async function _hLoadStats() {
         }
       }
     } catch (_) {}
+  }
+}
+
+/* ── TICKET SHEET ─────────────────────────────────────────── */
+
+function hOpenTicketSheet() {
+  Sound.click();
+  if (!State.user) { hOpenSigninModal(); return; }
+
+  const countEl = document.getElementById('h-ticket-sheet-count');
+  if (countEl) countEl.textContent = State.user.tickets_today != null ? String(State.user.tickets_today) : '0';
+
+  const buyBtn = document.getElementById('h-ticket-buy-btn');
+  if (buyBtn) {
+    const coins = Number(State.user.coins || 0);
+    const cost  = Number(State.user.coins_per_ticket || 50);
+    buyBtn.disabled = coins < cost;
+  }
+
+  const modal = document.getElementById('h-ticket-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function hCloseTicketSheet(e) {
+  if (e && e.target !== document.getElementById('h-ticket-modal')) return;
+  const modal = document.getElementById('h-ticket-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function hBuyTicket() {
+  if (!State.user?.id) return;
+  const btn = document.getElementById('h-ticket-buy-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+  try {
+    const credential = State.user._credential;
+    const r = await fetch(`${API_BASE}/tickets/buy`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: State.user.id, num_tickets: 1 }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+
+    State.user.coins         = data.coins;
+    State.user.tickets_today = data.tickets_today;
+    Session.save();
+
+    _hRenderCurrency();
+    const countEl = document.getElementById('h-ticket-sheet-count');
+    if (countEl) countEl.textContent = String(data.tickets_today);
+    Toast.success('+1 generation ticket!');
+
+    if (typeof lbUpsertPlayer === 'function') {
+      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, data)
+        .catch(() => {});
+    }
+  } catch (e) {
+    console.error('[Tickets] Buy failed:', e);
+    Toast.error('Not enough coins, or something went wrong.');
+  } finally {
+    if (btn) {
+      btn.textContent = 'BUY';
+      const coins = Number(State.user.coins || 0);
+      const cost  = Number(State.user.coins_per_ticket || 50);
+      btn.disabled = coins < cost;
+    }
   }
 }
 

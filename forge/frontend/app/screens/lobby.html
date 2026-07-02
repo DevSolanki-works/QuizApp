@@ -5,6 +5,15 @@
     TEAM    → team name setup, player self-assign, topic per team, Randomize & Start
   Guest: see mode, join a team if host switched to TEAM, wait for host.
   Solo: just topic + difficulty, no code shown.
+
+  Milestone 39 — added:
+    Ticket-aware topic input. Quick Pick topics (the TOPIC_SUGGESTIONS list)
+    are always free in every mode. Any other typed topic calls Gemini and
+    now requires sign-in + a generation ticket in EVERY mode (previously
+    only Classic/Team enforced this). When the typed topic isn't a Quick
+    Pick and the player has 0 tickets (or isn't signed in), an inline
+    banner appears offering a one-tap swap to a random free topic instead
+    of silently letting them hit Start and eat the server error.
 -->
 <style>
   .lobby-wrap {
@@ -189,6 +198,40 @@
   /* ── HOST CLASSIC CONTROLS ── */
   .lobby-host-controls { width:100%; display:flex; flex-direction:column; gap:16px; }
   .topic-char-count    { font-family:var(--font-pixel); font-size:7px; color:rgba(255,255,255,0.35); text-align:right; margin-top:-10px; }
+
+  /* Ticket cost hint under the topic input */
+  .topic-ticket-hint {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,255,255,0.35); letter-spacing: 0.3px;
+    margin-top: -6px;
+  }
+  .topic-ticket-hint.is-free   { color: var(--green); }
+  .topic-ticket-hint.is-custom { color: #c4a0ff; }
+
+  /* Out-of-tickets / not-signed-in auto-suggest banner */
+  .ticket-suggest-banner {
+    display: none;
+    flex-direction: column; gap: 10px;
+    padding: 14px 16px; border-radius: var(--radius-md);
+    background: rgba(239,35,60,0.1); border: 1.5px solid rgba(239,35,60,0.3);
+    animation: fade-up 0.25s ease both;
+  }
+  .ticket-suggest-banner.visible { display: flex; }
+  .ticket-suggest-text {
+    font-family: var(--font-body); font-size: 13px; font-weight: 700;
+    color: rgba(255,255,255,0.8); line-height: 1.5;
+  }
+  .ticket-suggest-btn {
+    align-self: flex-start;
+    padding: 8px 14px; border-radius: var(--radius-pill);
+    background: var(--yellow); color: var(--text-dark);
+    border: none; font-family: var(--font-pixel); font-size: 7px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 3px 0 var(--yellow-dark);
+  }
+  .ticket-suggest-btn:active { transform: translateY(2px); box-shadow: none; }
+
   .difficulty-selector { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
   .mode-pill {
     min-height:52px; border-radius:var(--radius-md);
@@ -213,6 +256,13 @@
   }
   .topic-chip:active, .topic-chip.selected {
     background:rgba(255,217,61,0.2); border-color:rgba(255,217,61,0.5); color:var(--yellow);
+  }
+  .topic-chip.pulse {
+    animation: chip-pulse 1s ease-in-out 2;
+  }
+  @keyframes chip-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,217,61,0.5); }
+    50%       { box-shadow: 0 0 0 6px rgba(255,217,61,0); }
   }
 
   /* ── TEAM PANEL ── */
@@ -279,6 +329,10 @@
   .team-topic-input::placeholder { color:rgba(255,255,255,0.2); font-size:11px; font-weight:400; }
   .col-a .team-topic-input:focus { border-color:rgba(230,57,70,0.6); }
   .col-b .team-topic-input:focus { border-color:rgba(33,150,243,0.6); }
+  .team-topic-ticket-note {
+    font-family: var(--font-pixel); font-size: 5.5px;
+    color: rgba(239,35,60,0.85); line-height: 1.8; text-align: center;
+  }
 
   /* ── GUEST WAITING ── */
   .lobby-waiting { display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px 0 4px; }
@@ -444,7 +498,17 @@
           maxlength="60" autocomplete="off" autocorrect="off"
           oninput="lobbyOnTopicInput()" />
         <p class="topic-char-count"><span id="topic-char-count">0</span>/60</p>
+        <p class="topic-ticket-hint" id="topic-ticket-hint"></p>
       </div>
+
+      <!-- Auto-suggest banner when out of tickets / not signed in on a custom topic -->
+      <div class="ticket-suggest-banner" id="ticket-suggest-banner">
+        <p class="ticket-suggest-text" id="ticket-suggest-text">—</p>
+        <button class="ticket-suggest-btn" onclick="lobbyUseRandomQuickPick()">
+          🎲 &nbsp;TRY A FREE TOPIC INSTEAD
+        </button>
+      </div>
+
       <div>
         <label class="input-label">DIFFICULTY</label>
         <div class="difficulty-selector" id="difficulty-selector">
@@ -454,7 +518,7 @@
         </div>
       </div>
       <div>
-        <label class="input-label">QUICK PICKS</label>
+        <label class="input-label">QUICK PICKS <span style="color:var(--green);">· ALWAYS FREE</span></label>
         <div class="topic-suggestions" id="topic-chips"></div>
       </div>
       <button class="btn btn-primary btn-start" id="btn-start-classic"
@@ -538,6 +602,26 @@ const TOPIC_SUGGESTIONS = [
   'World Geography','Science','Biology',
   'AI & Tech','Football','Cricket','General Knowledge',
 ];
+// Mirrors backend app/services/quick_picks.py canonicalisation so the
+// client can tell — before ever hitting Start — whether a typed topic
+// will be free (Quick Pick bank) or will cost a generation ticket.
+const _QUICK_PICK_ALIASES = (() => {
+  const map = {};
+  TOPIC_SUGGESTIONS.forEach(t => { map[_normaliseTopicForQuickPick(t)] = t; });
+  map['ai and tech']         = 'AI & Tech';
+  map['space and astronomy'] = 'Space & Astronomy';
+  map['geography']           = 'World Geography';
+  map['world geography']     = 'World Geography';
+  map['general knowledge']   = 'General Knowledge';
+  return map;
+})();
+function _normaliseTopicForQuickPick(topic) {
+  return String(topic || '').trim().toLowerCase().replace(/&/g, 'and').replace(/\s+/g, ' ');
+}
+function isQuickPickTopic(topic) {
+  return !!_QUICK_PICK_ALIASES[_normaliseTopicForQuickPick(topic)];
+}
+
 const AVATAR_COLOURS = ['#E63946','#2196F3','#06D6A0','#9B5DE5','#FF9F1C','#4FC3F7','#FFD93D','#FF6B9D'];
 const AVATARS        = ['😀','🤩','🧠','🦊','🐼','🦁','🐯','🤖','👾','🎩','🦄','🐸'];
 
@@ -595,6 +679,7 @@ function onLobbyShow() {
   _renderTopicChips();
   _renderPlayerList(State.players);
   _syncDifficultyButtons();
+  _updateTicketHint();
 
   /* ── WebSocket subscriptions ── */
   WS.on('PLAYER_JOINED', (data) => {
@@ -664,6 +749,89 @@ function onLobbyShow() {
   });
 
   WS.on('ERROR', (data) => Toast.error(data.message || 'Something went wrong.'));
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* TICKET-AWARE TOPIC INPUT                                     */
+/* ─────────────────────────────────────────────────────────── */
+
+/** How many generation tickets the signed-in user currently has, or null if unknown/guest. */
+function _ticketsLeft() {
+  if (!State.user) return null;
+  const t = State.user.tickets_today;
+  return typeof t === 'number' ? t : null;
+}
+
+/** Update the small ticket-cost hint under the topic input as the user types. */
+function _updateTicketHint() {
+  const input = document.getElementById('input-topic');
+  const hint  = document.getElementById('topic-ticket-hint');
+  if (!input || !hint) return;
+
+  const topic = input.value.trim();
+  if (!topic) { hint.textContent = ''; hint.className = 'topic-ticket-hint'; return; }
+
+  if (isQuickPickTopic(topic)) {
+    hint.textContent = '✨ Free Quick Pick topic — no ticket needed';
+    hint.className   = 'topic-ticket-hint is-free';
+  } else {
+    const left = _ticketsLeft();
+    hint.textContent = State.user
+      ? `🎟️ Custom AI topic — uses 1 ticket (${left ?? '?'} left today)`
+      : '🎟️ Custom AI topic — sign in required';
+    hint.className = 'topic-ticket-hint is-custom';
+  }
+}
+
+/**
+ * Check whether the current topic input should show the auto-suggest banner:
+ * the topic is custom (not a Quick Pick) AND the player either isn't signed
+ * in or has 0 tickets left. Runs on every keystroke.
+ */
+function _checkTicketSuggestBanner() {
+  const input  = document.getElementById('input-topic');
+  const banner = document.getElementById('ticket-suggest-banner');
+  const text   = document.getElementById('ticket-suggest-text');
+  if (!input || !banner || !text) return;
+
+  const topic = input.value.trim();
+  if (!topic || isQuickPickTopic(topic)) {
+    banner.classList.remove('visible');
+    return;
+  }
+
+  const left = _ticketsLeft();
+  if (!State.user) {
+    text.textContent = "Sign in to play a custom AI topic — or try a free Quick Pick topic right now, no sign-in needed.";
+    banner.classList.add('visible');
+  } else if (left === 0) {
+    text.textContent = "You're out of generation tickets for today. Quick Pick topics are always free — try one instead!";
+    banner.classList.add('visible');
+  } else {
+    banner.classList.remove('visible');
+  }
+}
+
+/** "Try a free topic instead" — fills the input with a random Quick Pick topic. */
+function lobbyUseRandomQuickPick() {
+  Sound.click();
+  const topic = TOPIC_SUGGESTIONS[Math.floor(Math.random() * TOPIC_SUGGESTIONS.length)];
+  const input = document.getElementById('input-topic');
+  if (input) {
+    input.value = topic;
+    const cnt = document.getElementById('topic-char-count');
+    if (cnt) cnt.textContent = topic.length;
+  }
+  document.querySelectorAll('.topic-chip').forEach(c => {
+    c.classList.toggle('selected', c.textContent.trim() === topic);
+  });
+  document.getElementById('ticket-suggest-banner')?.classList.remove('visible');
+  _updateTicketHint();
+  _updateStartBtns();
+
+  // Small pulse on the matching chip so it's clear what just happened
+  const chip = [...document.querySelectorAll('.topic-chip')].find(c => c.textContent.trim() === topic);
+  if (chip) { chip.classList.add('pulse'); setTimeout(() => chip.classList.remove('pulse'), 2000); }
 }
 
 /* ─────────────────────────────────────────────────────────── */
@@ -880,6 +1048,10 @@ function _renderTeamColumns() {
     const canEditTopic = isTeamHost;
     const topicVal  = _teamTopics[tid] || '';
     const inputId   = `team-topic-input-${tid}`;
+    const topicIsQuickPick = topicVal ? isQuickPickTopic(topicVal) : true;
+    const ticketNote = (canEditTopic && topicVal && !topicIsQuickPick)
+      ? `<p class="team-topic-ticket-note">🎟️ Custom topic — uses a generation ticket</p>`
+      : '';
 
     const topicHtml = canEditTopic ? `
       <div class="team-topic-wrap">
@@ -889,6 +1061,7 @@ function _renderTeamColumns() {
           maxlength="60" value="${_escHtml(topicVal)}"
           oninput="lobbyTeamTopicInput('${tid}',this.value)"
           autocomplete="off" autocorrect="off"/>
+        ${ticketNote}
         <div class="topic-suggestions">
           ${TOPIC_SUGGESTIONS.map(t =>
             `<div class="topic-chip ${topicVal === t ? 'selected' : ''}" onclick="lobbyPickTeamTopic('${tid}','${t}')">${t}</div>`
@@ -971,6 +1144,7 @@ function lobbyTeamTopicInput(teamId, value) {
   _teamTopics[teamId] = value;
   lobbyPushTeamInfo();
   _updateStartBtns();
+  _renderTeamColumns();
 }
 
 /** Team host picks one of the no-cost Quick Pick topics */
@@ -1027,6 +1201,8 @@ function lobbyOnTopicInput() {
   const count = document.getElementById('topic-char-count');
   if (count) count.textContent = (input?.value||'').length;
   document.querySelectorAll('.topic-chip').forEach(c => c.classList.remove('selected'));
+  _updateTicketHint();
+  _checkTicketSuggestBanner();
   _updateStartBtns();
 }
 function lobbyPickTopic(el, topic) {
@@ -1035,6 +1211,8 @@ function lobbyPickTopic(el, topic) {
   if (input) { input.value = clean; const cnt = document.getElementById('topic-char-count'); if (cnt) cnt.textContent = clean.length; }
   document.querySelectorAll('.topic-chip').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
+  document.getElementById('ticket-suggest-banner')?.classList.remove('visible');
+  _updateTicketHint();
   _updateStartBtns();
 }
 
@@ -1073,7 +1251,7 @@ function lobbyStartClassic() {
   Sound.gameStart();
   const playMode = State.playMode === 'solo' ? 'solo' : 'classic';
   WS.send({ action:'start_game', topic, mode: State.mode||'medium', play_mode: playMode });
-  Toast.info(TOPIC_SUGGESTIONS.includes(topic) ? 'Loading Quick Pick questions...' : 'Generating your quiz...');
+  Toast.info(isQuickPickTopic(topic) ? 'Loading Quick Pick questions...' : 'Generating your quiz...');
 }
 
 /** Team start — run randomizer animation then fire start_game */

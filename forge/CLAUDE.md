@@ -579,7 +579,8 @@ alter table public.question_bank enable row level security;
 | 36 | Quick Picks question bank (JSON, 50q/topic, duplicate-safe) | Done |
 | 37 | Daily Login Reward (7-day cycle, Supabase-backed) | Done |
 | 38 | Notification permission flow + 4-slot daily reminders | Done |
-
+| 39 | Reconnect resilience (mid-game resync) + uniform ticket gating for cost-abuse protection | Done |
+| 40 | Generation ticket UI \u2014 home topbar pill, ticket detail sheet, buy-with-coins, lobby auto-suggest for out-of-tickets | Done |
 ---
 
 ## Decisions Log & Known Issues
@@ -604,7 +605,11 @@ alter table public.question_bank enable row level security;
 - **No Rotating Functional Inputs:** Name-entry and room-code fields must always render level.
 - Quick Picks bank lives as bundled JSON in backend/app/data/ — not Supabase. Instant load, offline-safe, zero quota. Supabase migration for question_bank table removed from scope.
 - Generation ticket enforcement deferred until AdMob is live — 3/day limit would hurt UX with no ad-based refill path.
-- Daily reward: client-side coin apply + Supabase upsert, gated by last_reward_date. Amounts (10/10/10/10/10/10/100) are too small to be worth attacking.
+- Daily reward: client-side coin apply + Supabase upsert, gated by last_reward_date. Amounts (10/20/30/40/50/60/100) are too small to be worth attacking.
+- Cost-abuse fix (July 2026): Generation tickets now gate ANY non-Quick-Pick topic in ANY play mode, including Solo — previously only Classic/Team required a ticket, leaving Solo open to unlimited free Gemini calls from unauthenticated guests protected only by a weak per-IP rate limit. Side effect: Classic/Team rooms using a Quick Pick topic are now free (no ticket spent), matching original intent.
+- Freeze/reconnect fix (July 2026): Cloud Run's --timeout counts from WebSocket connect (lobby join), not game start. A long lobby + full-length game could exceed it and get force-closed mid-game, and since the countdown timer is client-side, this looked like a freeze rather than a disconnect. Fixed with: (1) --timeout raised to 3600 (max), (2) client auto-reconnects with backoff on abnormal closure (event.wasClean === false), distinguished from intentional closes via the standard CloseEvent, (3) backend resends the current round's state to a reconnecting socket with recomputed remaining time.
+- Ticket system launched ahead of ads (July 2026): rather than wait for AdMob approval, tickets are now fully surfaced in the UI \u2014 3 free/day + 1 sign-in bonus + buy-with-coins (50/ticket, no cap). Rewarded-ad ticket grants stay wired server-side (grant_ad_ticket) for whenever ads go live, no code changes needed then.
+- Lobby topic input mirrors backend Quick Pick canonicalization client-side purely for UX hints (hint text, auto-suggest banner) \u2014 the backend remains sole authority on what's actually free.
 ---
 
 ## Implementation Guidelines
