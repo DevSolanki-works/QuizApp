@@ -108,6 +108,10 @@ class Room(BaseModel):
     entry_fees: dict[str, float] = Field(default_factory=dict)
     generation_ticket_user_id: Optional[str] = None
     economy_finalized: bool = False
+    # Wall-clock time (time.time()) the current question was broadcast.
+    # Used to compute remaining time for a player who reconnects mid-question
+    # after a dropped WebSocket (e.g. Cloud Run connection timeout).
+    question_started_at: float = 0.0
 
     # ── Team mode fields ───────────────────────────────────────────────────────
     # teams: { player_name → team_id }  where team_id is "A" or "B"

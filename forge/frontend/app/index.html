@@ -155,6 +155,7 @@
       }
     }
     .screen.active { display: flex; }
+    .screen:not(.active) { pointer-events: none; }
 
     /* ── BUTTONS ─────────────────────────────────────────── */
     .btn {
@@ -620,6 +621,42 @@ function _safeEconomyNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Fetch the signed-in user's generation ticket state and grant the once-a-day
+ * sign-in bonus ticket if it hasn't already been claimed today. Safe to call
+ * on every boot and every fresh sign-in — grantSigninBonus() is idempotent
+ * per calendar day server-side, so repeat calls are harmless no-ops.
+ * Silently no-ops for guests (no _credential to authenticate the bonus grant).
+ */
+async function syncTicketsForUser() {
+  if (!State.user?.id) return;
+  try {
+    const bonus = await API.grantSigninBonus(State.user.id).catch(() => null);
+    if (bonus) {
+      State.user.tickets_today         = bonus.tickets_today;
+      State.user.ad_tickets_used_today = bonus.ad_tickets_used_today;
+      State.user.last_ticket_date      = bonus.last_ticket_date;
+      State.user.daily_ad_cap          = bonus.daily_ad_cap;
+      State.user.coins_per_ticket      = bonus.coins_per_ticket;
+      if (bonus.ok) Toast.success('+1 free generation ticket for signing in today!');
+      Session.save();
+      return;
+    }
+  } catch (_) { /* fall through to a plain ticket fetch below */ }
+
+  try {
+    const tickets = await API.getTickets(State.user.id);
+    State.user.tickets_today         = tickets.tickets_today;
+    State.user.ad_tickets_used_today = tickets.ad_tickets_used_today;
+    State.user.last_ticket_date      = tickets.last_ticket_date;
+    State.user.daily_ad_cap          = tickets.daily_ad_cap;
+    State.user.coins_per_ticket      = tickets.coins_per_ticket;
+    Session.save();
+  } catch (e) {
+    console.warn('[Tickets] Sync failed:', e);
+  }
+}
+
 async function applyUserEconomy(economy) {
   if (!State.user || !economy) return;
 
@@ -820,6 +857,21 @@ const API = {
     return r.json();
   },
 
+  async grantSigninBonus(userId) {
+    const credential = State.user?._credential;
+    if (!credential) return null;
+    const r = await fetch(`${API_BASE}/tickets/signin-bonus`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    if (!r.ok) throw new Error('Sign-in bonus request failed');
+    return r.json();
+  },
+
   async verifyGoogleToken(credential) {
     const r = await fetch(`${API_BASE}/auth/google`, {
       method  : 'POST',
@@ -846,23 +898,86 @@ const API = {
 
 /* ══════════════════════════════════════════════════════════
    WEBSOCKET
+   Auto-reconnect (Milestone 39): Cloud Run's request timeout counts from
+   when the socket first connects (lobby join), not from when the quiz
+   starts, so a long lobby wait + a full-length game can hit the ceiling
+   and force-close the connection mid-game. Because the on-screen timer
+   is driven locally, the UI otherwise just sits there forever with no
+   way to recover — this looks exactly like a freeze.
+
+   We tell an intentional close (Leave button, going home — always a
+   clean code-1000 closure) apart from an abnormal one (Cloud Run or a
+   network blip killing the socket — wasClean is false) using the
+   WebSocket CloseEvent itself, so no other screen file needs to be
+   touched or made to call a special "disconnect" method.
    ══════════════════════════════════════════════════════════ */
 const WS = {
-  connect(roomCode, playerName) {
-    if (State.ws) { State.ws.close(); State.ws = null; }
+  _manualClose: false,
+  _reconnectAttempts: 0,
+  _maxReconnectAttempts: 5,
+  _reconnectTimer: null,
+
+  connect(roomCode, playerName, _isReconnect = false) {
+    if (State.ws) {
+      this._manualClose = true;
+      clearTimeout(this._reconnectTimer);
+      State.ws.close();
+      State.ws = null;
+    }
+    this._manualClose = false;
+    if (!_isReconnect) this._reconnectAttempts = 0;
+
     const params = State.user?.id
       ? `?user_id=${encodeURIComponent(State.user.id)}`
       : '';
     const url = `${WS_BASE}/ws/${roomCode}/${encodeURIComponent(playerName)}${params}`;
     State.ws = new WebSocket(url);
-    State.ws.onopen    = () => console.log('[WS] Connected');
+
+    State.ws.onopen = () => {
+      console.log('[WS] Connected');
+      if (_isReconnect) {
+        this._reconnectAttempts = 0;
+        Toast.success('Reconnected!');
+      }
+    };
     State.ws.onmessage = (e) => {
       let msg; try { msg = JSON.parse(e.data); } catch { return; }
       console.log('[WS] ←', msg.type, msg.data);
       this._dispatch(msg);
     };
-    State.ws.onerror = () => Toast.error('Connection error.');
-    State.ws.onclose = () => console.log('[WS] Closed');
+    State.ws.onerror = () => {
+      if (!_isReconnect) Toast.error('Connection error.');
+    };
+    State.ws.onclose = (event) => {
+      console.log('[WS] Closed', event.code, 'clean:', event.wasClean);
+
+      const inActiveSession =
+        State.roomCode && State.playerName &&
+        (State.currentScreen === 'game' || State.currentScreen === 'lobby');
+
+      const shouldRetry =
+        !this._manualClose &&
+        !event.wasClean &&
+        inActiveSession &&
+        this._reconnectAttempts < this._maxReconnectAttempts;
+
+      if (shouldRetry) {
+        this._reconnectAttempts++;
+        const delay = Math.min(1000 * (2 ** (this._reconnectAttempts - 1)), 8000);
+        Toast.info(`Connection lost — reconnecting (${this._reconnectAttempts}/${this._maxReconnectAttempts})...`);
+        this._reconnectTimer = setTimeout(() => {
+          this.connect(State.roomCode, State.playerName, true);
+        }, delay);
+        return;
+      }
+
+      if (!this._manualClose && !event.wasClean && inActiveSession) {
+        // Exhausted retries — give up gracefully instead of freezing forever.
+        Toast.error('Lost connection to the game. Returning home.');
+        State.ws = null;
+        goTo('home');
+      }
+    };
   },
   send(payload) {
     if (State.ws?.readyState === WebSocket.OPEN)
@@ -1419,6 +1534,9 @@ async function handleGoogleLogin(response) {
     Session.save();
     if (typeof _initGoogleSignIn === 'function') _initGoogleSignIn();
     Toast.success(`Signed in as ${user.name}`);
+    syncTicketsForUser().then(() => {
+      if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
+    });
   } catch (e) {
     console.error(e);
     Toast.error('Google Sign-In failed.');
@@ -1453,7 +1571,7 @@ window.nativeGoogleSignIn = nativeGoogleSignIn;
 /* ══════════════════════════════════════════════════════════
    SUPABASE READY HELPER
    ══════════════════════════════════════════════════════════ */
-function waitForSupabase(timeoutMs = 5000) {
+function waitForSupabase(timeoutMs = 3000) {
   return new Promise((resolve) => {
     if (typeof lbFetchProfile === 'function') { resolve(true); return; }
     const start    = Date.now();
@@ -1472,22 +1590,49 @@ function waitForSupabase(timeoutMs = 5000) {
 /* ══════════════════════════════════════════════════════════
    BOOT SEQUENCE
    Order:
-   1. Health ping
-   2. Notification permission (native, first open only)
-   3. Supabase profile sync
-   4. Navigate to correct screen
-   5. Dismiss splash
+   1. Health ping (fire and forget)
+   2. Notification permission (native only, blocks until answered)
+   3. Navigate to correct screen + dismiss splash immediately
+   4. Sync Supabase profile in background (never blocks render)
    ══════════════════════════════════════════════════════════ */
 (async () => {
+  function _dismissSplash() {
+    const splash = document.getElementById('forge-splash');
+    if (!splash) return;
+    splash.classList.add('splash-out');
+    setTimeout(() => splash.remove(), 550);
+  }
+
   try {
     API.health().catch(() => {});
 
-    // Step 1: notification permission prompt (blocks until user responds)
+    // Only blocks on native app first open — web returns immediately
     await _maybeShowNotifPermission();
 
     const hash = window.location.hash.replace('#', '') || 'home';
 
-    if (State.user && State.user.id) {
+    // ── Navigate and dismiss splash immediately — never wait for network ──
+    if (_savedSession?.roomCode && hash !== 'home') {
+      try {
+        await API.getRoom(_savedSession.roomCode);
+        if (hash === 'lobby' || hash === 'game' || hash === 'results') {
+          WS.connect(_savedSession.roomCode, _savedSession.playerName);
+        }
+        await goTo(hash, true);
+        _dismissSplash();
+      } catch (e) {
+        console.warn('[Boot] Saved room no longer valid:', e);
+        Session.clear();
+        await goTo('home', true);
+        _dismissSplash();
+      }
+    } else {
+      await goTo('home', true);
+      _dismissSplash();
+    }
+
+    // ── Background: sync Supabase profile after home is already visible ──
+    if (State.user?.id) {
       const supabaseReady = await waitForSupabase();
       if (supabaseReady) {
         try {
@@ -1499,38 +1644,22 @@ function waitForSupabase(timeoutMs = 5000) {
             State.user.reward_day       = fresh.reward_day       || 0;
             if (fresh.display_name) State.user.name = fresh.display_name;
             Session.save();
+            // Re-render currency now that we have fresh values
+            if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
+            if (typeof _hLoadStats     === 'function') _hLoadStats();
           } else {
             State.user.coins    = State.user.coins    ?? 200;
             State.user.trophies = State.user.trophies ?? 50;
           }
         } catch (e) {
           console.warn('[Boot] Supabase unreachable:', e);
-          State.user.coins    = null;
-          State.user.trophies = null;
         }
-      } else {
-        State.user.coins    = null;
-        State.user.trophies = null;
       }
-    }
 
-    if (_savedSession?.roomCode && hash !== 'home') {
-      try {
-        await API.getRoom(_savedSession.roomCode);
-        if (hash === 'lobby' || hash === 'game' || hash === 'results') {
-          WS.connect(_savedSession.roomCode, _savedSession.playerName);
-        }
-        await goTo(hash, true);
-        _dismissSplash();
-        return;
-      } catch (e) {
-        console.warn('[Boot] Saved room no longer valid:', e);
-        Session.clear();
-      }
+      // Ticket state + daily sign-in bonus — also background, never blocks render
+      await syncTicketsForUser();
+      if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
     }
-
-    await goTo('home', true);
-    _dismissSplash();
 
   } catch (e) {
     console.error('[Boot] Unexpected error, falling back to home:', e);
@@ -1544,14 +1673,8 @@ function waitForSupabase(timeoutMs = 5000) {
         el.classList.add('active');
         el.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#fff"><h1 style="color:#FFD93D;margin-bottom:16px">FORGE</h1><p>Loading failed. Please refresh the app.</p></div>';
       }
+      _dismissSplash();
     }
-  }
-
-  function _dismissSplash() {
-    const splash = document.getElementById('forge-splash');
-    if (!splash) return;
-    splash.classList.add('splash-out');
-    setTimeout(() => splash.remove(), 550);
   }
 })();
 </script>

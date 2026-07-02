@@ -19,12 +19,34 @@ Security hardening (Milestone 29):
   - topic validated for prompt-injection patterns
   - X-Forwarded-For uses last-IP (Cloud Run's insertion), not first
   - time_ms clamped to [0, time_limit_ms + 500ms grace]
+
+Cost-abuse hardening (Milestone 39):
+  - Generation tickets are now required for ANY non-Quick-Pick topic,
+    regardless of play mode (previously only Classic/Team required a
+    ticket, leaving Solo mode able to hit Gemini for free with only a
+    weak per-IP rate limit protecting it). Quick Pick topics remain free
+    and sign-in-free in every mode, matching the bank-first design.
+
+Reconnect resilience (Milestone 39):
+  - Cloud Run's request timeout caps how long a single WebSocket connection
+    may stay open, counted from when the socket first connects (i.e. from
+    lobby join), not from when the quiz starts. A long lobby wait plus a
+    full-length game can exceed that cap, causing Cloud Run to force-close
+    the connection mid-game. Because the client's countdown timer is driven
+    locally (Date.now()), it keeps ticking even after the socket dies,
+    which looks like a frozen game.
+  - On reconnect (same player name rejoining an active room), the server
+    now resends the current round's message (QUESTION / ANSWER_REVEAL /
+    INTERMISSION_LEADERBOARD) with time recomputed for what's actually
+    left, so a client that auto-reconnects picks the round back up instead
+    of freezing.
 """
 
 import asyncio
 import json
 import logging
 import random
+import time
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -71,6 +93,7 @@ BASE_POINTS                      = 1000
 ANSWER_REVEAL_SECONDS            = 4
 INTERMISSION_LEADERBOARD_SECONDS = 5
 GENERATION_TIMEOUT_SECONDS       = 30
+REJOIN_MIN_REMAINING_MS          = 1000  # floor so a reconnect never insta-expires
 
 _round_timeout_tasks: dict[str, asyncio.Task] = {}
 
@@ -353,6 +376,7 @@ async def broadcast_question(room_code: str) -> None:
     room.phase = RoundPhase.QUESTION
     room.answers_this_round = {}
     room.points_gained = {name: 0 for name in room.players}
+    room.question_started_at = time.time()
     for player in room.players.values():
         player.answered    = False
         player.last_answer = None
@@ -376,6 +400,55 @@ async def broadcast_question(room_code: str) -> None:
     _round_timeout_tasks[room_code] = asyncio.create_task(
         _expire_question(room_code, room.current_q_index)
     )
+
+
+async def _send_rejoin_resync(websocket: WebSocket, room) -> None:
+    """
+    Bring a reconnecting player back up to speed on the current round.
+
+    Reuses the exact same message shapes as the live broadcasts (QUESTION /
+    ANSWER_REVEAL / INTERMISSION_LEADERBOARD) so the client's existing
+    handlers work unmodified — the client's WS._pending queue already
+    handles the case where this arrives before the screen has registered
+    its handlers.
+
+    For an in-progress QUESTION, time_limit_ms is recomputed to reflect what
+    is actually left rather than resending the full original duration, so a
+    reconnecting client's local countdown lines back up with the server's
+    authoritative round timer (which keeps running server-side regardless
+    of any single player's connection state).
+    """
+    if room.status != GameStatus.ACTIVE:
+        return
+
+    if room.phase == RoundPhase.QUESTION:
+        elapsed_ms   = max(0.0, (time.time() - room.question_started_at) * 1000)
+        remaining_ms = max(REJOIN_MIN_REMAINING_MS, int(room.time_limit_ms - elapsed_ms))
+        question     = room.questions[room.current_q_index]
+        msg_data: dict[str, Any] = {
+            "index":         room.current_q_index,
+            "text":          question.question,
+            "options":       question.options,
+            "mode":          room.mode.value,
+            "play_mode":     room.play_mode.value,
+            "phase":         room.phase.value,
+            "time_limit_ms": remaining_ms,
+        }
+        if room.play_mode == PlayMode.TEAM:
+            msg_data["team_scores"] = _team_scores(room)
+            msg_data["teams"]       = dict(room.teams)
+            msg_data["team_names"]  = dict(room.team_names)
+        await send_to(websocket, {"type": "QUESTION", "data": msg_data})
+
+    elif room.phase in (RoundPhase.ANSWER_REVEAL, RoundPhase.INTERMISSION_LEADERBOARD):
+        payload = _round_payload(room)
+        payload.update({"phase": room.phase.value, "hold_ms": 1000})
+        if room.phase == RoundPhase.INTERMISSION_LEADERBOARD:
+            payload["is_final"] = room.current_q_index + 1 >= len(room.questions)
+            msg_type = "INTERMISSION_LEADERBOARD"
+        else:
+            msg_type = "ANSWER_REVEAL"
+        await send_to(websocket, {"type": msg_type, "data": payload})
 
 
 async def resolve_round(room_code: str, question_index: int) -> None:
@@ -530,6 +603,7 @@ async def websocket_endpoint(
     player_name = clean_name
 
     # Re-join support: player reconnects after disconnect
+    is_rejoin = False
     existing = room.players.get(player_name)
     if existing:
         if existing.websocket is not None:
@@ -542,6 +616,7 @@ async def websocket_endpoint(
         existing.websocket = websocket
         if user_id:
             existing.user_id = user_id
+        is_rejoin = True
         logger.info("Player '%s' re-joined room '%s'", player_name, room_code)
     else:
         if room.status != GameStatus.WAITING:
@@ -580,6 +655,17 @@ async def websocket_endpoint(
         joined_data["team_names"]  = dict(room.team_names)
         joined_data["team_topics"] = dict(room.team_topics)
     await broadcast(room_code, {"type": "PLAYER_JOINED", "data": joined_data})
+
+    # If this is a reconnect into a game already underway, resync the
+    # reconnecting socket with the current round state instead of leaving
+    # them stalled until the next natural broadcast.
+    if is_rejoin:
+        try:
+            await _send_rejoin_resync(websocket, room)
+        except Exception as exc:
+            logger.warning(
+                "Rejoin resync failed for '%s' in room '%s': %s", player_name, room_code, exc
+            )
 
     try:
         while True:
@@ -838,7 +924,16 @@ async def websocket_endpoint(
                     room.topic     = topic
                     chosen_team_id = None
 
-                if room.play_mode in (PlayMode.CLASSIC, PlayMode.TEAM):
+                # ── Generation ticket gating (Milestone 39) ────────────────────
+                # ANY topic that is not a bundled Quick Pick will call Gemini
+                # and therefore costs real money. This gate applies regardless
+                # of play mode (Solo included) — previously Solo mode had no
+                # gate at all, which left the app open to unlimited free
+                # Gemini calls from unauthenticated guests, protected only by
+                # a weak, easily-bypassed per-IP rate limit.
+                #
+                # Quick Pick topics remain free and sign-in-free in every mode.
+                if not is_quick_pick_topic(topic):
                     host_player = room.players.get(room.host)
                     if not host_player or not host_player.user_id:
                         if room.entry_fees:
@@ -846,7 +941,10 @@ async def websocket_endpoint(
                         room.status = GameStatus.WAITING
                         await send_to(websocket, {
                             "type": "ERROR",
-                            "data": {"message": "Sign in to spend a generation ticket."},
+                            "data": {
+                                "message": "Sign in with Google to play a custom AI topic. "
+                                           "Quick Pick topics are free to play without signing in."
+                            },
                         })
                         continue
                     try:
@@ -859,7 +957,8 @@ async def websocket_endpoint(
                         await send_to(websocket, {
                             "type": "ERROR",
                             "data": {
-                                "message": "Out of generation tickets today. Watch an ad or buy more to keep playing."
+                                "message": "Out of generation tickets today. Play a Quick Pick "
+                                           "topic for free, or come back tomorrow."
                             },
                         })
                         continue
