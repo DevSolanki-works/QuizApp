@@ -1,10 +1,20 @@
 <!--
   DAILY REWARD SCREEN — Forge App Track
   Shows a 7-day reward cycle on home screen load when reward is unclaimed.
-  Days 1-6: +10/+20/+30/+40/+50/+60 coins (progressive). Day 7: +100 coins jackpot,
-  then cycle resets to day 1.
-  Claim is gated by last_reward_date in Supabase — safe against simple replays.
-  Auto-dismisses 2s after claim. Manual dismiss also available.
+  Days 1-6: +10/+20/+30/+40/+50/+60 coins (progressive), plus 1-3 generation
+  tickets. Day 7: +100 coins + 5 tickets jackpot, then cycle resets to day 1.
+
+  Two separate systems are touched on claim:
+    - Coins + reward_day/last_reward_date: Supabase leaderboard upsert
+      (this table is also the display mirror, so this stays as-is).
+    - Tickets: a real backend call (/tickets/daily-reward-grant) so the
+      grant lands in the backend's authoritative ticket store, the same
+      store that actually enforces spend_ticket() on game start. A
+      Supabase-only ticket bump would only update the display mirror and
+      leave the server thinking the player still has 0 tickets.
+
+  Claim is gated by last_reward_date in Supabase — safe against simple
+  replays. Auto-dismisses 2s after claim. Manual dismiss also available.
 -->
 <style>
   .dr-overlay {
@@ -57,6 +67,7 @@
     gap: 6px; width: 100%;
   }
   .dr-day {
+    position: relative;
     display: flex; flex-direction: column;
     align-items: center; gap: 5px;
     padding: 10px 4px; border-radius: 10px;
@@ -100,13 +111,22 @@
   .dr-day.claimed .dr-day-icon::after { content: ''; }
 
   .dr-day-reward {
-    font-family: var(--font-pixel); font-size: 5px;
-    color: rgba(255,255,255,0.5); line-height: 1.4; text-align: center;
+    font-family: var(--font-pixel); font-size: 4.5px;
+    color: rgba(255,255,255,0.5); line-height: 1.5; text-align: center;
   }
   .dr-day.today   .dr-day-reward { color: var(--yellow); }
   .dr-day.claimed .dr-day-reward { color: var(--green); }
   .dr-day.jackpot .dr-day-reward { color: #c4a0ff; }
   .dr-day.jackpot.today .dr-day-reward { color: #d9bfff; }
+
+  /* Ticket count badge — top-right corner of each day cell */
+  .dr-day-ticket-badge {
+    position: absolute; top: 3px; right: 3px;
+    font-family: var(--font-pixel); font-size: 4px;
+    color: #c4a0ff; background: rgba(155,93,229,0.18);
+    border: 1px solid rgba(155,93,229,0.35);
+    padding: 1.5px 3px; border-radius: 4px; line-height: 1.4;
+  }
 
   /* ── CLAIM SECTION ──────────────────────────────────────── */
   .dr-claim-box {
@@ -130,6 +150,12 @@
   @keyframes dr-amount-pop {
     from { transform: scale(0.5); opacity: 0; }
     to   { transform: scale(1);   opacity: 1; }
+  }
+  .dr-claim-tickets {
+    font-family: var(--font-pixel); font-size: 12px;
+    color: #c4a0ff; line-height: 1;
+    text-shadow: 0 0 16px rgba(155,93,229,0.4);
+    animation: dr-amount-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.4s both;
   }
   .dr-claim-desc {
     font-family: var(--font-body); font-size: 13px; font-weight: 700;
@@ -183,7 +209,7 @@
     </div>
 
     <p class="dr-streak-note" id="dr-streak-note">
-      DAY 7 BONUS: +100 COINS · RESETS AFTER DAY 7
+      DAY 7 JACKPOT: +100 COINS · +5 TICKETS · RESETS AFTER DAY 7
     </p>
 
     <div class="dr-close" id="dr-close-btn" onclick="drDismiss()">MAYBE LATER</div>
@@ -197,6 +223,7 @@
 
 // Reward amounts per day in the 7-day cycle (1-indexed, day 7 = jackpot)
 const DR_REWARDS = [10, 20, 30, 40, 50, 60, 100];
+const DR_TICKETS = [1, 1, 1, 1, 2, 3, 5];
 const DR_ICONS   = ['🪙','🪙','🪙','🪙','🪙','🪙','💎'];
 
 let _drClaiming = false;
@@ -224,8 +251,8 @@ function drRender() {
     ? rewardDay                           // already claimed, show what we claimed
     : (rewardDay % 7) + 1;               // next unclaimed day
 
-  const coins = DR_REWARDS[todayDay - 1];
-  const icon  = DR_ICONS[todayDay - 1];
+  const coins   = DR_REWARDS[todayDay - 1];
+  const tickets = DR_TICKETS[todayDay - 1];
 
   // Header emoji based on today's day
   const emojiEl = document.getElementById('dr-emoji');
@@ -237,25 +264,24 @@ function drRender() {
     let html = '';
     for (let d = 1; d <= 7; d++) {
       let cls = 'dr-day';
-      // Determine state
       if (alreadyClaimed) {
         if (d < todayDay)       cls += ' claimed';
         else if (d === todayDay) cls += ' claimed';  // today already claimed
         else                    cls += ' future';
       } else {
-        // Continuing from a previous streak
         if (d < todayDay)       cls += ' claimed';
         else if (d === todayDay) cls += ' today';
         else                    cls += ' future';
       }
       if (d === 7) cls += ' jackpot';
 
-      const dayReward = DR_REWARDS[d - 1];
-      const dayIcon   = DR_ICONS[d - 1];
-      const rewardTxt = '+' + dayReward;
+      const dayIcon    = DR_ICONS[d - 1];
+      const rewardTxt  = '+' + DR_REWARDS[d - 1];
+      const ticketTxt  = '+' + DR_TICKETS[d - 1] + '🎟️';
 
       html += `
         <div class="${cls}">
+          <span class="dr-day-ticket-badge">${ticketTxt}</span>
           <span class="dr-day-num">D${d}</span>
           <span class="dr-day-icon">${d < todayDay || (alreadyClaimed && d === todayDay) ? '✓' : dayIcon}</span>
           <span class="dr-day-reward">${rewardTxt}<br>🪙</span>
@@ -289,9 +315,10 @@ function drRender() {
     claimBox.innerHTML = `
       <p class="dr-claim-label">${dayLabel}</p>
       <p class="dr-claim-amount">+${coins} 🪙</p>
+      <p class="dr-claim-tickets">+${tickets} 🎟️</p>
       <p class="dr-claim-desc">Claim your daily login bonus!</p>
       <button class="btn btn-primary" style="margin-top:4px;"
-              onclick="drClaim(${todayDay}, ${coins})">
+              onclick="drClaim(${todayDay}, ${coins}, ${tickets})">
         🎁 &nbsp;CLAIM REWARD
       </button>`;
 
@@ -302,7 +329,7 @@ function drRender() {
 
 /* ── CLAIM ────────────────────────────────────────────────── */
 
-async function drClaim(day, coins) {
+async function drClaim(day, coins, tickets) {
   if (_drClaiming) return;
   _drClaiming = true;
 
@@ -317,8 +344,41 @@ async function drClaim(day, coins) {
       return;
     }
 
-    // Atomic upsert — Supabase enforces last_reward_date server-side
-    // If another session already claimed today, the date won't advance
+    // Defense in depth: never trust whatever State.user.coins/trophies
+    // happens to hold at click-time — always read the freshest row
+    // immediately before writing. This is the exact bug that used to
+    // reset real players' balances back near the 200-coin starter
+    // default when a stale placeholder was still sitting in memory.
+    // Also doubles as a double-claim guard for two tabs/devices racing.
+    let baseCoins    = Number(State.user.coins)    || 0;
+    let baseTrophies = Number(State.user.trophies) || 50;
+    try {
+      const { data: current } = await db
+        .from('leaderboard')
+        .select('coins, trophies, last_reward_date')
+        .eq('google_id', State.user.id)
+        .maybeSingle();
+      if (current) {
+        if (current.last_reward_date === today) {
+          // Already claimed elsewhere in the interim — resync and stop,
+          // don't grant a second time.
+          State.user.coins            = current.coins;
+          State.user.trophies         = current.trophies;
+          State.user.last_reward_date = today;
+          Session.save();
+          Toast.info('Already claimed today!');
+          drRender();
+          _drClaiming = false;
+          return;
+        }
+        baseCoins    = Number(current.coins)    || baseCoins;
+        baseTrophies = Number(current.trophies) || baseTrophies;
+      }
+    } catch (e) {
+      console.warn('[DailyReward] Pre-claim fresh read failed, falling back to in-memory balance:', e);
+    }
+
+    // 1. Coins + date/day tracking — Supabase upsert (also the display mirror)
     const { data, error } = await db
       .from('leaderboard')
       .upsert({
@@ -326,25 +386,44 @@ async function drClaim(day, coins) {
         display_name:     State.user.name || 'PLAYER',
         last_reward_date: today,
         reward_day:       day,
-        // Apply coin delta on top of existing balance
-        coins:            (Number(State.user.coins) || 0) + coins,
-        trophies:         Number(State.user.trophies) || 50,
+        coins:            baseCoins + coins,
+        trophies:         baseTrophies,
         updated_at:       new Date().toISOString(),
       }, { onConflict: 'google_id' })
       .select('coins, reward_day, last_reward_date')
       .single();
 
     if (error) {
-      console.error('[DailyReward] Upsert failed:', error.message);
+      console.error('[DailyReward] Coin upsert failed:', error.message);
       Toast.error('Could not claim reward. Try again.');
       _drClaiming = false;
       return;
     }
 
-    // Update local State from server response (source of truth)
-    State.user.coins           = data.coins;
-    State.user.reward_day      = data.reward_day;
+    State.user.coins            = data.coins;
+    State.user.reward_day       = data.reward_day;
     State.user.last_reward_date = data.last_reward_date;
+
+    // 2. Tickets — real backend call so the grant lands in the store that
+    //    actually enforces spend_ticket() on game start, not just the
+    //    Supabase display mirror.
+    let ticketsGranted = tickets;
+    try {
+      const ticketResult = await API.grantDailyRewardTickets(State.user.id, day);
+      if (ticketResult) {
+        State.user.tickets_today         = ticketResult.tickets_today;
+        State.user.ad_tickets_used_today = ticketResult.ad_tickets_used_today;
+        State.user.last_ticket_date      = ticketResult.last_ticket_date;
+        ticketsGranted = ticketResult.granted ?? tickets;
+        if (typeof lbUpsertPlayer === 'function') {
+          lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, ticketResult)
+            .catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn('[DailyReward] Ticket grant failed — coins still applied:', e);
+    }
+
     Session.save();
 
     // Show claimed state
@@ -353,7 +432,7 @@ async function drClaim(day, coins) {
       claimBox.style.background   = 'rgba(6,214,160,0.08)';
       claimBox.style.borderColor  = 'rgba(6,214,160,0.25)';
       claimBox.innerHTML = `
-        <p class="dr-claimed-msg">✓ +${coins} COINS CLAIMED!</p>
+        <p class="dr-claimed-msg">✓ +${coins} COINS · +${ticketsGranted} TICKETS!</p>
         <p class="dr-claim-desc">Come back tomorrow for Day ${(day % 7) + 1}'s reward.</p>`;
     }
 
@@ -372,7 +451,7 @@ async function drClaim(day, coins) {
     const closeBtn = document.getElementById('dr-close-btn');
     if (closeBtn) closeBtn.textContent = 'CLOSE';
 
-    Toast.success(`+${coins} coins claimed!`);
+    Toast.success(`+${coins} coins, +${ticketsGranted} tickets claimed!`);
     Sound.correct();
 
     // Auto-dismiss after 2s

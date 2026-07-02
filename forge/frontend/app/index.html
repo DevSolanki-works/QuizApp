@@ -481,6 +481,7 @@
   <section id="screen-leaderboard"  class="screen"></section>
   <section id="screen-settings"     class="screen"></section>
   <section id="screen-daily-reward" class="screen"></section>
+  <section id="screen-shop"         class="screen"></section>
 
   <!-- COOKIE CONSENT BANNER -->
   <div id="cookie-banner" role="dialog" aria-modal="false" aria-label="Cookie consent">
@@ -609,6 +610,7 @@ const State = {
   teamNames  : { A: 'Team A', B: 'Team B' },
   teamScores : {},
   currentScreen : 'home',
+  _dailyRewardCheckedThisSession: false,
 };
 
 function formatCoins(value) {
@@ -622,28 +624,15 @@ function _safeEconomyNumber(value) {
 }
 
 /**
- * Fetch the signed-in user's generation ticket state and grant the once-a-day
- * sign-in bonus ticket if it hasn't already been claimed today. Safe to call
- * on every boot and every fresh sign-in — grantSigninBonus() is idempotent
- * per calendar day server-side, so repeat calls are harmless no-ops.
- * Silently no-ops for guests (no _credential to authenticate the bonus grant).
+ * Fetch the signed-in user's current generation ticket state.
+ * Tickets now come from: 3 free/day (reset at midnight), the Daily Reward
+ * login cycle (see daily-reward.html), rewarded ads (once live), or buying
+ * with coins in the Shop. There is no separate sign-in bonus — that was
+ * folded into the Daily Reward cycle instead so login rewards live in one
+ * place. Silently no-ops for guests.
  */
 async function syncTicketsForUser() {
   if (!State.user?.id) return;
-  try {
-    const bonus = await API.grantSigninBonus(State.user.id).catch(() => null);
-    if (bonus) {
-      State.user.tickets_today         = bonus.tickets_today;
-      State.user.ad_tickets_used_today = bonus.ad_tickets_used_today;
-      State.user.last_ticket_date      = bonus.last_ticket_date;
-      State.user.daily_ad_cap          = bonus.daily_ad_cap;
-      State.user.coins_per_ticket      = bonus.coins_per_ticket;
-      if (bonus.ok) Toast.success('+1 free generation ticket for signing in today!');
-      Session.save();
-      return;
-    }
-  } catch (_) { /* fall through to a plain ticket fetch below */ }
-
   try {
     const tickets = await API.getTickets(State.user.id);
     State.user.tickets_today         = tickets.tickets_today;
@@ -747,6 +736,7 @@ const Screens = {
   leaderboard  : { id: 'screen-leaderboard',  file: 'screens/leaderboard.html'  },
   settings     : { id: 'screen-settings',     file: 'screens/settings.html'     },
   'daily-reward': { id: 'screen-daily-reward', file: 'screens/daily-reward.html' },
+  shop         : { id: 'screen-shop',         file: 'screens/shop.html'         },
 };
 
 const SCREEN_GUARDS = {
@@ -857,18 +847,33 @@ const API = {
     return r.json();
   },
 
-  async grantSigninBonus(userId) {
+  async grantDailyRewardTickets(userId, day) {
     const credential = State.user?._credential;
     if (!credential) return null;
-    const r = await fetch(`${API_BASE}/tickets/signin-bonus`, {
+    const r = await fetch(`${API_BASE}/tickets/daily-reward-grant`, {
       method  : 'POST',
       headers : {
         'Content-Type' : 'application/json',
         'Authorization': `Bearer ${credential}`,
       },
-      body: JSON.stringify({ user_id: userId }),
+      body: JSON.stringify({ user_id: userId, day }),
     });
-    if (!r.ok) throw new Error('Sign-in bonus request failed');
+    if (!r.ok) throw new Error('Daily reward ticket grant failed');
+    return r.json();
+  },
+
+  async buyTickets(userId, numTickets) {
+    const credential = State.user?._credential;
+    if (!credential) throw new Error('Not signed in');
+    const r = await fetch(`${API_BASE}/tickets/buy`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: userId, num_tickets: numTickets }),
+    });
+    if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
 
@@ -1381,6 +1386,16 @@ window.StreakNotif = StreakNotif;
 /* ══════════════════════════════════════════════════════════
    DAILY REWARD CHECK
    Called from onHomeShow — shows reward screen if unclaimed.
+
+   Data-loss fix (July 2026): this used to only refresh last_reward_date/
+   reward_day from Supabase, leaving State.user.coins/trophies on whatever
+   placeholder (200/50) was set during session restore if the boot's
+   background Supabase sync hadn't finished yet. Claiming a reward then
+   wrote "placeholder + reward" straight over a player's real balance in
+   Supabase, permanently resetting it. This now ALWAYS pulls the real
+   coins/trophies here too, and only runs once per app session (a
+   dismissed-without-claiming reward no longer re-triggers on every
+   subsequent home navigation, e.g. coming back from the leaderboard).
    ══════════════════════════════════════════════════════════ */
 function _drTodayStr() {
   const d = new Date();
@@ -1389,26 +1404,35 @@ function _drTodayStr() {
 
 async function checkAndShowDailyReward() {
   if (!State.user?.id) return;   // guests don't get rewards
+  if (State._dailyRewardCheckedThisSession) return;  // one check per app session
+  State._dailyRewardCheckedThisSession = true;
 
-  const today      = _drTodayStr();
-  const lastClaimed = State.user.last_reward_date || '';
-
-  if (lastClaimed === today) return;  // already claimed, skip
-
-  // Also verify against Supabase in case another device claimed it
+  // Always pull the authoritative balance here — never trust whatever
+  // placeholder State.user.coins/trophies currently holds. This is the
+  // single point that guarantees the Daily Reward screen (and thus its
+  // claim write) only ever operates on real, current numbers.
   try {
     if (typeof lbFetchProfile === 'function') {
       const fresh = await lbFetchProfile(State.user.id);
       if (fresh) {
+        const freshCoins    = _safeEconomyNumber(fresh.coins);
+        const freshTrophies = _safeEconomyNumber(fresh.trophies);
+        if (freshCoins    !== null) State.user.coins    = freshCoins;
+        if (freshTrophies !== null) State.user.trophies = freshTrophies;
         State.user.last_reward_date = fresh.last_reward_date || '';
         State.user.reward_day       = fresh.reward_day       || 0;
-        if (State.user.last_reward_date === today) {
-          Session.save();
-          return;  // claimed on another device today
-        }
+        if (fresh.display_name) State.user.name = fresh.display_name;
+        Session.save();
+        if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
       }
     }
-  } catch (_) {}
+  } catch (e) {
+    console.warn('[DailyReward] Profile refresh failed — skipping check this session:', e);
+    return;  // don't risk showing the screen against stale data
+  }
+
+  const today = _drTodayStr();
+  if ((State.user.last_reward_date || '') === today) return;  // already claimed today
 
   // Reward is unclaimed — navigate to the daily reward screen
   await goTo('daily-reward');

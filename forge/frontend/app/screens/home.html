@@ -469,23 +469,6 @@
     font-family: var(--font-body); font-size: 13px; font-weight: 700;
     color: rgba(255,255,255,0.75); line-height: 1.4;
   }
-  .h-ticket-buy-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px; border-radius: 12px;
-    background: rgba(255,217,61,0.08); border: 1.5px solid rgba(255,217,61,0.25);
-  }
-  .h-ticket-buy-label {
-    font-family: var(--font-pixel); font-size: 7px; color: var(--yellow);
-  }
-  .h-ticket-buy-btn {
-    padding: 9px 16px; border-radius: var(--radius-pill);
-    background: var(--yellow); color: var(--text-dark);
-    border: none; font-family: var(--font-pixel); font-size: 7px;
-    cursor: pointer; -webkit-tap-highlight-color: transparent;
-    box-shadow: 0 3px 0 var(--yellow-dark);
-  }
-  .h-ticket-buy-btn:active { transform: translateY(2px); box-shadow: none; }
-  .h-ticket-buy-btn:disabled { opacity: 0.4; pointer-events: none; }
 </style>
 
 <div class="home-wrap">
@@ -640,7 +623,7 @@
       </div>
       <div class="h-signin-perk">
         <span class="h-signin-perk-icon">🎟️</span>
-        <span class="h-signin-perk-text">3 free AI quiz generations every day, plus a bonus ticket just for signing in</span>
+        <span class="h-signin-perk-text">3 free AI quiz generations every day, plus bonus tickets from your daily login streak</span>
       </div>
       <div class="h-signin-perk">
         <span class="h-signin-perk-icon">🔥</span>
@@ -734,17 +717,20 @@
     </div>
     <div class="h-ticket-info-row">
       <span class="h-ticket-info-icon">🤖</span>
-      <span class="h-ticket-info-text">A custom AI-generated topic (any mode) uses 1 ticket. You get 3 free per day, plus 1 for signing in.</span>
+      <span class="h-ticket-info-text">A custom AI-generated topic (any mode) uses 1 ticket. You get 3 free per day.</span>
+    </div>
+    <div class="h-ticket-info-row">
+      <span class="h-ticket-info-icon">🎁</span>
+      <span class="h-ticket-info-text">The Daily Reward login streak also hands out bonus tickets — up to +5 on Day 7.</span>
     </div>
     <div class="h-ticket-info-row">
       <span class="h-ticket-info-icon">🔄</span>
-      <span class="h-ticket-info-text">Tickets reset to 3 free every day at midnight — they don't carry over.</span>
+      <span class="h-ticket-info-text">The 3 free tickets reset every day at midnight — they don't carry over.</span>
     </div>
 
-    <div class="h-ticket-buy-row">
-      <span class="h-ticket-buy-label">BUY 1 TICKET<br>50 🪙</span>
-      <button class="h-ticket-buy-btn" id="h-ticket-buy-btn" onclick="hBuyTicket()">BUY</button>
-    </div>
+    <button class="btn btn-primary" onclick="hCloseTicketSheet(); hGoShop();">
+      🛒 &nbsp;GET MORE IN THE SHOP
+    </button>
 
     <div class="h-signin-close" onclick="hCloseTicketSheet()">CLOSE</div>
 
@@ -937,13 +923,6 @@ function hOpenTicketSheet() {
   const countEl = document.getElementById('h-ticket-sheet-count');
   if (countEl) countEl.textContent = State.user.tickets_today != null ? String(State.user.tickets_today) : '0';
 
-  const buyBtn = document.getElementById('h-ticket-buy-btn');
-  if (buyBtn) {
-    const coins = Number(State.user.coins || 0);
-    const cost  = Number(State.user.coins_per_ticket || 50);
-    buyBtn.disabled = coins < cost;
-  }
-
   const modal = document.getElementById('h-ticket-modal');
   if (modal) modal.style.display = 'flex';
 }
@@ -952,50 +931,6 @@ function hCloseTicketSheet(e) {
   if (e && e.target !== document.getElementById('h-ticket-modal')) return;
   const modal = document.getElementById('h-ticket-modal');
   if (modal) modal.style.display = 'none';
-}
-
-async function hBuyTicket() {
-  if (!State.user?.id) return;
-  const btn = document.getElementById('h-ticket-buy-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '...'; }
-
-  try {
-    const credential = State.user._credential;
-    const r = await fetch(`${API_BASE}/tickets/buy`, {
-      method  : 'POST',
-      headers : {
-        'Content-Type' : 'application/json',
-        'Authorization': `Bearer ${credential}`,
-      },
-      body: JSON.stringify({ user_id: State.user.id, num_tickets: 1 }),
-    });
-    if (!r.ok) throw new Error(await r.text());
-    const data = await r.json();
-
-    State.user.coins         = data.coins;
-    State.user.tickets_today = data.tickets_today;
-    Session.save();
-
-    _hRenderCurrency();
-    const countEl = document.getElementById('h-ticket-sheet-count');
-    if (countEl) countEl.textContent = String(data.tickets_today);
-    Toast.success('+1 generation ticket!');
-
-    if (typeof lbUpsertPlayer === 'function') {
-      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, data)
-        .catch(() => {});
-    }
-  } catch (e) {
-    console.error('[Tickets] Buy failed:', e);
-    Toast.error('Not enough coins, or something went wrong.');
-  } finally {
-    if (btn) {
-      btn.textContent = 'BUY';
-      const coins = Number(State.user.coins || 0);
-      const cost  = Number(State.user.coins_per_ticket || 50);
-      btn.disabled = coins < cost;
-    }
-  }
 }
 
 /* ── SIGN-IN MODAL ────────────────────────────────────────── */
@@ -1121,6 +1056,7 @@ function hCloseProfileModal(e) {
 function hSignOut() {
   Sound.click();
   State.user = null;
+  State._dailyRewardCheckedThisSession = false;
   Session.save();
   hCloseProfileModal();
   // Revoke Google session silently
@@ -1243,7 +1179,7 @@ async function hJoinRoomConfirm() {
 
 /* ── NAV STUBS ────────────────────────────────────────────── */
 function hGoLeaderboard() { Sound.click(); goTo('leaderboard'); }
-function hGoShop()        { Sound.click(); Toast.info('Shop — coming soon!'); }
+function hGoShop()        { Sound.click(); goTo('shop'); }
 function hGoSettings()    { Sound.click(); goTo('settings'); }
 
 /* ── UTILS ────────────────────────────────────────────────── */
