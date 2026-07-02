@@ -16,6 +16,15 @@ from app.services import profiles
 DAILY_FREE_TICKETS = 3
 DAILY_AD_TICKET_CAP = 5
 COINS_PER_TICKET = 50
+DAILY_REWARD_TICKETS = {
+    1: 1,
+    2: 1,
+    3: 1,
+    4: 1,
+    5: 2,
+    6: 3,
+    7: 5,
+}
 
 
 class TicketError(ValueError):
@@ -34,7 +43,6 @@ def _normalise_ticket_fields(profile: dict[str, Any]) -> dict[str, Any]:
     profile.setdefault("tickets_today", DAILY_FREE_TICKETS)
     profile.setdefault("ad_tickets_used_today", 0)
     profile.setdefault("last_ticket_date", "")
-    profile.setdefault("last_signin_ticket_date", "")
     profile["tickets_today"] = max(0, int(profile.get("tickets_today", DAILY_FREE_TICKETS)))
     profile["ad_tickets_used_today"] = max(0, int(profile.get("ad_tickets_used_today", 0)))
     return profile
@@ -66,6 +74,26 @@ def get_or_reset_tickets(user_id: str) -> dict[str, Any]:
             profile["tickets_today"] = DAILY_FREE_TICKETS
             profile["ad_tickets_used_today"] = 0
             profile["last_ticket_date"] = today
+        store[user_id] = profile
+        profiles._save_profiles(store)
+        return _ticket_state(profile)
+
+
+def sync_tickets(
+    user_id: str,
+    tickets_today: int,
+    ad_tickets_used_today: int,
+    last_ticket_date: str,
+) -> dict[str, Any]:
+    """Force-update ticket fields from the saved Supabase profile mirror."""
+
+    with profiles._lock:
+        store = profiles._load_profiles()
+        profile = store.get(user_id) or profiles._new_profile(user_id)
+        profile = _normalise_ticket_fields(profile)
+        profile["tickets_today"] = max(0, int(tickets_today))
+        profile["ad_tickets_used_today"] = max(0, int(ad_tickets_used_today))
+        profile["last_ticket_date"] = str(last_ticket_date or "")
         store[user_id] = profile
         profiles._save_profiles(store)
         return _ticket_state(profile)
@@ -153,10 +181,12 @@ def buy_tickets_with_coins(user_id: str, num_tickets: int) -> dict[str, Any]:
         return state
 
 
-def grant_signin_bonus(user_id: str) -> dict[str, Any]:
-    """Grant one sign-in ticket once per day for the given user."""
+def grant_daily_reward_tickets(user_id: str, day: int) -> dict[str, Any]:
+    """Grant the ticket portion of the daily reward once per calendar day."""
 
     today = _today()
+    reward_day = max(1, min(int(day), 7))
+    granted = DAILY_REWARD_TICKETS[reward_day]
     with profiles._lock:
         store = profiles._load_profiles()
         profile = store.get(user_id) or profiles._new_profile(user_id)
@@ -165,10 +195,15 @@ def grant_signin_bonus(user_id: str) -> dict[str, Any]:
             profile["tickets_today"] = DAILY_FREE_TICKETS
             profile["ad_tickets_used_today"] = 0
             profile["last_ticket_date"] = today
-        if profile.get("last_signin_ticket_date") == today:
-            return {"ok": False, **_ticket_state(profile)}
-        profile["tickets_today"] = int(profile["tickets_today"]) + 1
-        profile["last_signin_ticket_date"] = today
+        if profile.get("last_daily_reward_ticket_date") == today:
+            state = _ticket_state(profile)
+            state.update({"ok": False, "granted": 0})
+            return state
+        profile["tickets_today"] = int(profile["tickets_today"]) + granted
+        profile["last_daily_reward_ticket_date"] = today
+        profile["last_daily_reward_ticket_day"] = reward_day
         store[user_id] = profile
         profiles._save_profiles(store)
-        return {"ok": True, **_ticket_state(profile)}
+        state = _ticket_state(profile)
+        state.update({"ok": True, "granted": granted})
+        return state

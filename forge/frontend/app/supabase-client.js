@@ -40,11 +40,16 @@ function _initSupabase() {
 async function lbUpsertPlayer(googleId, name, coins, trophies, tickets = null) {
   const db = _initSupabase();
   if (!db) throw new Error('Supabase not available');
+  const coinValue = Number(coins);
+  const trophyValue = Number(trophies);
+  if (!Number.isFinite(coinValue) || !Number.isFinite(trophyValue)) {
+    throw new Error('Refusing to upsert invalid economy values');
+  }
   const payload = {
     google_id:    googleId,
     display_name: name,
-    coins:        Number(coins)    || 0,
-    trophies:     Number(trophies) || 0,
+    coins:        coinValue,
+    trophies:     trophyValue,
     updated_at:   new Date().toISOString(),
   };
   if (tickets) {
@@ -68,7 +73,7 @@ async function lbFetchProfile(googleId) {
   if (!db) return null;
   const { data, error } = await db
     .from('leaderboard')
-    .select('coins, trophies, display_name, tickets_today, ad_tickets_used_today, last_ticket_date')
+    .select('coins, trophies, display_name, tickets_today, ad_tickets_used_today, last_ticket_date, last_reward_date, reward_day')
     .eq('google_id', googleId)
     .single();
   if (error) {
@@ -188,11 +193,12 @@ async function lbUpdateDailyStreak(googleId) {
       daily_streak:     newStreak,
       last_played_date: todayStr,
       updated_at:       new Date().toISOString(),
-      // Carry over existing values if row exists, else use State fallback
       display_name:     data?.display_name || window.State?.user?.name  || 'PLAYER',
-      coins:            data?.coins        ?? window.State?.user?.coins    ?? 200,
-      trophies:         data?.trophies     ?? window.State?.user?.trophies ?? 50,
     };
+    const coins = Number(data?.coins ?? window.State?.user?.coins);
+    const trophies = Number(data?.trophies ?? window.State?.user?.trophies);
+    if (Number.isFinite(coins)) payload.coins = coins;
+    if (Number.isFinite(trophies)) payload.trophies = trophies;
 
     const { error: upsertErr } = await db
       .from('leaderboard')

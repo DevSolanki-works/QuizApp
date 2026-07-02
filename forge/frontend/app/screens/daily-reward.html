@@ -350,8 +350,13 @@ async function drClaim(day, coins, tickets) {
     // reset real players' balances back near the 200-coin starter
     // default when a stale placeholder was still sitting in memory.
     // Also doubles as a double-claim guard for two tabs/devices racing.
-    let baseCoins    = Number(State.user.coins)    || 0;
-    let baseTrophies = Number(State.user.trophies) || 50;
+    let baseCoins    = Number(State.user.coins);
+    let baseTrophies = Number(State.user.trophies);
+    if (!Number.isFinite(baseCoins) || !Number.isFinite(baseTrophies)) {
+      Toast.error('Could not fetch your saved Supabase balance.');
+      _drClaiming = false;
+      return;
+    }
     try {
       const { data: current } = await db
         .from('leaderboard')
@@ -371,11 +376,25 @@ async function drClaim(day, coins, tickets) {
           _drClaiming = false;
           return;
         }
-        baseCoins    = Number(current.coins)    || baseCoins;
-        baseTrophies = Number(current.trophies) || baseTrophies;
+        const currentCoins    = Number(current.coins);
+        const currentTrophies = Number(current.trophies);
+        if (!Number.isFinite(currentCoins) || !Number.isFinite(currentTrophies)) {
+          Toast.error('Could not fetch your saved Supabase balance.');
+          _drClaiming = false;
+          return;
+        }
+        baseCoins    = currentCoins;
+        baseTrophies = currentTrophies;
+      } else {
+        Toast.error('Could not fetch your saved Supabase balance.');
+        _drClaiming = false;
+        return;
       }
     } catch (e) {
-      console.warn('[DailyReward] Pre-claim fresh read failed, falling back to in-memory balance:', e);
+      console.warn('[DailyReward] Pre-claim fresh read failed:', e);
+      Toast.error('Could not fetch your saved Supabase balance.');
+      _drClaiming = false;
+      return;
     }
 
     // 1. Coins + date/day tracking — Supabase upsert (also the display mirror)
@@ -403,6 +422,7 @@ async function drClaim(day, coins, tickets) {
     State.user.coins            = data.coins;
     State.user.reward_day       = data.reward_day;
     State.user.last_reward_date = data.last_reward_date;
+    await API.syncProfile(State.user.id, State.user.coins, State.user.trophies);
 
     // 2. Tickets — real backend call so the grant lands in the store that
     //    actually enforces spend_ticket() on game start, not just the

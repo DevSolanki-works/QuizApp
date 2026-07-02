@@ -623,6 +623,11 @@ function _safeEconomyNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function _hasTrustedEconomy(user = State.user) {
+  return _safeEconomyNumber(user?.coins) !== null &&
+         _safeEconomyNumber(user?.trophies) !== null;
+}
+
 /**
  * Fetch the signed-in user's current generation ticket state.
  * Tickets now come from: 3 free/day (reset at midnight), the Daily Reward
@@ -634,6 +639,15 @@ function _safeEconomyNumber(value) {
 async function syncTicketsForUser() {
   if (!State.user?.id) return;
   try {
+    const savedTickets = _safeEconomyNumber(State.user.tickets_today);
+    if (savedTickets !== null) {
+      await API.syncTickets(
+        State.user.id,
+        savedTickets,
+        _safeEconomyNumber(State.user.ad_tickets_used_today) ?? 0,
+        State.user.last_ticket_date || ''
+      );
+    }
     const tickets = await API.getTickets(State.user.id);
     State.user.tickets_today         = tickets.tickets_today;
     State.user.ad_tickets_used_today = tickets.ad_tickets_used_today;
@@ -641,8 +655,12 @@ async function syncTicketsForUser() {
     State.user.daily_ad_cap          = tickets.daily_ad_cap;
     State.user.coins_per_ticket      = tickets.coins_per_ticket;
     Session.save();
+    if (typeof lbUpsertPlayer === 'function' && _hasTrustedEconomy()) {
+      await lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, tickets);
+    }
   } catch (e) {
     console.warn('[Tickets] Sync failed:', e);
+    Toast.error('Could not fetch your saved ticket balance.');
   }
 }
 
@@ -678,10 +696,16 @@ async function refreshUserProfile() {
       if (fresh) {
         const freshCoins    = _safeEconomyNumber(fresh.coins);
         const freshTrophies = _safeEconomyNumber(fresh.trophies);
-        if (freshCoins    !== null) State.user.coins    = freshCoins;
-        if (freshTrophies !== null) State.user.trophies = freshTrophies;
+        if (freshCoins === null || freshTrophies === null) {
+          throw new Error('Supabase profile has invalid economy values');
+        }
+        State.user.coins    = freshCoins;
+        State.user.trophies = freshTrophies;
         State.user.last_reward_date = fresh.last_reward_date || '';
         State.user.reward_day       = fresh.reward_day       || 0;
+        State.user.tickets_today = fresh.tickets_today;
+        State.user.ad_tickets_used_today = fresh.ad_tickets_used_today;
+        State.user.last_ticket_date = fresh.last_ticket_date || '';
         if (fresh.display_name) State.user.name = fresh.display_name;
         Session.save();
         if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
@@ -701,25 +725,23 @@ async function refreshUserProfile() {
 async function applyUserEconomy(economy) {
   if (!State.user || !economy) return;
 
-  await refreshUserProfile();
+  const fresh = await refreshUserProfile();
+  if (!fresh || !_hasTrustedEconomy()) {
+    Toast.error('Could not fetch your saved balance from Supabase. Rewards were not synced.');
+    return;
+  }
   let baseCoins    = _safeEconomyNumber(State.user.coins);
   let baseTrophies = _safeEconomyNumber(State.user.trophies);
 
   const coinDelta       = _safeEconomyNumber(economy.coins_delta);
   const trophyDelta     = _safeEconomyNumber(economy.trophies_delta);
-  const backendCoins    = _safeEconomyNumber(economy.coins);
-  const backendTrophies = _safeEconomyNumber(economy.trophies);
 
   if (coinDelta !== null) {
-    State.user.coins = Math.max(0, (baseCoins ?? backendCoins ?? 200) + coinDelta);
-  } else if (backendCoins !== null) {
-    State.user.coins = backendCoins;
+    State.user.coins = Math.max(0, baseCoins + coinDelta);
   }
 
   if (trophyDelta !== null) {
-    State.user.trophies = Math.max(0, Math.round((baseTrophies ?? backendTrophies ?? 50) + trophyDelta));
-  } else if (backendTrophies !== null) {
-    State.user.trophies = Math.max(0, Math.round(backendTrophies));
+    State.user.trophies = Math.max(0, Math.round(baseTrophies + trophyDelta));
   }
 
   if (economy.coins !== undefined)   economy.coins    = State.user.coins;
@@ -744,7 +766,29 @@ async function applyUserEconomy(economy) {
         .catch(e => console.warn('[LB] Upsert failed silently:', e))
     );
   }
-  await Promise.allSettled(syncTasks);
+  const syncResults = await Promise.allSettled(syncTasks);
+  if (syncResults.some(r => r.status === 'rejected')) {
+    Toast.error('Saved balance loaded, but backend sync failed. Please retry before starting another game.');
+  }
+}
+
+async function syncBackendFromTrustedProfile(profile = null) {
+  if (!State.user?.id || !_hasTrustedEconomy()) {
+    throw new Error('Cannot sync backend without trusted Supabase economy');
+  }
+
+  await API.syncProfile(State.user.id, State.user.coins, State.user.trophies);
+
+  const source = profile || State.user;
+  const tickets = _safeEconomyNumber(source.tickets_today);
+  if (tickets !== null) {
+    await API.syncTickets(
+      State.user.id,
+      tickets,
+      _safeEconomyNumber(source.ad_tickets_used_today) ?? 0,
+      source.last_ticket_date || ''
+    );
+  }
 }
 
 // Restore session state on boot
@@ -756,8 +800,8 @@ if (_savedSession) {
   State.playMode   = _savedSession.playMode   || 'classic';
   State.user       = _savedSession.user       || null;
   if (State.user) {
-    if (State.user.coins            === undefined) State.user.coins            = 200;
-    if (State.user.trophies         === undefined) State.user.trophies         = 50;
+    if (State.user.coins            === undefined) State.user.coins            = null;
+    if (State.user.trophies         === undefined) State.user.trophies         = null;
     if (State.user.last_reward_date === undefined) State.user.last_reward_date = '';
     if (State.user.reward_day       === undefined) State.user.reward_day       = 0;
   }
@@ -928,14 +972,36 @@ const API = {
   async syncProfile(userId, coins, trophies) {
     const credential = State.user?._credential;
     if (!credential) return;
-    return fetch(`${API_BASE}/economy/sync`, {
+    const r = await fetch(`${API_BASE}/economy/sync`, {
       method  : 'POST',
       headers : {
         'Content-Type' : 'application/json',
         'Authorization': `Bearer ${credential}`,
       },
       body: JSON.stringify({ user_id: userId, coins, trophies }),
-    }).catch(e => console.warn('[API] Sync failed:', e));
+    });
+    if (!r.ok) throw new Error('Economy sync failed');
+    return r.json();
+  },
+
+  async syncTickets(userId, ticketsToday, adTicketsUsedToday = 0, lastTicketDate = '') {
+    const credential = State.user?._credential;
+    if (!credential) return;
+    const r = await fetch(`${API_BASE}/tickets/sync`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        tickets_today: ticketsToday,
+        ad_tickets_used_today: adTicketsUsedToday,
+        last_ticket_date: lastTicketDate,
+      }),
+    });
+    if (!r.ok) throw new Error('Ticket sync failed');
+    return r.json();
   },
 };
 
@@ -1547,34 +1613,35 @@ async function handleGoogleLogin(response) {
     const user = await API.verifyGoogleToken(response.credential);
     user._credential = response.credential;
 
-    try {
-      if (typeof lbFetchProfile === 'function') {
-        const fresh = await lbFetchProfile(user.id);
-        if (fresh) {
-          user.coins            = fresh.coins;
-          user.trophies         = fresh.trophies;
-          user.last_reward_date = fresh.last_reward_date || '';
-          user.reward_day       = fresh.reward_day       || 0;
-          if (fresh.display_name) user.name = fresh.display_name;
-        } else {
-          user.coins            = user.coins    ?? 200;
-          user.trophies         = user.trophies ?? 50;
-          user.last_reward_date = '';
-          user.reward_day       = 0;
-        }
-      } else {
-        user.coins    = null;
-        user.trophies = null;
-        user.last_reward_date = '';
-        user.reward_day       = 0;
-      }
-    } catch (e) {
-      console.warn('[Login] Supabase unreachable:', e);
-      user.coins    = null;
-      user.trophies = null;
-      user.last_reward_date = '';
-      user.reward_day       = 0;
+    const ready = await waitForSupabase();
+    if (!ready || typeof lbFetchProfile !== 'function' || typeof lbUpsertPlayer !== 'function') {
+      throw new Error('Supabase profile service is unavailable');
     }
+
+    let fresh = await lbFetchProfile(user.id);
+    if (!fresh) {
+      const starterCoins    = _safeEconomyNumber(user.coins);
+      const starterTrophies = _safeEconomyNumber(user.trophies);
+      if (starterCoins === null || starterTrophies === null) {
+        throw new Error('Could not create Supabase profile without starter economy');
+      }
+      await lbUpsertPlayer(user.id, user.name || 'PLAYER', starterCoins, starterTrophies);
+      fresh = await lbFetchProfile(user.id);
+    }
+
+    const freshCoins    = _safeEconomyNumber(fresh?.coins);
+    const freshTrophies = _safeEconomyNumber(fresh?.trophies);
+    if (freshCoins === null || freshTrophies === null) {
+      throw new Error('Supabase profile is missing economy values');
+    }
+    user.coins            = freshCoins;
+    user.trophies         = freshTrophies;
+    user.last_reward_date = fresh.last_reward_date || '';
+    user.reward_day       = fresh.reward_day       || 0;
+    user.tickets_today = fresh.tickets_today;
+    user.ad_tickets_used_today = fresh.ad_tickets_used_today;
+    user.last_ticket_date = fresh.last_ticket_date || '';
+    if (fresh.display_name) user.name = fresh.display_name;
 
     State.user = user;
     State.playerName = user.name;
@@ -1583,12 +1650,12 @@ async function handleGoogleLogin(response) {
     Session.save();
     if (typeof _initGoogleSignIn === 'function') _initGoogleSignIn();
     Toast.success(`Signed in as ${user.name}`);
-    syncTicketsForUser().then(() => {
-      if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
-    });
+    await syncBackendFromTrustedProfile(fresh);
+    await syncTicketsForUser();
+    if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
   } catch (e) {
     console.error(e);
-    Toast.error('Google Sign-In failed.');
+    Toast.error('Could not fetch your Supabase profile. Please try again.');
   }
 }
 
@@ -1697,8 +1764,12 @@ function waitForSupabase(timeoutMs = 3000) {
     if (State.user?.id) {
       const fresh = await refreshUserProfile();
       if (!fresh) {
-        State.user.coins    = State.user.coins    ?? 200;
-        State.user.trophies = State.user.trophies ?? 50;
+        State.user.coins    = null;
+        State.user.trophies = null;
+        Session.save();
+        Toast.error('Could not fetch your saved Supabase balance.');
+      } else {
+        await syncBackendFromTrustedProfile(fresh);
       }
       if (typeof _hLoadStats === 'function') _hLoadStats();
 

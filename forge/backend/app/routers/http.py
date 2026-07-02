@@ -55,6 +55,18 @@ class TicketUserRequest(BaseModel):
     user_id: str
 
 
+class DailyRewardTicketRequest(BaseModel):
+    user_id: str
+    day: int
+
+
+class SyncTicketsRequest(BaseModel):
+    user_id: str
+    tickets_today: int
+    ad_tickets_used_today: int = 0
+    last_ticket_date: str = ""
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _generate_room_code() -> str:
@@ -224,19 +236,12 @@ async def grant_ticket_for_ad(
         raise HTTPException(status_code=500, detail="Ad ticket grant failed")
 
 
-@router.post("/tickets/signin-bonus")
-async def grant_signin_bonus_endpoint(
-    body: TicketUserRequest,
+@router.post("/tickets/daily-reward-grant")
+async def grant_daily_reward_tickets_endpoint(
+    body: DailyRewardTicketRequest,
     authorization: Optional[str] = Header(default=None),
 ):
-    """
-    Grant the once-per-day sign-in ticket bonus.
-
-    Safe to call on every app boot for a signed-in user — grant_signin_bonus()
-    is idempotent per calendar day (gated by last_signin_ticket_date), so a
-    repeat call on the same day simply returns ok: False with the unchanged
-    ticket state rather than granting twice.
-    """
+    """Grant the ticket part of a claimed daily reward after ownership check."""
     credential = ""
     if authorization and authorization.startswith("Bearer "):
         credential = authorization[len("Bearer "):]
@@ -249,11 +254,41 @@ async def grant_signin_bonus_endpoint(
         )
 
     try:
-        from app.services.tickets import grant_signin_bonus
-        return grant_signin_bonus(body.user_id)
+        from app.services.tickets import grant_daily_reward_tickets
+        return grant_daily_reward_tickets(body.user_id, body.day)
     except Exception as e:
-        logger.error("Sign-in ticket bonus failed: %s", e)
-        raise HTTPException(status_code=500, detail="Sign-in bonus failed")
+        logger.error("Daily reward ticket grant failed: %s", e)
+        raise HTTPException(status_code=500, detail="Daily reward ticket grant failed")
+
+
+@router.post("/tickets/sync")
+async def sync_tickets_endpoint(
+    body: SyncTicketsRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Hydrate backend ticket counters from the saved Supabase profile."""
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    try:
+        from app.services.tickets import sync_tickets
+        return sync_tickets(
+            body.user_id,
+            body.tickets_today,
+            body.ad_tickets_used_today,
+            body.last_ticket_date,
+        )
+    except Exception as e:
+        logger.error("Ticket sync failed: %s", e)
+        raise HTTPException(status_code=500, detail="Ticket sync failed")
 
 
 @router.post("/economy/reward")
