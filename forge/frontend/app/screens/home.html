@@ -895,20 +895,20 @@ async function _hLoadStats() {
     } catch (_) {}
   }
 
-  // Global rank from Supabase
-  if (typeof lbFetchProfile === 'function') {
+  // Global rank — uses the shared, de-duplicated profile refresh so this
+  // never races against the daily-reward check's or boot's own profile
+  // reads. State.user.trophies is guaranteed current after this resolves.
+  if (typeof refreshUserProfile === 'function') {
     try {
-      const profile = await lbFetchProfile(State.user.id);
-      if (profile) {
-        const db = window._forgeSupabase;
-        if (db) {
-          const { data } = await db
-            .from('leaderboard')
-            .select('google_id', { count: 'exact' })
-            .gt('trophies', profile.trophies || 0);
+      await refreshUserProfile();
+      const db = window._forgeSupabase;
+      if (db) {
+        const { data } = await db
+          .from('leaderboard')
+          .select('google_id', { count: 'exact' })
+          .gt('trophies', Number(State.user.trophies || 0));
           const rankEl = document.getElementById('h-stat-rank');
           if (rankEl) rankEl.textContent = '#' + ((data ? data.length : 0) + 1);
-        }
       }
     } catch (_) {}
   }

@@ -646,26 +646,64 @@ async function syncTicketsForUser() {
   }
 }
 
-async function applyUserEconomy(economy) {
-  if (!State.user || !economy) return;
+/**
+ * Single, de-duplicated Supabase profile refresh for the signed-in user.
+ *
+ * WHY THIS EXISTS (fixed July 2026): coins/trophies/rank used to flicker or
+ * randomly revert on the home screen because several independent call sites
+ * — the boot sequence, the daily reward check, and the home stats loader —
+ * each fired their OWN separate lbFetchProfile() call and each directly
+ * overwrote State.user.coins/trophies the moment their own request resolved.
+ * Network requests don't resolve in the order they're sent, so whichever
+ * call happened to finish LAST would win and stomp whatever a different,
+ * already-resolved call had just correctly rendered a moment earlier.
+ *
+ * Every caller now goes through this function instead. If a refresh is
+ * already in flight when called again, everyone shares that SAME promise
+ * and result rather than firing overlapping, unordered requests — so there
+ * is only ever one profile read in flight for the signed-in user at a time.
+ */
+let _profileRefreshInFlight = null;
 
-  let baseCoins    = _safeEconomyNumber(State.user.coins);
-  let baseTrophies = _safeEconomyNumber(State.user.trophies);
+async function refreshUserProfile() {
+  if (!State.user?.id) return null;
+  if (_profileRefreshInFlight) return _profileRefreshInFlight;
 
-  if (typeof lbFetchProfile === 'function') {
+  _profileRefreshInFlight = (async () => {
     try {
+      const ready = await waitForSupabase();
+      if (!ready || typeof lbFetchProfile !== 'function') return null;
+
       const fresh = await lbFetchProfile(State.user.id);
       if (fresh) {
         const freshCoins    = _safeEconomyNumber(fresh.coins);
         const freshTrophies = _safeEconomyNumber(fresh.trophies);
-        if (freshCoins    !== null) baseCoins    = freshCoins;
-        if (freshTrophies !== null) baseTrophies = freshTrophies;
+        if (freshCoins    !== null) State.user.coins    = freshCoins;
+        if (freshTrophies !== null) State.user.trophies = freshTrophies;
+        State.user.last_reward_date = fresh.last_reward_date || '';
+        State.user.reward_day       = fresh.reward_day       || 0;
         if (fresh.display_name) State.user.name = fresh.display_name;
+        Session.save();
+        if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
       }
+      return fresh;
     } catch (e) {
-      console.warn('[Economy] Supabase refresh failed, using local balance:', e);
+      console.warn('[Profile] Refresh failed:', e);
+      return null;
+    } finally {
+      _profileRefreshInFlight = null;
     }
-  }
+  })();
+
+  return _profileRefreshInFlight;
+}
+
+async function applyUserEconomy(economy) {
+  if (!State.user || !economy) return;
+
+  await refreshUserProfile();
+  let baseCoins    = _safeEconomyNumber(State.user.coins);
+  let baseTrophies = _safeEconomyNumber(State.user.trophies);
 
   const coinDelta       = _safeEconomyNumber(economy.coins_delta);
   const trophyDelta     = _safeEconomyNumber(economy.trophies_delta);
@@ -1387,15 +1425,16 @@ window.StreakNotif = StreakNotif;
    DAILY REWARD CHECK
    Called from onHomeShow — shows reward screen if unclaimed.
 
-   Data-loss fix (July 2026): this used to only refresh last_reward_date/
-   reward_day from Supabase, leaving State.user.coins/trophies on whatever
-   placeholder (200/50) was set during session restore if the boot's
-   background Supabase sync hadn't finished yet. Claiming a reward then
-   wrote "placeholder + reward" straight over a player's real balance in
-   Supabase, permanently resetting it. This now ALWAYS pulls the real
-   coins/trophies here too, and only runs once per app session (a
-   dismissed-without-claiming reward no longer re-triggers on every
-   subsequent home navigation, e.g. coming back from the leaderboard).
+   Data-loss fix (July 2026): this used to fire its own independent
+   lbFetchProfile() call, racing with the boot sequence's and the home
+   stats loader's OWN independent calls — whichever happened to resolve
+   last would win and overwrite State.user.coins/trophies regardless of
+   correctness, which is also what let a stale placeholder occasionally
+   survive long enough to get written back over a player's real balance.
+   This now goes through the single shared, de-duplicated
+   refreshUserProfile() so there's only ever one profile read in flight,
+   and only runs once per app session (a dismissed-without-claiming
+   reward no longer re-triggers on every subsequent home navigation).
    ══════════════════════════════════════════════════════════ */
 function _drTodayStr() {
   const d = new Date();
@@ -1411,23 +1450,9 @@ async function checkAndShowDailyReward() {
   // placeholder State.user.coins/trophies currently holds. This is the
   // single point that guarantees the Daily Reward screen (and thus its
   // claim write) only ever operates on real, current numbers.
-  try {
-    if (typeof lbFetchProfile === 'function') {
-      const fresh = await lbFetchProfile(State.user.id);
-      if (fresh) {
-        const freshCoins    = _safeEconomyNumber(fresh.coins);
-        const freshTrophies = _safeEconomyNumber(fresh.trophies);
-        if (freshCoins    !== null) State.user.coins    = freshCoins;
-        if (freshTrophies !== null) State.user.trophies = freshTrophies;
-        State.user.last_reward_date = fresh.last_reward_date || '';
-        State.user.reward_day       = fresh.reward_day       || 0;
-        if (fresh.display_name) State.user.name = fresh.display_name;
-        Session.save();
-        if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
-      }
-    }
-  } catch (e) {
-    console.warn('[DailyReward] Profile refresh failed — skipping check this session:', e);
+  const fresh = await refreshUserProfile();
+  if (!fresh) {
+    console.warn('[DailyReward] Profile refresh failed — skipping check this session.');
     return;  // don't risk showing the screen against stale data
   }
 
@@ -1630,12 +1655,19 @@ function waitForSupabase(timeoutMs = 3000) {
   try {
     API.health().catch(() => {});
 
-    // Only blocks on native app first open — web returns immediately
-    await _maybeShowNotifPermission();
-
     const hash = window.location.hash.replace('#', '') || 'home';
 
-    // ── Navigate and dismiss splash immediately — never wait for network ──
+    // ── Navigate and dismiss splash immediately — never wait for network,
+    //    and never wait for the notification permission prompt either.
+    //    (Fixed July 2026: this used to await _maybeShowNotifPermission()
+    //    BEFORE dismissing the splash. The permission sheet is z-indexed
+    //    below the splash, so on a phone's first-ever open the sheet
+    //    rendered completely invisible and unreachable behind the still-
+    //    visible splash — the boot promise could then never resolve,
+    //    leaving the splash stuck on screen forever. Splash dismissal is
+    //    now unconditional and the permission prompt is asked afterward,
+    //    on top of the now-visible home screen where it can actually be
+    //    tapped.) ──
     if (_savedSession?.roomCode && hash !== 'home') {
       try {
         await API.getRoom(_savedSession.roomCode);
@@ -1643,44 +1675,34 @@ function waitForSupabase(timeoutMs = 3000) {
           WS.connect(_savedSession.roomCode, _savedSession.playerName);
         }
         await goTo(hash, true);
-        _dismissSplash();
       } catch (e) {
         console.warn('[Boot] Saved room no longer valid:', e);
         Session.clear();
         await goTo('home', true);
-        _dismissSplash();
       }
     } else {
       await goTo('home', true);
-      _dismissSplash();
     }
 
-    // ── Background: sync Supabase profile after home is already visible ──
-    if (State.user?.id) {
-      const supabaseReady = await waitForSupabase();
-      if (supabaseReady) {
-        try {
-          const fresh = await lbFetchProfile(State.user.id);
-          if (fresh) {
-            State.user.coins            = fresh.coins;
-            State.user.trophies         = fresh.trophies;
-            State.user.last_reward_date = fresh.last_reward_date || '';
-            State.user.reward_day       = fresh.reward_day       || 0;
-            if (fresh.display_name) State.user.name = fresh.display_name;
-            Session.save();
-            // Re-render currency now that we have fresh values
-            if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
-            if (typeof _hLoadStats     === 'function') _hLoadStats();
-          } else {
-            State.user.coins    = State.user.coins    ?? 200;
-            State.user.trophies = State.user.trophies ?? 50;
-          }
-        } catch (e) {
-          console.warn('[Boot] Supabase unreachable:', e);
-        }
-      }
+    _dismissSplash();
 
-      // Ticket state + daily sign-in bonus — also background, never blocks render
+    // Notification permission — fire-and-forget, shown (if needed) on top
+    // of the already-visible home screen. Never blocks boot again.
+    _maybeShowNotifPermission().catch(() => {});
+
+    // ── Background: sync Supabase profile after home is already visible ──
+    // Routed through the shared, de-duplicated refreshUserProfile() so this
+    // can never race against the daily-reward check's or the home stats
+    // loader's own profile reads and stomp whichever one resolves first.
+    if (State.user?.id) {
+      const fresh = await refreshUserProfile();
+      if (!fresh) {
+        State.user.coins    = State.user.coins    ?? 200;
+        State.user.trophies = State.user.trophies ?? 50;
+      }
+      if (typeof _hLoadStats === 'function') _hLoadStats();
+
+      // Ticket state — also background, never blocks render
       await syncTicketsForUser();
       if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
     }
@@ -1689,7 +1711,6 @@ function waitForSupabase(timeoutMs = 3000) {
     console.error('[Boot] Unexpected error, falling back to home:', e);
     try {
       await goTo('home', true);
-      _dismissSplash();
     } catch (fallbackErr) {
       console.error('[Boot] goTo fallback failed:', fallbackErr);
       const el = document.getElementById('screen-home');
@@ -1697,8 +1718,8 @@ function waitForSupabase(timeoutMs = 3000) {
         el.classList.add('active');
         el.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#fff"><h1 style="color:#FFD93D;margin-bottom:16px">FORGE</h1><p>Loading failed. Please refresh the app.</p></div>';
       }
-      _dismissSplash();
     }
+    _dismissSplash();
   }
 })();
 </script>
