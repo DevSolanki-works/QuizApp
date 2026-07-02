@@ -57,7 +57,14 @@ async function lbUpsertPlayer(googleId, name, coins, trophies, tickets = null) {
     payload.ad_tickets_used_today = Number(tickets.ad_tickets_used_today) || 0;
     payload.last_ticket_date = tickets.last_ticket_date || '';
   }
-  const { error } = await db.from('leaderboard').upsert(payload, { onConflict: 'google_id' });
+  let { error } = await db.from('leaderboard').upsert(payload, { onConflict: 'google_id' });
+  // Ticket mirror columns may not exist until the Supabase migration is applied.
+  if (error && tickets && /column .* does not exist/i.test(error.message || '')) {
+    delete payload.tickets_today;
+    delete payload.ad_tickets_used_today;
+    delete payload.last_ticket_date;
+    ({ error } = await db.from('leaderboard').upsert(payload, { onConflict: 'google_id' }));
+  }
   if (error) throw new Error(error.message || 'Leaderboard upsert failed');
   return true;
 }
@@ -71,17 +78,29 @@ async function lbUpsertPlayer(googleId, name, coins, trophies, tickets = null) {
 async function lbFetchProfile(googleId) {
   const db = _initSupabase();
   if (!db) return null;
+
+  // Core economy columns — always required for sign-in and gameplay sync.
   const { data, error } = await db
     .from('leaderboard')
-    .select('coins, trophies, display_name, tickets_today, ad_tickets_used_today, last_ticket_date, last_reward_date, reward_day')
+    .select('coins, trophies, display_name, last_reward_date, reward_day')
     .eq('google_id', googleId)
     .single();
+
   if (error) {
     if (error.code !== 'PGRST116') { // PGRST116 is "no rows found"
       console.error('[Supabase] Profile fetch failed:', error.message);
     }
     return null;
   }
+
+  // Ticket mirror columns are optional until migration 202606300001 is applied.
+  const { data: ticketRow, error: ticketErr } = await db
+    .from('leaderboard')
+    .select('tickets_today, ad_tickets_used_today, last_ticket_date')
+    .eq('google_id', googleId)
+    .maybeSingle();
+  if (!ticketErr && ticketRow) Object.assign(data, ticketRow);
+
   return data;
 }
 

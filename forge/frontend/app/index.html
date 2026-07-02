@@ -1628,6 +1628,9 @@ async function handleGoogleLogin(response) {
       }
       await lbUpsertPlayer(user.id, user.name || 'PLAYER', starterCoins, starterTrophies);
       fresh = await lbFetchProfile(user.id);
+      if (!fresh) {
+        throw new Error('Supabase profile fetch failed after create');
+      }
     }
 
     const freshCoins    = _safeEconomyNumber(fresh?.coins);
@@ -1661,6 +1664,8 @@ async function handleGoogleLogin(response) {
       Toast.error('Supabase SDK did not load. Check your connection and refresh.');
     } else if (msg.includes('missing economy values') || msg.includes('invalid economy')) {
       Toast.error('Your saved profile has invalid coin/trophy data. Contact support.');
+    } else if (msg.includes('profile fetch failed after create')) {
+      Toast.error('Could not read your Supabase profile after sign-in. Please try again.');
     } else {
       Toast.error('Could not fetch your Supabase profile. Please try again.');
     }
