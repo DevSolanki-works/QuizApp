@@ -1609,6 +1609,7 @@ if (document.readyState === 'loading') {
    GOOGLE LOGIN HANDLER
    ══════════════════════════════════════════════════════════ */
 async function handleGoogleLogin(response) {
+  let freshProfile = null;
   try {
     const user = await API.verifyGoogleToken(response.credential);
     user._credential = response.credential;
@@ -1645,18 +1646,35 @@ async function handleGoogleLogin(response) {
 
     State.user = user;
     State.playerName = user.name;
+    freshProfile = fresh;
     const nameInput = document.getElementById('input-name');
     if (nameInput) nameInput.value = user.name;
     Session.save();
     if (typeof _initGoogleSignIn === 'function') _initGoogleSignIn();
     Toast.success(`Signed in as ${user.name}`);
-    await syncBackendFromTrustedProfile(fresh);
-    await syncTicketsForUser();
-    if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
   } catch (e) {
     console.error(e);
-    Toast.error('Could not fetch your Supabase profile. Please try again.');
+    const msg = String(e?.message || e || '');
+    if (msg === 'Auth failed') {
+      Toast.error('Google sign-in failed. Is the backend running on port 8000?');
+    } else if (msg.includes('Supabase profile service is unavailable')) {
+      Toast.error('Supabase SDK did not load. Check your connection and refresh.');
+    } else if (msg.includes('missing economy values') || msg.includes('invalid economy')) {
+      Toast.error('Your saved profile has invalid coin/trophy data. Contact support.');
+    } else {
+      Toast.error('Could not fetch your Supabase profile. Please try again.');
+    }
+    return;
   }
+
+  try {
+    await syncBackendFromTrustedProfile(freshProfile);
+    await syncTicketsForUser();
+  } catch (e) {
+    console.warn('[Login] Backend sync failed:', e);
+    Toast.error('Signed in, but backend sync failed. Check that the backend is running.');
+  }
+  if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
 }
 
 let _googleNativeInitialized = false;
@@ -1769,7 +1787,12 @@ function waitForSupabase(timeoutMs = 3000) {
         Session.save();
         Toast.error('Could not fetch your saved Supabase balance.');
       } else {
-        await syncBackendFromTrustedProfile(fresh);
+        try {
+          await syncBackendFromTrustedProfile(fresh);
+        } catch (e) {
+          console.warn('[Boot] Backend sync failed:', e);
+          Toast.error('Saved balance loaded, but backend sync failed. Please retry before starting another game.');
+        }
       }
       if (typeof _hLoadStats === 'function') _hLoadStats();
 
