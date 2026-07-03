@@ -428,20 +428,29 @@ async function drClaim(day, coins, tickets) {
     //    actually enforces spend_ticket() on game start, not just the
     //    Supabase display mirror.
     let ticketsGranted = tickets;
-    try {
-      const ticketResult = await API.grantDailyRewardTickets(State.user.id, day);
-      if (ticketResult) {
-        State.user.tickets_today         = ticketResult.tickets_today;
-        State.user.ad_tickets_used_today = ticketResult.ad_tickets_used_today;
-        State.user.last_ticket_date      = ticketResult.last_ticket_date;
-        ticketsGranted = ticketResult.granted ?? tickets;
-        if (typeof lbUpsertPlayer === 'function') {
-          lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, ticketResult)
-            .catch(() => {});
+    let ticketGrantOk  = false;
+    for (let attempt = 0; attempt < 2 && !ticketGrantOk; attempt++) {
+      try {
+        const ticketResult = await API.grantDailyRewardTickets(State.user.id, day);
+        if (ticketResult) {
+          State.user.tickets_today         = ticketResult.tickets_today;
+          State.user.ad_tickets_used_today = ticketResult.ad_tickets_used_today;
+          State.user.last_ticket_date      = ticketResult.last_ticket_date;
+          ticketsGranted = ticketResult.granted ?? tickets;
+          ticketGrantOk  = true;
+          if (typeof lbUpsertPlayer === 'function') {
+            lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, ticketResult)
+              .catch(() => {});
+          }
         }
+      } catch (e) {
+        console.warn(`[DailyReward] Ticket grant attempt ${attempt + 1} failed:`, e);
+        if (attempt === 0) await new Promise(r => setTimeout(r, 900));
       }
-    } catch (e) {
-      console.warn('[DailyReward] Ticket grant failed — coins still applied:', e);
+    }
+    if (!ticketGrantOk) {
+      ticketsGranted = 0;
+      Toast.error('Coins claimed, but the ticket bonus failed to apply. Please try claiming again.');
     }
 
     Session.save();
