@@ -580,7 +580,8 @@ alter table public.question_bank enable row level security;
 | 37 | Daily Login Reward (7-day cycle, Supabase-backed) | Done |
 | 38 | Notification permission flow + 4-slot daily reminders | Done |
 | 39 | Reconnect resilience (mid-game resync) + uniform ticket gating for cost-abuse protection | Done |
-| 40 | Generation ticket UI \u2014 home topbar pill, ticket detail sheet, buy-with-coins, lobby auto-suggest for out-of-tickets | Done |
+| 40 | Generation ticket UI — home topbar pill, ticket detail sheet, lobby auto-suggest for out-of-tickets | Done |
+| 41 | Shop screen — buy tickets with coins (25/ticket), disabled watch-ad placeholder for future AdMob wiring | Done |
 ---
 
 ## Decisions Log & Known Issues
@@ -610,6 +611,14 @@ alter table public.question_bank enable row level security;
 - Freeze/reconnect fix (July 2026): Cloud Run's --timeout counts from WebSocket connect (lobby join), not game start. A long lobby + full-length game could exceed it and get force-closed mid-game, and since the countdown timer is client-side, this looked like a freeze rather than a disconnect. Fixed with: (1) --timeout raised to 3600 (max), (2) client auto-reconnects with backoff on abnormal closure (event.wasClean === false), distinguished from intentional closes via the standard CloseEvent, (3) backend resends the current round's state to a reconnecting socket with recomputed remaining time.
 - Ticket system launched ahead of ads (July 2026): rather than wait for AdMob approval, tickets are now fully surfaced in the UI \u2014 3 free/day + 1 sign-in bonus + buy-with-coins (50/ticket, no cap). Rewarded-ad ticket grants stay wired server-side (grant_ad_ticket) for whenever ads go live, no code changes needed then.
 - Lobby topic input mirrors backend Quick Pick canonicalization client-side purely for UX hints (hint text, auto-suggest banner) \u2014 the backend remains sole authority on what's actually free.
+- Sign-in ticket bonus removed (July 2026): replaced by tickets folded into the existing Daily Reward 7-day cycle (1/1/1/1/2/3/5 tickets per day, alongside the 10/20/30/40/50/60/100 coin ladder) so all login rewards live in one place instead of two separate mechanics.
+- Ticket price dropped to 25 coins/ticket (from 50) for launch — Shop screen sells tickets only; "watch ad for a ticket" ships disabled (COMING SOON badge, de-emphasized/capped copy so it doesn't read as ad-farming) until AdMob is live.
+- Critical production bug fixes (July 2026), all confirmed working post-fix:
+  1. Splash screen could hang forever on first app open — the notification-permission sheet was z-indexed below the splash and boot awaited it before dismissing. Fixed: splash dismissal is now unconditional, permission prompt fires after home renders.
+  2. Coins/trophies/rank flickered or reverted — multiple independent call sites each fired their own Supabase profile fetch and overwrote State.user on resolution with no ordering guarantee. Fixed: consolidated into one shared, de-duplicated refreshUserProfile().
+  3. Daily Reward screen could show "unclaimed" right after a successful claim — the check path used `.single()` (throws on non-exactly-one-row, swallows all errors into null) while the claim path used `.maybeSingle()`. Same row, two query shapes, two different answers. Standardized on `.maybeSingle()` everywhere in supabase-client.js.
+  4. Daily Reward's ticket grant (separate backend call from the coin grant) could fail silently on a Cloud Run cold start, leaving coins granted but tickets not. Fixed: one retry + visible error toast on final failure.
+- Supabase leaderboard columns `tickets_today`/`ad_tickets_used_today`/`last_ticket_date` must exist for profile fetches to succeed at all — missing columns silently broke unrelated fields (coins, trophies, last_reward_date) too, since the profile fetch is a single combined query. Confirmed present.
 ---
 
 ## Implementation Guidelines
@@ -624,3 +633,30 @@ alter table public.question_bank enable row level security;
 8. **Database protection:** Keep RLS active on Supabase tables.
 9. **Context maintenance:** Update `CLAUDE.md` after major milestones.
 10. **Device operations:** Execute native terminal commands using Windows PowerShell exclusively.
+
+## 🎯 ACTIVE GOAL (temporary — delete this section once done)
+
+**Play Store launch in ~2 days. UI readability + spacing pass, plus a stretch-goal How to Play screen. Nothing structural — no game logic, economy, or fetch/sync code.**
+
+### Known issues to fix
+- Text congestion/readability, especially in lobby.html:
+  - The topic ticket hint ("Custom AI topic — uses 1 ticket (X left today)") is cramped/hard to read — needs better spacing or line-break handling.
+  - "NEED AT LEAST 1 PLAYER · TOPIC REQUIRED" hint shows in Solo mode too, where it makes no sense (Solo is always 1 player) — should only show in Classic/Team, or read differently for Solo.
+- Bottom nav (RANKS · SHOP · HOME · PROFILE · SETTINGS) icons are not evenly spaced — check `justify-content` / gap values in the nav container.
+- General spacing/padding inconsistencies wherever found — flag and fix opportunistically, not just the items listed above.
+- Remove any other unwanted/leftover UI elements spotted along the way (stray debug text, unused placeholders, redundant hints).
+- Also the splash screen doesn't get time to breath it simply takes you to Home page which then leads to errors of fetching or others 
+
+### Stretch goal (only if time allows after the above)
+A single "How to Play" screen covering:
+- The three game modes (Solo, Classic, Team) and how they differ
+- The economy in plain terms: coins (earn/spend), trophies (rank), generation tickets (Quick Pick = free forever, custom AI topic = costs 1 ticket)
+- Daily Reward and streak basics
+- A simple button above Settings and Profile to open this screen and a cancel/back button to return to the previous screen.
+
+Tone: short, conversational, scannable — think "friendly onboarding card," not a wiki article. People should actually want to read it, not skim past it. No walls of text; break into small digestible chunks with visual hierarchy (icons, short headers, one idea per block).
+
+### Rules for this pass
+- Claude gives small `find this → replace with this` diffs, not full-file rewrites, unless a file is being touched for the first time or too many changes to be done then this pass (the How to Play screen, if we get to it, is new — full file is fine there).
+- Priority order: lobby.html (topic hint + solo hint) → home.html (bottom nav spacing) → sweep remaining screens for spacing/readability → How to Play screen if time allows.
+- Absolute rule: if a proposed change touches WebSocket messages, Supabase queries, State object shape, or any `async function`, stop and flag it — that's out of scope for this pass. and don't make the Splash screen run forever just enough time everything is fetched
