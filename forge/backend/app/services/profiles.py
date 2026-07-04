@@ -112,6 +112,21 @@ def sync_profile(user_id: str, coins: float, trophies: int) -> dict[str, Any]:
         _save_profiles(profiles)
         return dict(profile)
 
+def delete_profile(user_id: str) -> bool:
+    """Permanently remove a user's profile from the file-backed store.
+
+    This also removes generation-ticket fields, since tickets.py stores
+    them as keys inside the same profile dict rather than a separate file.
+    Returns True if a profile existed and was removed, False if there was
+    nothing to delete.
+    """
+
+    with _lock:
+        profiles = _load_profiles()
+        existed = user_id in profiles
+        profiles.pop(user_id, None)
+        _save_profiles(profiles)
+        return existed
 
 def can_afford_entry(user_id: str) -> bool:
     """Return whether a profile has enough coins for a room entry fee."""

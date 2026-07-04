@@ -105,6 +105,21 @@ async function lbFetchProfile(googleId) {
 }
 
 /**
+ * Permanently delete a player's row from the Supabase leaderboard mirror.
+ * Called as part of full account deletion, after the backend file-backed
+ * profile (coins/trophies/tickets) has already been removed.
+ *
+ * @param {string} googleId - The player's unique Google ID
+ */
+async function lbDeleteProfile(googleId) {
+  const db = _initSupabase();
+  if (!db) throw new Error('Supabase not available');
+  const { error } = await db.from('leaderboard').delete().eq('google_id', googleId);
+  if (error) throw new Error(error.message || 'Leaderboard delete failed');
+  return true;
+}
+
+/**
  * Fetch the top N players sorted by a given column.
  * Returns an array of row objects, or [] on error.
  *
@@ -287,3 +302,4 @@ window.donationSubmit  = donationSubmit;
 window._initSupabase   = _initSupabase;
 window.lbUpdateDailyStreak = lbUpdateDailyStreak;
 window.lbGetDailyStreak    = lbGetDailyStreak;
+window.lbDeleteProfile = lbDeleteProfile;

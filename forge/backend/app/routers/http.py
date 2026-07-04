@@ -66,6 +66,8 @@ class SyncTicketsRequest(BaseModel):
     ad_tickets_used_today: int = 0
     last_ticket_date: str = ""
 
+class DeleteAccountRequest(BaseModel):
+    user_id: str
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -364,3 +366,38 @@ async def sync_profile_endpoint(
     except Exception as e:
         logger.error("Economy sync failed: %s", e)
         raise HTTPException(status_code=500, detail="Sync failed")
+
+@router.post("/account/delete")
+async def delete_account(
+    body: DeleteAccountRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    Permanently delete a user's backend profile: coins, trophies, and
+    generation tickets. Requires a valid Google ID token proving ownership
+    of the account being deleted — same check used by /economy/sync and
+    the /tickets/* endpoints.
+
+    This only removes the backend file-backed profile. The client is
+    responsible for also removing the Supabase leaderboard mirror row,
+    since writes to that table already happen client-side with the anon
+    key (see supabase-client.js).
+    """
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    try:
+        from app.services.profiles import delete_profile
+        delete_profile(body.user_id)
+        return {"deleted": True}
+    except Exception as e:
+        logger.error("Account deletion failed: %s", e)
+        raise HTTPException(status_code=500, detail="Account deletion failed")

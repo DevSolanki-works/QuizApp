@@ -479,6 +479,14 @@
 
     </div>
 
+    <!-- ── DANGER ZONE (signed-in users only) ───────────────── -->
+    <div class="settings-section" id="settings-danger-section" style="display:none;">
+      <div class="settings-section-label">DANGER ZONE</div>
+      <button class="settings-danger-btn" onclick="settingsOpenDeleteAccountModal()">
+        ⚠️ &nbsp;PERMANENTLY DELETE ACCOUNT
+      </button>
+    </div>
+
     <!-- ── ABOUT ──────────────────────────────────────────── -->
     <div class="settings-footer">
       <div class="settings-links">
@@ -487,6 +495,45 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- DELETE ACCOUNT CONFIRMATION MODAL -->
+<div id="delete-account-modal" style="
+  display:none; position:fixed; inset:0; z-index:900;
+  background:rgba(9,15,80,0.94); backdrop-filter:blur(8px);
+  align-items:center; justify-content:center; padding:24px;
+">
+  <div style="
+    width:100%; max-width:340px; border-radius:var(--radius-lg);
+    background:rgba(13,27,142,0.98); border:1.5px solid rgba(239,35,60,0.35);
+    padding:28px 24px; display:flex; flex-direction:column; gap:18px;
+  ">
+    <div style="text-align:center;">
+      <div style="font-size:40px;margin-bottom:10px;">⚠️</div>
+      <p style="font-family:var(--font-pixel);font-size:10px;color:var(--red);line-height:1.8;">DELETE ACCOUNT?</p>
+    </div>
+    <div style="
+      background:rgba(239,35,60,0.1); border:1px solid rgba(239,35,60,0.3);
+      border-radius:var(--radius-md); padding:14px; display:flex; flex-direction:column; gap:8px;
+    ">
+      <p style="font-family:var(--font-pixel);font-size:7px;color:var(--red);margin-bottom:2px;">THIS PERMANENTLY REMOVES:</p>
+      <p style="font-family:var(--font-body);font-size:13px;font-weight:700;color:rgba(255,255,255,0.75);line-height:1.7;">
+        🪙 Coins &amp; 🏆 trophies<br>
+        🎟️ Generation tickets<br>
+        🔥 Daily streak &amp; login history<br>
+        🌍 Your spot on the leaderboard
+      </p>
+      <p style="font-family:var(--font-body);font-size:12px;font-weight:700;color:rgba(255,255,255,0.5);">This cannot be undone.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-danger" id="delete-account-confirm-btn" onclick="settingsConfirmDeleteAccount()">
+        DELETE MY ACCOUNT
+      </button>
+      <button class="btn btn-secondary" onclick="settingsCloseDeleteAccountModal()">
+        CANCEL, KEEP MY ACCOUNT
+      </button>
+    </div>
   </div>
 </div>
 
@@ -643,10 +690,12 @@ function _settingsRenderAccount() {
   const nameEl     = document.getElementById('settings-acct-name');
   const emailEl    = document.getElementById('settings-acct-email');
   const avatarEl   = document.getElementById('settings-acct-avatar');
+  const dangerSection = document.getElementById('settings-danger-section');
 
   if (State.user) {
     if (accountRow) accountRow.style.display = 'flex';
     if (signinRow)  signinRow.style.display  = 'none';
+    if (dangerSection) dangerSection.style.display = 'block';
     if (nameEl)     nameEl.textContent  = (State.user.name  || 'PLAYER').toUpperCase();
     if (emailEl)    emailEl.textContent = State.user.email || '';
     if (avatarEl) {
@@ -657,6 +706,7 @@ function _settingsRenderAccount() {
   } else {
     if (accountRow) accountRow.style.display = 'none';
     if (signinRow)  signinRow.style.display  = 'flex';
+    if (dangerSection) dangerSection.style.display = 'none';
   }
 }
 
@@ -690,6 +740,54 @@ function settingsClearData() {
   _settingsApplyAll();
 
   Toast.success('Local data cleared!');
+}
+
+/* ── DELETE ACCOUNT ───────────────────────────────────────── */
+
+function settingsOpenDeleteAccountModal() {
+  if (!State.user) { Toast.error('Not signed in.'); return; }
+  Sound.click();
+  const modal = document.getElementById('delete-account-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function settingsCloseDeleteAccountModal() {
+  Sound.click();
+  const modal = document.getElementById('delete-account-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function settingsConfirmDeleteAccount() {
+  if (!State.user?.id) return;
+  const btn = document.getElementById('delete-account-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'DELETING...'; }
+
+  try {
+    // 1. Delete the authoritative backend profile (coins/trophies/tickets).
+    //    Ownership verified server-side via Google bearer token.
+    await API.deleteAccount(State.user.id);
+
+    // 2. Delete the Supabase leaderboard mirror row.
+    if (typeof lbDeleteProfile === 'function') {
+      await lbDeleteProfile(State.user.id);
+    }
+
+    // 3. Clear local session and sign out.
+    try {
+      if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+    } catch (_) {}
+    State.user = null;
+    State._dailyRewardCheckedThisSession = false;
+    Session.clear();
+
+    settingsCloseDeleteAccountModal();
+    Toast.success('Your account and data have been deleted.');
+    goTo('home');
+  } catch (e) {
+    console.error('[Settings] Account deletion failed:', e);
+    Toast.error('Could not delete your account. Please try again.');
+    if (btn) { btn.disabled = false; btn.textContent = 'DELETE MY ACCOUNT'; }
+  }
 }
 
 /* ── LINKS ────────────────────────────────────────────────── */
