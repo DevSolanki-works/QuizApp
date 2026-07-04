@@ -228,19 +228,28 @@
   .h-dot.active { background: var(--yellow); width: 18px; border-radius: 3px; }
 
   /* ── HOW TO PLAY LINK ──────────────────────────────────── */
- .h-htp-row {
-   display: flex; align-items: center; justify-content: center; gap: 8px;
-   padding: 8px 0; margin: 0 16px;
-   border-top: 1px solid rgba(255,255,255,0.06);
+ .h-htp-row-wrap {
+   display: flex; justify-content: flex-end;
+   padding: 6px 16px 0; flex-shrink: 0;
+ }
+ .h-htp-btn {
+   display: inline-flex; align-items: center; gap: 5px;
+   padding: 6px 10px; border-radius: var(--radius-pill);
+   background: rgba(255,255,255,0.07);
+   border: 1.5px solid rgba(255,255,255,0.12);
    cursor: pointer; -webkit-tap-highlight-color: transparent;
-   flex-shrink: 0;
+   transition: background 0.15s, border-color 0.15s;
  }
- .h-htp-icon { font-size: 12px; }
+ .h-htp-btn:active {
+   background: rgba(255,217,61,0.14);
+   border-color: rgba(255,217,61,0.35);
+ }
+ .h-htp-icon { font-size: 10px; line-height: 1; }
  .h-htp-label {
-   font-family: var(--font-pixel); font-size: 6px;
-   color: rgba(255,255,255,0.4); letter-spacing: 0.5px;
+   font-family: var(--font-pixel); font-size: 5px;
+   color: rgba(255,255,255,0.45); letter-spacing: 0.3px;
  }
- .h-htp-row:active .h-htp-label { color: var(--yellow); }
+ .h-htp-btn:active .h-htp-label { color: var(--yellow); }
 
   /* ── BOTTOM NAV ────────────────────────────────────────── */
   .h-bottom-nav {
@@ -589,10 +598,12 @@
 
   </div>
    <!-- HOW TO PLAY LINK — sits just above the bottom nav -->
- <div class="h-htp-row z1" onclick="hGoHowToPlay()">
-   <span class="h-htp-icon">❓</span>
-   <span class="h-htp-label">HOW TO PLAY</span>
- </div>
+  <div class="h-htp-row-wrap z1">
+   <div class="h-htp-btn" onclick="hGoHowToPlay()">
+     <span class="h-htp-icon">❓</span>
+     <span class="h-htp-label">HOW TO PLAY</span>
+   </div>
+  </div>
 
   <!-- BOTTOM NAV — order: RANKS · SHOP · HOME(center) · PROFILE · SETTINGS -->
   <div class="h-bottom-nav z1">
