@@ -201,10 +201,11 @@
 
   /* Ticket cost hint under the topic input */
   .topic-ticket-hint {
-    display: flex; align-items: center; gap: 6px;
-    font-family: var(--font-pixel); font-size: 6px;
-    color: rgba(255,255,255,0.35); letter-spacing: 0.3px;
-    margin-top: -6px;
+    display: flex; align-items: flex-start; gap: 6px;
+    font-family: var(--font-body); font-size: 12px; font-weight: 700;
+    color: rgba(255,255,255,0.45); letter-spacing: 0.2px;
+    line-height: 1.5;
+    margin-top: 4px;
   }
   .topic-ticket-hint.is-free   { color: var(--green); }
   .topic-ticket-hint.is-custom { color: #c4a0ff; }
@@ -525,7 +526,7 @@
               onclick="lobbyStartClassic()" disabled>
         ⚡ &nbsp;START GAME
       </button>
-      <p class="start-hint">NEED AT LEAST 1 PLAYER · TOPIC REQUIRED</p>
+      <p class="start-hint" id="start-hint-classic">NEED AT LEAST 1 PLAYER · TOPIC REQUIRED</p>
     </div>
 
     <!-- Guest waiting (classic) -->
@@ -650,6 +651,13 @@ function onLobbyShow() {
   if (_pushTimer) { clearTimeout(_pushTimer); _pushTimer = null; }
 
   const isSolo = State.playMode === 'solo';
+
+  const startHintEl = document.getElementById('start-hint-classic');
+  if (startHintEl) {
+    startHintEl.textContent = isSolo
+      ? 'PICK A TOPIC TO START'
+      : 'NEED AT LEAST 1 PLAYER · TOPIC REQUIRED';
+  }
 
   /* Labels & visibility */
   const screenLabel = document.getElementById('lobby-screen-label');

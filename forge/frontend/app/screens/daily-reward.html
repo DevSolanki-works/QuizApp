@@ -461,7 +461,7 @@ async function drClaim(day, coins, tickets) {
     }
     if (!ticketGrantOk) {
       ticketsGranted = 0;
-      Toast.error('Coins claimed, but the ticket bonus failed to apply. Please try claiming again.');
+      Toast.error('Coins claimed, but the ticket bonus failed to apply. Check the Shop or try again tomorrow.');
     }
 
     Session.save();
