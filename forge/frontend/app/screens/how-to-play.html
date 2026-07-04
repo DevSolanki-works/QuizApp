@@ -1,0 +1,209 @@
+<!--
+  HOW TO PLAY SCREEN — Forge App Track
+  Milestone 42 — friendly onboarding card, not a wiki page.
+  Read-only screen: no WebSocket, no Supabase, no State mutation.
+-->
+<style>
+  .htp-wrap {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .htp-topbar {
+    background: var(--bg-mid);
+    border-bottom: 2px solid rgba(0,0,0,0.3);
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .htp-back-btn {
+    width: 34px; height: 34px;
+    background: rgba(255,255,255,0.09);
+    border: 1.5px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .htp-back-btn:active { background: rgba(255,255,255,0.18); }
+  .htp-title {
+    font-family: var(--font-pixel); font-size: 10px;
+    color: var(--white); letter-spacing: 1px; flex: 1;
+  }
+
+  .htp-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 18px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .htp-scroll::-webkit-scrollbar { width: 3px; }
+  .htp-scroll::-webkit-scrollbar-track { background: transparent; }
+  .htp-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  .htp-section { display: flex; flex-direction: column; gap: 10px; }
+  .htp-section-header { display: flex; align-items: center; gap: 8px; }
+  .htp-section-icon { font-size: 18px; }
+  .htp-section-title {
+    font-family: var(--font-pixel); font-size: 9px;
+    color: var(--yellow); letter-spacing: 0.5px;
+  }
+
+  .htp-card {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .htp-card-icon {
+    font-size: 20px; flex-shrink: 0; line-height: 1.3;
+  }
+  .htp-card-body { display: flex; flex-direction: column; gap: 3px; }
+  .htp-card-name {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--white); letter-spacing: 0.3px;
+  }
+  .htp-card-desc {
+    font-family: var(--font-body); font-size: 13px; font-weight: 700;
+    color: rgba(255,255,255,0.6); line-height: 1.55;
+  }
+
+  /* Slight tint per mode/currency so it doesn't read as one grey wall */
+  .htp-card.tint-yellow { background: rgba(255,217,61,0.08);  border-color: rgba(255,217,61,0.22); }
+  .htp-card.tint-blue   { background: rgba(79,195,247,0.08);  border-color: rgba(79,195,247,0.2); }
+  .htp-card.tint-purple { background: rgba(155,93,229,0.08);  border-color: rgba(155,93,229,0.22); }
+  .htp-card.tint-green  { background: rgba(6,214,160,0.08);   border-color: rgba(6,214,160,0.22); }
+  .htp-card.tint-red    { background: rgba(239,35,60,0.08);   border-color: rgba(239,35,60,0.22); }
+
+  .htp-footer {
+    display: flex; flex-direction: column; gap: 12px;
+    margin-top: 4px; padding-bottom: 8px;
+  }
+</style>
+
+<div class="htp-wrap">
+
+  <!-- TOP BAR -->
+  <div class="htp-topbar z1">
+    <button class="htp-back-btn" onclick="htpGoBack()" aria-label="Back">←</button>
+    <span class="htp-title">❓ HOW TO PLAY</span>
+  </div>
+
+  <!-- SCROLLABLE CONTENT -->
+  <div class="htp-scroll z1">
+
+    <!-- GAME MODES -->
+    <div class="htp-section">
+      <div class="htp-section-header">
+        <span class="htp-section-icon">🎮</span>
+        <span class="htp-section-title">GAME MODES</span>
+      </div>
+
+      <div class="htp-card tint-yellow">
+        <span class="htp-card-icon">🎯</span>
+        <div class="htp-card-body">
+          <span class="htp-card-name">SOLO</span>
+          <span class="htp-card-desc">Play any topic on your own. Chase your best score and earn coins & trophies based on how well you do — no one else needed.</span>
+        </div>
+      </div>
+
+      <div class="htp-card tint-blue">
+        <span class="htp-card-icon">🚀</span>
+        <div class="htp-card-body">
+          <span class="htp-card-name">CLASSIC</span>
+          <span class="htp-card-desc">Create a room or join one with a 4-character code. Everyone answers the same questions live — fastest correct answers score the most. Winner takes the coin pot.</span>
+        </div>
+      </div>
+
+      <div class="htp-card tint-purple">
+        <span class="htp-card-icon">⚔️</span>
+        <div class="htp-card-body">
+          <span class="htp-card-name">TEAM</span>
+          <span class="htp-card-desc">Lock the room, split into two teams, and each team picks a topic. The randomizer decides which topic gets played — the team with the higher combined score wins.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ECONOMY -->
+    <div class="htp-section">
+      <div class="htp-section-header">
+        <span class="htp-section-icon">💰</span>
+        <span class="htp-section-title">THE ECONOMY</span>
+      </div>
+
+      <div class="htp-card tint-yellow">
+        <span class="htp-card-icon">🪙</span>
+        <div class="htp-card-body">
+          <span class="htp-card-name">COINS</span>
+          <span class="htp-card-desc">Your spendable currency. Earn them by winning games. Spend them on Classic/Team room entry fees and on buying generation tickets in the Shop.</span>
+        </div>
+      </div>
+
+      <div class="htp-card tint-green">
+        <span class="htp-card-icon">🏆</span>
+        <div class="htp-card-body">
+          <span class="htp-card-name">TROPHIES</span>
+          <span class="htp-card-desc">Your rank. Trophies are never spent — only won or lost based on performance. More trophies, higher rank on the leaderboard.</span>
+        </div>
+      </div>
+
+      <div class="htp-card tint-purple">
+        <span class="htp-card-icon">🎟️</span>
+        <div class="htp-card-body">
+          <span class="htp-card-name">GENERATION TICKETS</span>
+          <span class="htp-card-desc">Quick Pick topics (Movies, Science, Cricket, etc.) are always free — no ticket, no sign-in needed. Typing your own custom AI topic costs 1 ticket. You get 3 free every day.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DAILY REWARD & STREAKS -->
+    <div class="htp-section">
+      <div class="htp-section-header">
+        <span class="htp-section-icon">🔥</span>
+        <span class="htp-section-title">DAILY REWARD & STREAKS</span>
+      </div>
+
+      <div class="htp-card tint-yellow">
+        <span class="htp-card-icon">🎁</span>
+        <div class="htp-card-body">
+          <span class="htp-card-name">DAILY REWARD</span>
+          <span class="htp-card-desc">Sign in every day to claim a growing reward of coins and tickets. It runs on a 7-day cycle — Day 7 is the jackpot, then it starts over.</span>
+        </div>
+      </div>
+
+      <div class="htp-card tint-red">
+        <span class="htp-card-icon">🔥</span>
+        <div class="htp-card-body">
+          <span class="htp-card-name">STREAKS</span>
+          <span class="htp-card-desc">Play at least one game a day to keep your streak going. Miss a day and it resets — turn on Streak Reminders in Settings so you never forget.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="htp-footer">
+      <button class="btn btn-secondary" onclick="htpGoBack()">← BACK</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function onHowToPlayShow() {
+  // Nothing to fetch or sync — this screen is purely informational.
+}
+
+function htpGoBack() {
+  Sound.click();
+  goTo('home');
+}
+</script>

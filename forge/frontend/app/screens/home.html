@@ -227,6 +227,21 @@
   .h-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.12); }
   .h-dot.active { background: var(--yellow); width: 18px; border-radius: 3px; }
 
+  /* ── HOW TO PLAY LINK ──────────────────────────────────── */
+ .h-htp-row {
+   display: flex; align-items: center; justify-content: center; gap: 8px;
+   padding: 8px 0; margin: 0 16px;
+   border-top: 1px solid rgba(255,255,255,0.06);
+   cursor: pointer; -webkit-tap-highlight-color: transparent;
+   flex-shrink: 0;
+ }
+ .h-htp-icon { font-size: 12px; }
+ .h-htp-label {
+   font-family: var(--font-pixel); font-size: 6px;
+   color: rgba(255,255,255,0.4); letter-spacing: 0.5px;
+ }
+ .h-htp-row:active .h-htp-label { color: var(--yellow); }
+
   /* ── BOTTOM NAV ────────────────────────────────────────── */
   .h-bottom-nav {
     background: var(--bg-mid);
@@ -573,6 +588,11 @@
     </div>
 
   </div>
+   <!-- HOW TO PLAY LINK — sits just above the bottom nav -->
+ <div class="h-htp-row z1" onclick="hGoHowToPlay()">
+   <span class="h-htp-icon">❓</span>
+   <span class="h-htp-label">HOW TO PLAY</span>
+ </div>
 
   <!-- BOTTOM NAV — order: RANKS · SHOP · HOME(center) · PROFILE · SETTINGS -->
   <div class="h-bottom-nav z1">
@@ -1180,6 +1200,7 @@ async function hJoinRoomConfirm() {
 function hGoLeaderboard() { Sound.click(); goTo('leaderboard'); }
 function hGoShop()        { Sound.click(); goTo('shop'); }
 function hGoSettings()    { Sound.click(); goTo('settings'); }
+function hGoHowToPlay()   { Sound.click(); goTo('how-to-play'); }
 
 /* ── UTILS ────────────────────────────────────────────────── */
 
