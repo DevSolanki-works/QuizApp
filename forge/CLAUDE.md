@@ -645,7 +645,6 @@ alter table public.question_bank enable row level security;
 - Bottom nav (RANKS · SHOP · HOME · PROFILE · SETTINGS) icons are not evenly spaced — check `justify-content` / gap values in the nav container.
 - General spacing/padding inconsistencies wherever found — flag and fix opportunistically, not just the items listed above.
 - Remove any other unwanted/leftover UI elements spotted along the way (stray debug text, unused placeholders, redundant hints).
-- Also the splash screen doesn't get time to breath it simply takes you to Home page which then leads to errors of fetching or others 
 
 ### Stretch goal (only if time allows after the above)
 A single "How to Play" screen covering:

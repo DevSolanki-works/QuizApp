@@ -422,7 +422,18 @@ async function drClaim(day, coins, tickets) {
     State.user.coins            = data.coins;
     State.user.reward_day       = data.reward_day;
     State.user.last_reward_date = data.last_reward_date;
-    await API.syncProfile(State.user.id, State.user.coins, State.user.trophies);
+
+    // Backend mirror sync is best-effort — a Cloud Run cold start here must
+    // never make an already-successful claim look like a failure to the
+    // player. This was exactly the bug: this call used to be unguarded, so
+    // if it threw, the whole claim jumped to the outer catch and showed a
+    // generic error — even though coins + last_reward_date were already
+    // safely written to Supabase moments earlier.
+    try {
+      await API.syncProfile(State.user.id, State.user.coins, State.user.trophies);
+    } catch (e) {
+      console.warn('[DailyReward] Backend profile mirror sync failed (non-fatal):', e);
+    }
 
     // 2. Tickets — real backend call so the grant lands in the store that
     //    actually enforces spend_ticket() on game start, not just the

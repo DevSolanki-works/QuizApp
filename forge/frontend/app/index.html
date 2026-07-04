@@ -659,8 +659,10 @@ async function syncTicketsForUser() {
       await lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, tickets);
     }
   } catch (e) {
-    console.warn('[Tickets] Sync failed:', e);
-    Toast.error('Could not fetch your saved ticket balance.');
+    // Same reasoning as the boot profile sync above — this is a background
+    // retry loop, not a player-initiated action, so a failure here isn't
+    // something they can act on. It silently re-syncs next time.
+    console.warn('[Tickets] Sync failed (non-fatal, will retry later):', e);
   }
 }
 
@@ -1787,16 +1789,21 @@ function waitForSupabase(timeoutMs = 3000) {
     if (State.user?.id) {
       const fresh = await refreshUserProfile();
       if (!fresh) {
+        // Silent background sync on app open, before the player has done
+        // anything — an alarming red error here (especially on a slow
+        // connection or a Cloud Run cold start) makes the app look broken
+        // on first launch for no actionable reason. Showing "—" instead of
+        // a possibly-wrong cached number is honest; the next successful
+        // sync (home, lobby, game end) corrects it silently.
         State.user.coins    = null;
         State.user.trophies = null;
         Session.save();
-        Toast.error('Could not fetch your saved Supabase balance.');
+        console.warn('[Boot] Could not fetch saved Supabase balance — will retry on next sync.');
       } else {
         try {
           await syncBackendFromTrustedProfile(fresh);
         } catch (e) {
-          console.warn('[Boot] Backend sync failed:', e);
-          Toast.error('Saved balance loaded, but backend sync failed. Please retry before starting another game.');
+          console.warn('[Boot] Backend mirror sync failed (non-fatal, will retry later):', e);
         }
       }
       if (typeof _hLoadStats === 'function') _hLoadStats();
