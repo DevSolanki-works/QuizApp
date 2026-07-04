@@ -228,10 +228,10 @@
   .h-dot.active { background: var(--yellow); width: 18px; border-radius: 3px; }
 
   /* ── HOW TO PLAY LINK ──────────────────────────────────── */
- .h-htp-row-wrap {
-   display: flex; justify-content: flex-end;
-   padding: 0; flex-shrink: 0;
- }
+ .h-section-row {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
  .h-htp-btn {
    display: inline-flex; align-items: center; gap: 5px;
    padding: 6px 10px; border-radius: var(--radius-pill);
@@ -549,16 +549,14 @@
       </div>
     </div>
 
-    <!-- HOW TO PLAY LINK — small, right-aligned -->
-    <div class="h-htp-row-wrap z1">
+    <!-- SECTION LABEL + HOW TO PLAY, same row -->
+    <div class="h-section-row z1">
+      <span class="h-section-label">PLAY MODES</span>
       <div class="h-htp-btn" onclick="hGoHowToPlay()">
         <span class="h-htp-icon">❓</span>
         <span class="h-htp-label">HOW TO PLAY</span>
       </div>
     </div>
-
-    <!-- SECTION LABEL -->
-    <div class="h-section-label">PLAY MODES</div>
 
     <!-- SOLO HERO -->
     <div class="h-solo-card" onclick="hStartSolo()">
