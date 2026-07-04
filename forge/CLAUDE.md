@@ -633,29 +633,3 @@ alter table public.question_bank enable row level security;
 8. **Database protection:** Keep RLS active on Supabase tables.
 9. **Context maintenance:** Update `CLAUDE.md` after major milestones.
 10. **Device operations:** Execute native terminal commands using Windows PowerShell exclusively.
-
-## 🎯 ACTIVE GOAL (temporary — delete this section once done)
-
-**Play Store launch in ~2 days. UI readability + spacing pass, plus a stretch-goal How to Play screen. Nothing structural — no game logic, economy, or fetch/sync code.**
-
-### Known issues to fix
-- Text congestion/readability, especially in lobby.html:
-  - The topic ticket hint ("Custom AI topic — uses 1 ticket (X left today)") is cramped/hard to read — needs better spacing or line-break handling.
-  - "NEED AT LEAST 1 PLAYER · TOPIC REQUIRED" hint shows in Solo mode too, where it makes no sense (Solo is always 1 player) — should only show in Classic/Team, or read differently for Solo.
-- Bottom nav (RANKS · SHOP · HOME · PROFILE · SETTINGS) icons are not evenly spaced — check `justify-content` / gap values in the nav container.
-- General spacing/padding inconsistencies wherever found — flag and fix opportunistically, not just the items listed above.
-- Remove any other unwanted/leftover UI elements spotted along the way (stray debug text, unused placeholders, redundant hints).
-
-### Stretch goal (only if time allows after the above)
-A single "How to Play" screen covering:
-- The three game modes (Solo, Classic, Team) and how they differ
-- The economy in plain terms: coins (earn/spend), trophies (rank), generation tickets (Quick Pick = free forever, custom AI topic = costs 1 ticket)
-- Daily Reward and streak basics
-- A simple button above Settings and Profile to open this screen and a cancel/back button to return to the previous screen.
-
-Tone: short, conversational, scannable — think "friendly onboarding card," not a wiki article. People should actually want to read it, not skim past it. No walls of text; break into small digestible chunks with visual hierarchy (icons, short headers, one idea per block).
-
-### Rules for this pass
-- Claude gives small `find this → replace with this` diffs, not full-file rewrites, unless a file is being touched for the first time or too many changes to be done then this pass (the How to Play screen, if we get to it, is new — full file is fine there).
-- Priority order: lobby.html (topic hint + solo hint) → home.html (bottom nav spacing) → sweep remaining screens for spacing/readability → How to Play screen if time allows.
-- Absolute rule: if a proposed change touches WebSocket messages, Supabase queries, State object shape, or any `async function`, stop and flag it — that's out of scope for this pass. and don't make the Splash screen run forever just enough time everything is fetched
