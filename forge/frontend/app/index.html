@@ -50,6 +50,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <!-- Forge Supabase helpers — defer so it doesn't block render -->
   <script src="supabase-client.js" defer></script>
+  <!-- AdMob rewarded-ad wrapper — defer so it doesn't block render -->
+  <script src="admob.js" defer></script>
 
   <style>
     /* ══════════════════════════════════════════════════════
@@ -1798,6 +1800,11 @@ function waitForSupabase(timeoutMs = 3000) {
     // Notification permission — fire-and-forget, shown (if needed) on top
     // of the already-visible home screen. Never blocks boot again.
     _maybeShowNotifPermission().catch(() => {});
+
+    // AdMob — fire-and-forget init + preload. If this races the deferred
+    // admob.js script and misses, show() self-heals by preloading on its
+    // own first call, so a missed early init here is non-fatal.
+    if (typeof RewardedAd !== 'undefined') RewardedAd.init().catch(() => {});
 
     // ── Background: sync Supabase profile after home is already visible ──
     // Routed through the shared, de-duplicated refreshUserProfile() so this
