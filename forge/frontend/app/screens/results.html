@@ -213,6 +213,11 @@
       <p class="my-result-rank"  id="my-result-rank">—</p>
       <p class="my-economy-delta" id="my-economy-delta"></p>
       <p class="results-save-note" id="results-save-note"></p>
+      <div id="entry-fee-recovery" style="display:none;margin-top:10px;width:100%;">
+        <button class="btn btn-secondary" style="height:44px;font-size:8px;" onclick="recoverEntryFee()" id="entry-fee-recovery-btn">
+          🎥 &nbsp;WATCH AD TO RECOVER ENTRY FEE
+        </button>
+      </div>
     </div>
   </div>
 
@@ -224,7 +229,10 @@
 </div>
 
 <script>
+let _entryFeeAdUsed = false;
+
 function onResultsShow() {
+  _entryFeeAdUsed = false;
   const conf = document.getElementById('results-confetti');
   if (conf) { conf.innerHTML = ''; spawnConfetti(conf); }
   Sound.gameOver();
@@ -334,6 +342,61 @@ function _renderEconomyResult() {
     : (trophyDelta > 0 ? '+' : '') + fmt(trophyDelta) + ' TROPHIES';
   el.textContent = coinText + ' · ' + trophyText + ' · BALANCE ' + fmt(economy.coins) + ' COINS / ' + fmt(economy.trophies) + ' TROPHIES';
   if (note) note.textContent = State.user ? '' : 'Play without Google if you want. Progress, coins, and trophies only save when you sign in.';
+  _maybeShowEntryFeeRecovery(economy);
+}
+
+/* ── ENTRY FEE RECOVERY (rewarded ad) ───────────────────── */
+function _maybeShowEntryFeeRecovery(economy) {
+  const wrap = document.getElementById('entry-fee-recovery');
+  if (!wrap) return;
+
+  const isMultiplayer = State.playMode === 'classic' || State.playMode === 'team';
+  const lostEntryFee  = Number(economy.entry_fee || 0) > 0 && !economy.is_winner && Number(economy.coins_delta || 0) < 0;
+  const canShow = isMultiplayer && lostEntryFee && State.user && !_entryFeeAdUsed
+    && typeof RewardedAd !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+
+  wrap.style.display = canShow ? 'block' : 'none';
+  if (canShow) wrap._entryFee = Number(economy.entry_fee);
+}
+
+async function recoverEntryFee() {
+  if (_entryFeeAdUsed) return;
+  const wrap = document.getElementById('entry-fee-recovery');
+  const btn  = document.getElementById('entry-fee-recovery-btn');
+  const entryFee = wrap?._entryFee;
+  if (!entryFee || !State.user?.id) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ LOADING AD...'; }
+
+  const watched = await RewardedAd.show();
+  if (!watched) {
+    Toast.error('Ad was not completed — entry fee not recovered.');
+    if (btn) { btn.disabled = false; btn.textContent = '🎥 WATCH AD TO RECOVER ENTRY FEE'; }
+    return;
+  }
+
+  _entryFeeAdUsed = true;
+  try {
+    const credential = State.user._credential;
+    const res = await fetch(`${API_BASE}/economy/reward`, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
+      body   : JSON.stringify({ user_id: State.user.id, coins_delta: entryFee }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    State.user.coins = data.coins;
+    Session.save();
+    if (typeof lbUpsertPlayer === 'function') {
+      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies).catch(() => {});
+    }
+    Toast.success(`+${entryFee} coins refunded!`);
+    Sound.correct();
+    if (wrap) wrap.style.display = 'none';
+  } catch (e) {
+    console.error('[EntryFeeRecovery] Reward grant failed:', e);
+    Toast.error('Ad completed, but the refund failed to apply. Contact support if this persists.');
+  }
 }
 
 /* ── TEAM WINNER BANNER ─────────────────────────────────── */
