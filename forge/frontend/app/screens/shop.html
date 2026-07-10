@@ -248,15 +248,87 @@ function _shopRender() {
 
     <p class="shop-section-label" style="margin-top:6px;">MORE WAYS TO EARN TICKETS</p>
 
-    <div class="shop-ad-row">
+    <div class="shop-ad-row" id="shop-ad-row" onclick="shopWatchAdForTicket()">
       <span class="shop-ad-icon">🎥</span>
       <div class="shop-ad-info">
         <span class="shop-ad-name">WATCH AN AD FOR 1 TICKET</span>
-        <span class="shop-ad-desc">Up to 5 per day, no coins needed</span>
+        <span class="shop-ad-desc" id="shop-ad-desc">Up to 5 per day, no coins needed</span>
       </div>
-      <span class="shop-ad-badge">COMING SOON</span>
+      <span class="shop-ad-badge" id="shop-ad-badge">▶ WATCH</span>
     </div>
   `;
+
+  _shopUpdateAdRowState();
+}
+
+/* ── WATCH AD FOR TICKET ──────────────────────────────────── */
+
+function _shopUpdateAdRowState() {
+  const row   = document.getElementById('shop-ad-row');
+  const badge = document.getElementById('shop-ad-badge');
+  const desc  = document.getElementById('shop-ad-desc');
+  if (!row || !State.user) return;
+
+  const used = Number(State.user.ad_tickets_used_today || 0);
+  const cap  = Number(State.user.daily_ad_cap || 5);
+  const available = typeof RewardedAd !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+
+  if (!available) {
+    row.style.opacity = '0.55';
+    row.style.pointerEvents = 'none';
+    badge.textContent = 'APP ONLY';
+    desc.textContent = 'Watch on the installed app to earn tickets';
+  } else if (used >= cap) {
+    row.style.opacity = '0.55';
+    row.style.pointerEvents = 'none';
+    badge.textContent = 'DONE TODAY';
+    desc.textContent = `Come back tomorrow for more (${used}/${cap} used)`;
+  } else {
+    row.style.opacity = '1';
+    row.style.pointerEvents = 'auto';
+    badge.textContent = '▶ WATCH';
+    desc.textContent = `${cap - used} of ${cap} left today, no coins needed`;
+  }
+}
+
+async function shopWatchAdForTicket() {
+  if (!State.user?.id) return;
+  const badge = document.getElementById('shop-ad-badge');
+  if (badge) badge.textContent = '⏳...';
+
+  const watched = await RewardedAd.show();
+  if (!watched) {
+    Toast.error('Ad was not completed — no ticket granted.');
+    _shopUpdateAdRowState();
+    return;
+  }
+
+  try {
+    const credential = State.user._credential;
+    const res = await fetch(`${API_BASE}/tickets/ad-grant`, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
+      body   : JSON.stringify({ user_id: State.user.id }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    State.user.tickets_today          = data.tickets_today;
+    State.user.ad_tickets_used_today  = data.ad_tickets_used_today;
+    Session.save();
+
+    if (typeof lbUpsertPlayer === 'function') {
+      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, data).catch(() => {});
+    }
+
+    Toast.success('+1 generation ticket!');
+    Sound.correct();
+    _shopRender();
+  } catch (e) {
+    console.error('[Shop] Ad ticket grant failed:', e);
+    Toast.error('Ad completed, but the ticket failed to grant. Try again.');
+    _shopUpdateAdRowState();
+  }
 }
 
 function shopSetQty(q) {
