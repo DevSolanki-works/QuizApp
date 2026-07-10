@@ -226,8 +226,35 @@
 
   .h-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.12); }
   .h-dot.active { background: var(--yellow); width: 18px; border-radius: 3px; }
+  
+  /* ── STREAK SAVER BANNER ───────────────────────────────── */
+  .h-streak-saver {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px;
+    background: rgba(239,35,60,0.12);
+    border: 1.5px solid rgba(239,35,60,0.3);
+    flex-shrink: 0;
+  }
+  .h-ss-icon { font-size: 18px; flex-shrink: 0; }
+  .h-ss-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .h-ss-title {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: var(--red); letter-spacing: 0.3px;
+  }
+  .h-ss-desc {
+    font-family: var(--font-body); font-size: 11px; font-weight: 700;
+    color: rgba(255,255,255,0.5);
+  }
+  .h-ss-btn {
+    flex-shrink: 0; padding: 8px 12px; border-radius: var(--radius-pill);
+    background: var(--yellow); color: var(--text-dark); border: none;
+    font-family: var(--font-pixel); font-size: 6px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .h-ss-btn:active { transform: scale(0.96); }
 
   /* ── HOW TO PLAY LINK ──────────────────────────────────── */
+
  .h-section-row {
     display: flex; align-items: center; justify-content: space-between;
     flex-shrink: 0;
@@ -250,6 +277,32 @@
    color: rgba(255,255,255,0.45); letter-spacing: 0.3px;
  }
  .h-htp-btn:active .h-htp-label { color: var(--yellow); }
+
+  /* ── STREAK SAVER BANNER ───────────────────────────────── */
+  .h-streak-saver {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px;
+    background: rgba(239,35,60,0.12);
+    border: 1.5px solid rgba(239,35,60,0.3);
+    flex-shrink: 0;
+  }
+  .h-ss-icon { font-size: 18px; flex-shrink: 0; }
+  .h-ss-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .h-ss-title {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: var(--red); letter-spacing: 0.3px;
+  }
+  .h-ss-desc {
+    font-family: var(--font-body); font-size: 11px; font-weight: 700;
+    color: rgba(255,255,255,0.5);
+  }
+  .h-ss-btn {
+    flex-shrink: 0; padding: 8px 12px; border-radius: var(--radius-pill);
+    background: var(--yellow); color: var(--text-dark); border: none;
+    font-family: var(--font-pixel); font-size: 6px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .h-ss-btn:active { transform: scale(0.96); }
 
   /* ── BOTTOM NAV ────────────────────────────────────────── */
   .h-bottom-nav {
@@ -547,6 +600,16 @@
         <span class="h-stat-val" id="h-stat-wins">—</span>
         <span class="h-stat-label">WIN RATE</span>
       </div>
+    </div>
+
+    <!-- STREAK SAVER BANNER — shown only when streak is at risk -->
+    <div class="h-streak-saver z1" id="h-streak-saver" style="display:none;">
+      <span class="h-ss-icon">🔥</span>
+      <div class="h-ss-info">
+        <span class="h-ss-title" id="h-ss-title">YOUR STREAK IS AT RISK!</span>
+        <span class="h-ss-desc">Watch an ad to save it — no game needed today</span>
+      </div>
+      <button class="h-ss-btn" id="h-ss-btn" onclick="hSaveStreak()">🎥 SAVE</button>
     </div>
 
     <!-- SECTION LABEL + HOW TO PLAY, same row -->
@@ -915,12 +978,14 @@ async function _hLoadStats() {
   // Daily streak from Supabase
   if (typeof lbGetDailyStreak === 'function') {
     try {
-      const streak  = await lbGetDailyStreak(State.user.id);
+      const { streak, lastPlayedDate } = await lbGetDailyStreak(State.user.id);
       State._homeStreak = streak;
+      State._homeLastPlayedDate = lastPlayedDate;
       const streakEl    = document.getElementById('h-stat-streak');
       const blockEl     = document.getElementById('h-stat-streak-block');
       if (streakEl) streakEl.textContent = streak;
       if (blockEl)  blockEl.classList.toggle('streak-active', streak >= 3);
+      _hCheckStreakSaver();
     } catch (_) {}
   }
 
@@ -1204,6 +1269,64 @@ async function hJoinRoomConfirm() {
   } finally {
     if (btn) { btn.textContent = 'JOIN ▶'; btn.disabled = false; }
   }
+}
+
+/* ── STREAK SAVER ─────────────────────────────────────────── */
+
+let _streakSaverUsed = false;
+
+function _hCheckStreakSaver() {
+  const banner = document.getElementById('h-streak-saver');
+  if (!banner) return;
+
+  const today = _todayDateString();
+  const alreadyPlayedToday = State._homeLastPlayedDate === today;
+  const hasStreakWorthSaving = (State._homeStreak || 0) >= 1;
+  const isAfter6pm = new Date().getHours() >= 18;
+  const canShow = State.user && !alreadyPlayedToday && hasStreakWorthSaving
+    && isAfter6pm && !_streakSaverUsed
+    && typeof RewardedAd !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+
+  banner.style.display = canShow ? 'flex' : 'none';
+}
+
+async function hSaveStreak() {
+  if (_streakSaverUsed || !State.user?.id) return;
+  const btn = document.getElementById('h-ss-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+
+  const watched = await RewardedAd.show();
+  if (!watched) {
+    Toast.error('Ad was not completed — streak not saved.');
+    if (btn) { btn.disabled = false; btn.textContent = '🎥 SAVE'; }
+    return;
+  }
+
+  _streakSaverUsed = true;
+  try {
+    const newStreak = await lbUpdateDailyStreak(State.user.id);
+    if (newStreak !== null) {
+      State._homeStreak = newStreak;
+      State._homeLastPlayedDate = _todayDateString();
+      const streakEl = document.getElementById('h-stat-streak');
+      if (streakEl) streakEl.textContent = newStreak;
+      document.getElementById('h-streak-saver').style.display = 'none';
+      Toast.success(`Streak saved at ${newStreak} days! 🔥`);
+      Sound.correct();
+    } else {
+      throw new Error('Streak update returned null');
+    }
+  } catch (e) {
+    console.error('[StreakSaver] Update failed:', e);
+    Toast.error('Ad completed, but saving your streak failed. Try again.');
+    _streakSaverUsed = false;
+    if (btn) { btn.disabled = false; btn.textContent = '🎥 SAVE'; }
+  }
+}
+
+function _todayDateString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 /* ── NAV STUBS ────────────────────────────────────────────── */

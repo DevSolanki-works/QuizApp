@@ -261,22 +261,22 @@ async function lbUpdateDailyStreak(googleId) {
  */
 async function lbGetDailyStreak(googleId) {
   const db = _initSupabase();
-  if (!db || !googleId) return 0;
+  if (!db || !googleId) return { streak: 0, lastPlayedDate: null };
 
   try {
     const { data, error } = await db
       .from('leaderboard')
       .select('daily_streak, last_played_date')
       .eq('google_id', googleId)
-      .single();
+      .maybeSingle();
 
-    if (error) return 0;
+    if (error || !data) return { streak: 0, lastPlayedDate: null };
 
     // If they haven't played today or yesterday, streak is effectively broken
     // but we still show what's stored — the reset happens on next game end
-    return Number(data?.daily_streak || 0);
+    return { streak: Number(data.daily_streak || 0), lastPlayedDate: data.last_played_date || null };
   } catch (e) {
-    return 0;
+    return { streak: 0, lastPlayedDate: null };
   }
 }
 

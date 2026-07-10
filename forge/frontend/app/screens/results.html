@@ -218,6 +218,11 @@
           🎥 &nbsp;WATCH AD TO RECOVER ENTRY FEE
         </button>
       </div>
+      <div id="double-winnings" style="display:none;margin-top:10px;width:100%;">
+        <button class="btn btn-secondary" style="height:44px;font-size:8px;" onclick="doubleWinnings()" id="double-winnings-btn">
+          🎥 &nbsp;WATCH AD TO DOUBLE YOUR WINNINGS
+        </button>
+      </div>
     </div>
   </div>
 
@@ -230,9 +235,11 @@
 
 <script>
 let _entryFeeAdUsed = false;
+let _doubleWinAdUsed = false;
 
 function onResultsShow() {
   _entryFeeAdUsed = false;
+  _doubleWinAdUsed = false;
   const conf = document.getElementById('results-confetti');
   if (conf) { conf.innerHTML = ''; spawnConfetti(conf); }
   Sound.gameOver();
@@ -343,6 +350,61 @@ function _renderEconomyResult() {
   el.textContent = coinText + ' · ' + trophyText + ' · BALANCE ' + fmt(economy.coins) + ' COINS / ' + fmt(economy.trophies) + ' TROPHIES';
   if (note) note.textContent = State.user ? '' : 'Play without Google if you want. Progress, coins, and trophies only save when you sign in.';
   _maybeShowEntryFeeRecovery(economy);
+  _maybeShowDoubleWinnings(economy);
+}
+
+/* ── DOUBLE WINNINGS (rewarded ad) ────────────────────────── */
+function _maybeShowDoubleWinnings(economy) {
+  const wrap = document.getElementById('double-winnings');
+  if (!wrap) return;
+
+  const isMultiplayer = State.playMode === 'classic' || State.playMode === 'team';
+  const isWinner = economy.is_winner === true && Number(economy.payout || 0) > 0;
+  const canShow = isMultiplayer && isWinner && State.user && !_doubleWinAdUsed
+    && typeof RewardedAd !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+
+  wrap.style.display = canShow ? 'block' : 'none';
+  if (canShow) wrap._payout = Number(economy.payout);
+}
+
+async function doubleWinnings() {
+  if (_doubleWinAdUsed) return;
+  const wrap = document.getElementById('double-winnings');
+  const btn  = document.getElementById('double-winnings-btn');
+  const payout = wrap?._payout;
+  if (!payout || !State.user?.id) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ LOADING AD...'; }
+
+  const watched = await RewardedAd.show();
+  if (!watched) {
+    Toast.error('Ad was not completed — winnings not doubled.');
+    if (btn) { btn.disabled = false; btn.textContent = '🎥 WATCH AD TO DOUBLE YOUR WINNINGS'; }
+    return;
+  }
+
+  _doubleWinAdUsed = true;
+  try {
+    const credential = State.user._credential;
+    const res = await fetch(`${API_BASE}/economy/reward`, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
+      body   : JSON.stringify({ user_id: State.user.id, coins_delta: payout }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    State.user.coins = data.coins;
+    Session.save();
+    if (typeof lbUpsertPlayer === 'function') {
+      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies).catch(() => {});
+    }
+    Toast.success(`+${payout} bonus coins — winnings doubled!`);
+    Sound.correct();
+    if (wrap) wrap.style.display = 'none';
+  } catch (e) {
+    console.error('[DoubleWinnings] Reward grant failed:', e);
+    Toast.error('Ad completed, but the bonus failed to apply. Contact support if this persists.');
+  }
 }
 
 /* ── ENTRY FEE RECOVERY (rewarded ad) ───────────────────── */

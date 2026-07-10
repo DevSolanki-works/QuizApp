@@ -29,7 +29,7 @@ const RewardedAd = {
   // Swap PROD_AD_UNIT_ID in once you create a real ad unit in AdMob.
   // Never ship IS_TESTING as true.
   TEST_AD_UNIT_ID: 'ca-app-pub-3940256099942544/5224354917',
-  PROD_AD_UNIT_ID: 'ca-app-pub-4922314688440658/REPLACE_ME',
+  PROD_AD_UNIT_ID: 'ca-app-pub-4922314688440658/3665918421',
 
   IS_TESTING: true,
 
@@ -82,7 +82,8 @@ const RewardedAd = {
   async show() {
     const plugin = this._plugin;
     if (!plugin || !window.Capacitor?.isNativePlatform?.()) {
-      console.warn('[AdMob] No plugin available (web build or plugin missing)');
+      console.warn('[AdMob] No plugin available (web build or plugin missing) — ad flow stubbed out, no real ad traffic generated');
+      if (typeof Toast !== 'undefined') Toast.info('Ads only run on a real device build — this is stubbed out on localhost.');
       return false;
     }
 
