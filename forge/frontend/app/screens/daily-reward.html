@@ -398,19 +398,22 @@ async function drClaim(day, coins, tickets) {
     }
 
     // 1. Coins + date/day tracking — Supabase upsert (also the display mirror)
-    const { data, error } = await db
+    let { data, error } = await db
       .from('leaderboard')
-      .upsert({
-        google_id:        State.user.id,
-        display_name:     State.user.name || 'PLAYER',
-        last_reward_date: today,
-        reward_day:       day,
-        coins:            baseCoins + coins,
-        trophies:         baseTrophies,
-        updated_at:       new Date().toISOString(),
-      }, { onConflict: 'google_id' })
+      .upsert(payload, { onConflict: 'google_id' })
       .select('coins, reward_day, last_reward_date')
       .single();
+
+    // reward_cycle_completed may not exist yet if the migration hasn't
+    // landed — retry without it rather than failing the whole claim.
+    if (error && payload.reward_cycle_completed !== undefined && /column .* does not exist/i.test(error.message || '')) {
+      delete payload.reward_cycle_completed;
+      ({ data, error } = await db
+        .from('leaderboard')
+        .upsert(payload, { onConflict: 'google_id' })
+        .select('coins, reward_day, last_reward_date')
+        .single());
+    }
 
     if (error) {
       console.error('[DailyReward] Coin upsert failed:', error.message);
@@ -422,6 +425,7 @@ async function drClaim(day, coins, tickets) {
     State.user.coins            = data.coins;
     State.user.reward_day       = data.reward_day;
     State.user.last_reward_date = data.last_reward_date;
+    if (day === 7) State.user.reward_cycle_completed = true;
 
     // Backend mirror sync is best-effort — a Cloud Run cold start here must
     // never make an already-successful claim look like a failure to the
@@ -440,6 +444,7 @@ async function drClaim(day, coins, tickets) {
     //    Supabase display mirror.
     let ticketsGranted = tickets;
     let ticketGrantOk  = false;
+    let ticketAuthExpired = false;
     for (let attempt = 0; attempt < 2 && !ticketGrantOk; attempt++) {
       try {
         const ticketResult = await API.grantDailyRewardTickets(State.user.id, day);
@@ -456,12 +461,21 @@ async function drClaim(day, coins, tickets) {
         }
       } catch (e) {
         console.warn(`[DailyReward] Ticket grant attempt ${attempt + 1} failed:`, e);
+        if (typeof _isAuthError === 'function' && _isAuthError(e)) {
+          ticketAuthExpired = true;
+          break; // no point retrying an expired token
+        }
         if (attempt === 0) await new Promise(r => setTimeout(r, 900));
       }
     }
     if (!ticketGrantOk) {
       ticketsGranted = 0;
-      Toast.error('Coins claimed, but the ticket bonus failed to apply. Check the Shop or try again tomorrow.');
+      if (ticketAuthExpired) {
+        Toast.error('Your session expired — coins were claimed, but sign in again to collect your bonus tickets.');
+        _promptReauth();
+      } else {
+        Toast.error('Coins claimed, but the ticket bonus failed to apply. Check the Shop or try again tomorrow.');
+      }
     }
 
     Session.save();

@@ -763,14 +763,22 @@ function onLobbyShow() {
 /* TICKET-AWARE TOPIC INPUT                                     */
 /* ─────────────────────────────────────────────────────────── */
 
-/** How many generation tickets the signed-in user currently has, or null if unknown/guest. */
+/** How many generation tickets are in the signed-in user's balance, or null if unknown/guest. */
 function _ticketsLeft() {
   if (!State.user) return null;
   const t = State.user.tickets_today;
   return typeof t === 'number' ? t : null;
 }
 
-/** Update the small ticket-cost hint under the topic input as the user types. */
+/** How many free daily custom-topic generations remain today, or null if unknown/guest. */
+function _freeGenerationsLeft() {
+  if (!State.user) return null;
+  const used = Number(State.user.free_generations_used_today ?? 0);
+  const cap  = Number(State.user.daily_free_generations ?? 2);
+  return Math.max(0, cap - used);
+}
+
+/** Update the small cost hint under the topic input as the user types. */
 function _updateTicketHint() {
   const input = document.getElementById('input-topic');
   const hint  = document.getElementById('topic-ticket-hint');
@@ -780,13 +788,25 @@ function _updateTicketHint() {
   if (!topic) { hint.textContent = ''; hint.className = 'topic-ticket-hint'; return; }
 
   if (isQuickPickTopic(topic)) {
-    hint.textContent = '✨ Free Quick Pick topic — no ticket needed';
+    hint.textContent = '✨ Free Quick Pick topic — always unlimited, no sign-in needed';
     hint.className   = 'topic-ticket-hint is-free';
+    return;
+  }
+
+  if (!State.user) {
+    hint.textContent = '🤖 Custom AI topic — sign in required';
+    hint.className = 'topic-ticket-hint is-custom';
+    return;
+  }
+
+  const freeLeft = _freeGenerationsLeft();
+  const cap = Number(State.user.daily_free_generations ?? 2);
+  if (freeLeft > 0) {
+    hint.textContent = `🤖 Custom AI topic — uses 1 free generation (${freeLeft}/${cap} left today)`;
+    hint.className = 'topic-ticket-hint is-free';
   } else {
     const left = _ticketsLeft();
-    hint.textContent = State.user
-      ? `🎟️ Custom AI topic — uses 1 ticket (${left ?? '?'} left today)`
-      : '🎟️ Custom AI topic — sign in required';
+    hint.textContent = `🎟️ Out of free generations today — uses 1 ticket (${left ?? '?'} in your balance)`;
     hint.className = 'topic-ticket-hint is-custom';
   }
 }
@@ -794,7 +814,7 @@ function _updateTicketHint() {
 /**
  * Check whether the current topic input should show the auto-suggest banner:
  * the topic is custom (not a Quick Pick) AND the player either isn't signed
- * in or has 0 tickets left. Runs on every keystroke.
+ * in, or has 0 free generations left AND 0 tickets. Runs on every keystroke.
  */
 function _checkTicketSuggestBanner() {
   const input  = document.getElementById('input-topic');
@@ -808,12 +828,13 @@ function _checkTicketSuggestBanner() {
     return;
   }
 
+  const freeLeft = _freeGenerationsLeft();
   const left = _ticketsLeft();
   if (!State.user) {
     text.textContent = "Sign in to play a custom AI topic — or try a free Quick Pick topic right now, no sign-in needed.";
     banner.classList.add('visible');
-  } else if (left === 0) {
-    text.textContent = "You're out of generation tickets for today. Quick Pick topics are always free — try one instead!";
+  } else if (freeLeft === 0 && left === 0) {
+    text.textContent = "You're out of free generations and tickets for today. Quick Pick topics are always free — try one instead!";
     banner.classList.add('visible');
   } else {
     banner.classList.remove('visible');

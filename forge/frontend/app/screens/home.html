@@ -226,32 +226,6 @@
 
   .h-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.12); }
   .h-dot.active { background: var(--yellow); width: 18px; border-radius: 3px; }
-  
-  /* ── STREAK SAVER BANNER ───────────────────────────────── */
-  .h-streak-saver {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; border-radius: 10px;
-    background: rgba(239,35,60,0.12);
-    border: 1.5px solid rgba(239,35,60,0.3);
-    flex-shrink: 0;
-  }
-  .h-ss-icon { font-size: 18px; flex-shrink: 0; }
-  .h-ss-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .h-ss-title {
-    font-family: var(--font-pixel); font-size: 6px;
-    color: var(--red); letter-spacing: 0.3px;
-  }
-  .h-ss-desc {
-    font-family: var(--font-body); font-size: 11px; font-weight: 700;
-    color: rgba(255,255,255,0.5);
-  }
-  .h-ss-btn {
-    flex-shrink: 0; padding: 8px 12px; border-radius: var(--radius-pill);
-    background: var(--yellow); color: var(--text-dark); border: none;
-    font-family: var(--font-pixel); font-size: 6px; cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .h-ss-btn:active { transform: scale(0.96); }
 
   /* ── HOW TO PLAY LINK ──────────────────────────────────── */
 
@@ -278,31 +252,46 @@
  }
  .h-htp-btn:active .h-htp-label { color: var(--yellow); }
 
-  /* ── STREAK SAVER BANNER ───────────────────────────────── */
-  .h-streak-saver {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; border-radius: 10px;
-    background: rgba(239,35,60,0.12);
+  /* ── STREAK ALERT BADGE (on Day Streak stat) ─────────────── */
+  .h-stat-alert {
+    position: absolute; top: -6px; right: -6px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--red); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-pixel); font-size: 9px;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 10px rgba(239,35,60,0.6);
+    animation: alert-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes alert-pulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.15); }
+  }
+
+  /* ── STREAK SAVER MODAL ───────────────────────────────────── */
+  #h-streak-modal {
+    display: none; position: fixed; inset: 0; z-index: 700;
+    background: rgba(9,15,80,0.95); backdrop-filter: blur(8px);
+    align-items: flex-end; justify-content: center;
+  }
+  .h-streak-sheet {
+    width: 100%; max-width: var(--max-w);
+    background: var(--bg-mid);
     border: 1.5px solid rgba(239,35,60,0.3);
-    flex-shrink: 0;
+    border-bottom: none; border-radius: 20px 20px 0 0;
+    padding: 28px 24px 40px;
+    display: flex; flex-direction: column; gap: 18px;
+    animation: sheet-up 0.3s cubic-bezier(0.22,1,0.36,1) both;
+    text-align: center;
   }
-  .h-ss-icon { font-size: 18px; flex-shrink: 0; }
-  .h-ss-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .h-ss-title {
-    font-family: var(--font-pixel); font-size: 6px;
-    color: var(--red); letter-spacing: 0.3px;
+  .h-streak-modal-icon { font-size: 44px; }
+  .h-streak-modal-title {
+    font-family: var(--font-pixel); font-size: 10px;
+    color: var(--red); letter-spacing: 0.5px; line-height: 1.6;
   }
-  .h-ss-desc {
-    font-family: var(--font-body); font-size: 11px; font-weight: 700;
-    color: rgba(255,255,255,0.5);
+  .h-streak-modal-desc {
+    font-family: var(--font-body); font-size: 14px; font-weight: 700;
+    color: rgba(255,255,255,0.6); line-height: 1.6;
   }
-  .h-ss-btn {
-    flex-shrink: 0; padding: 8px 12px; border-radius: var(--radius-pill);
-    background: var(--yellow); color: var(--text-dark); border: none;
-    font-family: var(--font-pixel); font-size: 6px; cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .h-ss-btn:active { transform: scale(0.96); }
 
   /* ── BOTTOM NAV ────────────────────────────────────────── */
   .h-bottom-nav {
@@ -590,7 +579,8 @@
         <span class="h-stat-val" id="h-stat-rank">—</span>
         <span class="h-stat-label">GLOBAL</span>
       </div>
-      <div class="h-stat" id="h-stat-streak-block">
+      <div class="h-stat" id="h-stat-streak-block" onclick="hOpenStreakSaverModal()" style="cursor:pointer;position:relative;">
+        <span class="h-stat-alert" id="h-stat-streak-alert" style="display:none;">!</span>
         <span class="h-stat-icon">🔥</span>
         <span class="h-stat-val" id="h-stat-streak">0</span>
         <span class="h-stat-label">DAY STREAK</span>
@@ -600,16 +590,6 @@
         <span class="h-stat-val" id="h-stat-wins">—</span>
         <span class="h-stat-label">WIN RATE</span>
       </div>
-    </div>
-
-    <!-- STREAK SAVER BANNER — shown only when streak is at risk -->
-    <div class="h-streak-saver z1" id="h-streak-saver" style="display:none;">
-      <span class="h-ss-icon">🔥</span>
-      <div class="h-ss-info">
-        <span class="h-ss-title" id="h-ss-title">YOUR STREAK IS AT RISK!</span>
-        <span class="h-ss-desc">Watch an ad to save it — no game needed today</span>
-      </div>
-      <button class="h-ss-btn" id="h-ss-btn" onclick="hSaveStreak()">🎥 SAVE</button>
     </div>
 
     <!-- SECTION LABEL + HOW TO PLAY, same row -->
@@ -715,7 +695,7 @@
       </div>
       <div class="h-signin-perk">
         <span class="h-signin-perk-icon">🎟️</span>
-        <span class="h-signin-perk-text">3 free AI quiz generations every day, plus bonus tickets from your daily login streak</span>
+        <span class="h-signin-perk-text">2 free AI quiz generations every day, plus bonus tickets from your daily login streak</span>
       </div>
       <div class="h-signin-perk">
         <span class="h-signin-perk-icon">🔥</span>
@@ -791,6 +771,19 @@
 </div>
 
 <!-- ═══════════════════════════════════════════
+     STREAK SAVER MODAL (tap the Day Streak stat)
+════════════════════════════════════════════ -->
+<div id="h-streak-modal" onclick="hCloseStreakSaverModal(event)">
+  <div class="h-streak-sheet" onclick="event.stopPropagation()">
+    <span class="h-streak-modal-icon">🔥</span>
+    <p class="h-streak-modal-title">YOUR STREAK IS AT RISK!</p>
+    <p class="h-streak-modal-desc">Watch a quick ad to save your <span id="h-streak-modal-count">0</span>-day streak — no game needed today.</p>
+    <button class="btn btn-primary" id="h-ss-btn" onclick="hSaveStreak()">🎥 &nbsp;WATCH AD TO SAVE STREAK</button>
+    <div class="h-signin-close" onclick="hCloseStreakSaverModal()">MAYBE LATER</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
      TICKET DETAIL SHEET (tap the ticket pill)
 ════════════════════════════════════════════ -->
 <div id="h-ticket-modal" onclick="hCloseTicketSheet(event)">
@@ -809,7 +802,7 @@
     </div>
     <div class="h-ticket-info-row">
       <span class="h-ticket-info-icon">🤖</span>
-      <span class="h-ticket-info-text">A custom AI-generated topic (any mode) uses 1 ticket. You get 3 free per day.</span>
+      <span class="h-ticket-info-text">A custom AI-generated topic uses 1 free generation first — you get 2 free per day. After that, it spends 1 ticket from your balance.</span>
     </div>
     <div class="h-ticket-info-row">
       <span class="h-ticket-info-icon">🎁</span>
@@ -817,7 +810,7 @@
     </div>
     <div class="h-ticket-info-row">
       <span class="h-ticket-info-icon">🔄</span>
-      <span class="h-ticket-info-text">The 3 free tickets reset every day at midnight — they don't carry over.</span>
+      <span class="h-ticket-info-text">Your 2 free generations reset every day at midnight. Your ticket balance never expires — it only changes when you spend, buy, or earn one.</span>
     </div>
 
     <button class="btn btn-primary" onclick="hCloseTicketSheet(); hGoShop();">
@@ -1276,8 +1269,8 @@ async function hJoinRoomConfirm() {
 let _streakSaverUsed = false;
 
 function _hCheckStreakSaver() {
-  const banner = document.getElementById('h-streak-saver');
-  if (!banner) return;
+  const badge = document.getElementById('h-stat-streak-alert');
+  if (!badge) return;
 
   const today = _todayDateString();
   const alreadyPlayedToday = State._homeLastPlayedDate === today;
@@ -1287,7 +1280,23 @@ function _hCheckStreakSaver() {
     && isAfter6pm && !_streakSaverUsed
     && typeof RewardedAd !== 'undefined' && window.Capacitor?.isNativePlatform?.();
 
-  banner.style.display = canShow ? 'flex' : 'none';
+  badge.style.display = canShow ? 'flex' : 'none';
+  State._streakSaverEligible = canShow;
+}
+
+function hOpenStreakSaverModal() {
+  if (!State._streakSaverEligible) return;
+  Sound.click();
+  const countEl = document.getElementById('h-streak-modal-count');
+  if (countEl) countEl.textContent = State._homeStreak || 0;
+  const modal = document.getElementById('h-streak-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function hCloseStreakSaverModal(e) {
+  if (e && e.target !== document.getElementById('h-streak-modal')) return;
+  const modal = document.getElementById('h-streak-modal');
+  if (modal) modal.style.display = 'none';
 }
 
 async function hSaveStreak() {
@@ -1310,7 +1319,9 @@ async function hSaveStreak() {
       State._homeLastPlayedDate = _todayDateString();
       const streakEl = document.getElementById('h-stat-streak');
       if (streakEl) streakEl.textContent = newStreak;
-      document.getElementById('h-streak-saver').style.display = 'none';
+      hCloseStreakSaverModal();
+      const badge = document.getElementById('h-stat-streak-alert');
+      if (badge) badge.style.display = 'none';
       Toast.success(`Streak saved at ${newStreak} days! 🔥`);
       Sound.correct();
     } else {

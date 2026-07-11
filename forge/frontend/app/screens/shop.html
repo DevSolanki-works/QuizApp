@@ -326,7 +326,11 @@ async function shopWatchAdForTicket() {
     _shopRender();
   } catch (e) {
     console.error('[Shop] Ad ticket grant failed:', e);
-    Toast.error('Ad completed, but the ticket failed to grant. Try again.');
+    if (typeof _isAuthError === 'function' && _isAuthError(e)) {
+      _promptReauth();
+    } else {
+      Toast.error('Ad completed, but the ticket failed to grant. Try again.');
+    }
     _shopUpdateAdRowState();
   }
 }

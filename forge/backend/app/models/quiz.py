@@ -107,6 +107,7 @@ class Room(BaseModel):
     locked: bool = False  # If True, no more players can join
     entry_fees: dict[str, float] = Field(default_factory=dict)
     generation_ticket_user_id: Optional[str] = None
+    generation_source: Optional[str] = None  # "free" or "ticket" — for correct refund on failure
     economy_finalized: bool = False
     # Wall-clock time (time.time()) the current question was broadcast.
     # Used to compute remaining time for a player who reconnects mid-question

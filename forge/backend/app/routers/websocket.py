@@ -85,7 +85,7 @@ from app.services.profiles import (
     can_afford_entry,
     solo_rewards,
 )
-from app.services.tickets import TicketError, refund_ticket, spend_ticket
+from app.services.tickets import TicketError, refund_generation, use_generation
 from app.services.quick_picks import is_quick_pick_topic
 
 logger = logging.getLogger(__name__)
@@ -253,12 +253,14 @@ def _refund_room_entry_fees(room) -> None:
 
 
 def _refund_generation_ticket(room) -> None:
-    """Refund the host's generation ticket if quiz startup fails."""
+    """Refund the host's generation (free allowance or ticket) if quiz startup fails."""
 
     user_id = getattr(room, "generation_ticket_user_id", None)
+    source  = getattr(room, "generation_source", None)
     if user_id:
-        refund_ticket(user_id)
+        refund_generation(user_id, source or "ticket")
         room.generation_ticket_user_id = None
+        room.generation_source = None
 
 
 def _finalize_economy(
@@ -950,8 +952,9 @@ async def websocket_endpoint(
                         })
                         continue
                     try:
-                        spend_ticket(host_player.user_id)
+                        generation_result = use_generation(host_player.user_id)
                         room.generation_ticket_user_id = host_player.user_id
+                        room.generation_source = generation_result["source"]
                     except TicketError:
                         if room.entry_fees:
                             _refund_room_entry_fees(room)
@@ -959,8 +962,9 @@ async def websocket_endpoint(
                         await send_to(websocket, {
                             "type": "ERROR",
                             "data": {
-                                "message": "Out of generation tickets today. Play a Quick Pick "
-                                           "topic for free, or come back tomorrow."
+                                "message": "Out of free generations and tickets today. Play a Quick "
+                                           "Pick topic for free, buy tickets in the Shop, or come "
+                                           "back tomorrow."
                             },
                         })
                         continue

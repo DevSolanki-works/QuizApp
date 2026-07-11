@@ -657,6 +657,8 @@ async function syncTicketsForUser() {
     State.user.last_ticket_date      = tickets.last_ticket_date;
     State.user.daily_ad_cap          = tickets.daily_ad_cap;
     State.user.coins_per_ticket      = tickets.coins_per_ticket;
+    State.user.free_generations_used_today = tickets.free_generations_used_today;
+    State.user.daily_free_generations      = tickets.daily_free_generations;
     Session.save();
     if (typeof lbUpsertPlayer === 'function' && _hasTrustedEconomy()) {
       await lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, tickets);
@@ -708,6 +710,7 @@ async function refreshUserProfile() {
         State.user.trophies = freshTrophies;
         State.user.last_reward_date = fresh.last_reward_date || '';
         State.user.reward_day       = fresh.reward_day       || 0;
+        State.user.reward_cycle_completed = !!fresh.reward_cycle_completed;
         State.user.tickets_today = fresh.tickets_today;
         State.user.ad_tickets_used_today = fresh.ad_tickets_used_today;
         State.user.last_ticket_date = fresh.last_ticket_date || '';
@@ -762,6 +765,8 @@ async function applyUserEconomy(economy) {
       State.user.tickets_today          = tickets.tickets_today;
       State.user.ad_tickets_used_today  = tickets.ad_tickets_used_today;
       State.user.last_ticket_date       = tickets.last_ticket_date;
+      State.user.free_generations_used_today = tickets.free_generations_used_today;
+      State.user.daily_free_generations      = tickets.daily_free_generations;
       Session.save();
     } catch (e) {
       console.warn('[Tickets] Mirror fetch failed:', e);
@@ -1025,6 +1030,28 @@ const API = {
     return r.json();
   },
 };
+
+/* ══════════════════════════════════════════════════════════
+   AUTH ERROR HELPERS
+   Google ID tokens expire (~1hr). Since the session persists indefinitely
+   in localStorage, any Bearer-gated backend call made long after the last
+   sign-in fails with a token-expiry error, while Supabase-direct writes
+   (coins/trophies via the anon key) keep working fine — which is why
+   "coins update but tickets don't" is a stale-credential symptom, not a
+   tickets-specific bug.
+   ══════════════════════════════════════════════════════════ */
+function _isAuthError(err) {
+  const msg = String(err?.message || err || '').toLowerCase();
+  return msg.includes('invalid or expired authentication token')
+      || msg.includes('token does not match the requested user account');
+}
+
+async function _promptReauth() {
+  await goTo('home');
+  if (typeof hOpenSigninModal === 'function') hOpenSigninModal();
+}
+window._isAuthError = _isAuthError;
+window._promptReauth = _promptReauth;
 
 /* ══════════════════════════════════════════════════════════
    WEBSOCKET
@@ -1543,6 +1570,8 @@ async function checkAndShowDailyReward() {
     return;  // don't risk showing the screen against stale data
   }
 
+  if (State.user.reward_cycle_completed) return;  // 7-day cycle already finished once — never shown again
+
   const today = _drTodayStr();
   if ((State.user.last_reward_date || '') === today) return;  // already claimed today
 
@@ -1698,7 +1727,7 @@ async function handleGoogleLogin(response) {
     await syncTicketsForUser();
   } catch (e) {
     console.warn('[Login] Backend sync failed:', e);
-    Toast.error('Signed in, but backend sync failed. Check that the backend is running.');
+    Toast.error('Signed in, but syncing your saved data failed. Some balances may look out of date until this succeeds.');
   }
   if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
 }
