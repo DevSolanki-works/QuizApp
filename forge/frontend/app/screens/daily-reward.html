@@ -422,10 +422,11 @@ async function drClaim(day, coins, tickets) {
       return;
     }
 
-    State.user.coins            = data.coins;
+   State.user.coins            = data.coins;
     State.user.reward_day       = data.reward_day;
     State.user.last_reward_date = data.last_reward_date;
     if (day === 7) State.user.reward_cycle_completed = true;
+    if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
 
     // Backend mirror sync is best-effort — a Cloud Run cold start here must
     // never make an already-successful claim look like a failure to the
@@ -454,6 +455,7 @@ async function drClaim(day, coins, tickets) {
           State.user.last_ticket_date      = ticketResult.last_ticket_date;
           ticketsGranted = ticketResult.granted ?? tickets;
           ticketGrantOk  = true;
+          if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
           if (typeof lbUpsertPlayer === 'function') {
             lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, ticketResult)
               .catch(() => {});

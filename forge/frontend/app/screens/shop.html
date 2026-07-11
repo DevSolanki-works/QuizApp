@@ -316,9 +316,14 @@ async function shopWatchAdForTicket() {
     State.user.tickets_today          = data.tickets_today;
     State.user.ad_tickets_used_today  = data.ad_tickets_used_today;
     Session.save();
+    if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
 
     if (typeof lbUpsertPlayer === 'function') {
-      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, data).catch(() => {});
+      try {
+        await lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, data);
+      } catch (e) {
+        console.warn('[Shop] Leaderboard mirror sync failed (non-fatal):', e);
+      }
     }
 
     Toast.success('+1 generation ticket!');
@@ -358,14 +363,18 @@ async function shopBuyTickets() {
     State.user.coins         = data.coins;
     State.user.tickets_today = data.tickets_today;
     Session.save();
+    if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
+
+    if (typeof lbUpsertPlayer === 'function') {
+      try {
+        await lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, data);
+      } catch (e) {
+        console.warn('[Shop] Leaderboard mirror sync failed (non-fatal):', e);
+      }
+    }
 
     Toast.success(`+${_shopQty} generation ticket${_shopQty > 1 ? 's' : ''}!`);
     Sound.correct();
-
-    if (typeof lbUpsertPlayer === 'function') {
-      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, data)
-        .catch(() => {});
-    }
 
     _shopQty = 1;
     _shopRender();

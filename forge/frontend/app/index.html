@@ -632,6 +632,19 @@ function _hasTrustedEconomy(user = State.user) {
 }
 
 /**
+ * Marks that local economy state (coins/trophies/tickets) was just set
+ * from a trusted backend response (ad reward, purchase, entry-fee refund,
+ * etc). refreshUserProfile() uses this to avoid clobbering a fresh local
+ * write with a Supabase read that raced ahead of that write's own mirror
+ * sync — the exact bug where a granted ticket/coin flashes in the UI then
+ * reverts a moment later after switching screens.
+ */
+function _markLocalEconomyWrite() {
+  State._lastLocalEconomyWriteAt = Date.now();
+}
+window._markLocalEconomyWrite = _markLocalEconomyWrite;
+
+/**
  * Fetch the signed-in user's current generation ticket state.
  * Tickets now come from: 3 free/day (reset at midnight), the Daily Reward
  * login cycle (see daily-reward.html), rewarded ads (once live), or buying
@@ -693,6 +706,16 @@ let _profileRefreshInFlight = null;
 async function refreshUserProfile() {
   if (!State.user?.id) return null;
   if (_profileRefreshInFlight) return _profileRefreshInFlight;
+
+  // Guard against a very recent local write (e.g. an ad-reward grant or
+  // purchase) whose Supabase mirror upsert may not have landed yet. A read
+  // here could return the pre-grant value and stomp the fresher local
+  // state. Skip the read for a short grace window instead — the mirror
+  // write from the grant itself keeps Supabase correct regardless.
+  const msSinceLocalWrite = Date.now() - (State._lastLocalEconomyWriteAt || 0);
+  if (msSinceLocalWrite < 2500) {
+    return null;
+  }
 
   _profileRefreshInFlight = (async () => {
     try {
@@ -756,6 +779,7 @@ async function applyUserEconomy(economy) {
   if (economy.trophies !== undefined) economy.trophies = State.user.trophies;
 
   Session.save();
+  if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
 
   const syncTasks = [API.syncProfile(State.user.id, State.user.coins, State.user.trophies)];
   if (typeof lbUpsertPlayer === 'function') {

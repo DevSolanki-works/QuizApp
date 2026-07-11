@@ -395,8 +395,13 @@ async function doubleWinnings() {
     const data = await res.json();
     State.user.coins = data.coins;
     Session.save();
+    if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
     if (typeof lbUpsertPlayer === 'function') {
-      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies).catch(() => {});
+      try {
+        await lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies);
+      } catch (e) {
+        console.warn('[DoubleWinnings] Leaderboard mirror sync failed (non-fatal):', e);
+      }
     }
     Toast.success(`+${payout} bonus coins — winnings doubled!`);
     Sound.correct();
@@ -449,8 +454,13 @@ async function recoverEntryFee() {
     const data = await res.json();
     State.user.coins = data.coins;
     Session.save();
+    if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
     if (typeof lbUpsertPlayer === 'function') {
-      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies).catch(() => {});
+      try {
+        await lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies);
+      } catch (e) {
+        console.warn('[EntryFeeRecovery] Leaderboard mirror sync failed (non-fatal):', e);
+      }
     }
     Toast.success(`+${entryFee} coins refunded!`);
     Sound.correct();
