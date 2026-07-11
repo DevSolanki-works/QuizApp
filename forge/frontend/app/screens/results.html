@@ -228,18 +228,26 @@
 
   <!-- ACTIONS -->
   <div class="results-actions z1">
-    <button class="btn btn-primary" onclick="resultsPlayAgain()">🔄 &nbsp;PLAY AGAIN</button>
-    <button class="btn btn-secondary" onclick="resultsGoHome()">🏠 &nbsp;BACK TO HOME</button>
+    <div id="results-actions-normal" style="display:flex;flex-direction:column;gap:14px;">
+      <button class="btn btn-primary" onclick="resultsPlayAgain()">🔄 &nbsp;PLAY AGAIN</button>
+      <button class="btn btn-secondary" onclick="resultsGoHome()">🏠 &nbsp;BACK TO HOME</button>
+    </div>
+    <div id="results-actions-solo-double" style="display:none;flex-direction:column;gap:14px;">
+      <button class="btn btn-primary" id="solo-double-btn" onclick="doubleSoloCoins()">🎥 &nbsp;2X COINS</button>
+      <button class="btn btn-secondary" onclick="resultsGoHome()">NO THANKS</button>
+    </div>
   </div>
 </div>
 
 <script>
 let _entryFeeAdUsed = false;
 let _doubleWinAdUsed = false;
+let _soloDoubleUsed = false;
 
 function onResultsShow() {
   _entryFeeAdUsed = false;
   _doubleWinAdUsed = false;
+  _soloDoubleUsed = false;
   const conf = document.getElementById('results-confetti');
   if (conf) { conf.innerHTML = ''; spawnConfetti(conf); }
   Sound.gameOver();
@@ -351,6 +359,70 @@ function _renderEconomyResult() {
   if (note) note.textContent = State.user ? '' : 'Play without Google if you want. Progress, coins, and trophies only save when you sign in.';
   _maybeShowEntryFeeRecovery(economy);
   _maybeShowDoubleWinnings(economy);
+  _maybeShowSoloDoubleCoins(economy);
+}
+
+/* ── SOLO 2X COINS OFFER (replaces Play Again / Back Home for Solo) ─── */
+function _maybeShowSoloDoubleCoins(economy) {
+  const normalWrap = document.getElementById('results-actions-normal');
+  const doubleWrap = document.getElementById('results-actions-solo-double');
+  if (!normalWrap || !doubleWrap) return;
+
+  const isSolo = State.playMode === 'solo';
+  const earnedCoins = Number(economy?.coins_delta || 0) > 0;
+  const canShow = isSolo && earnedCoins && State.user && !_soloDoubleUsed
+    && typeof RewardedAd !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+
+  normalWrap.style.display = canShow ? 'none' : 'flex';
+  doubleWrap.style.display = canShow ? 'flex' : 'none';
+  if (canShow) doubleWrap._coinsDelta = Number(economy.coins_delta);
+}
+
+async function doubleSoloCoins() {
+  if (_soloDoubleUsed) return;
+  const doubleWrap = document.getElementById('results-actions-solo-double');
+  const btn = document.getElementById('solo-double-btn');
+  const bonus = doubleWrap?._coinsDelta;
+  if (!bonus || !State.user?.id) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ LOADING AD...'; }
+
+  const watched = await RewardedAd.show();
+  if (!watched) {
+    Toast.error('Ad was not completed — coins not doubled.');
+    if (btn) { btn.disabled = false; btn.textContent = '🎥 2X COINS'; }
+    return;
+  }
+
+  _soloDoubleUsed = true;
+  try {
+    const credential = State.user._credential;
+    const res = await fetch(`${API_BASE}/economy/reward`, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
+      body   : JSON.stringify({ user_id: State.user.id, coins_delta: bonus }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    State.user.coins = data.coins;
+    Session.save();
+    if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
+    if (typeof lbUpsertPlayer === 'function') {
+      try {
+        await lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies);
+      } catch (e) {
+        console.warn('[SoloDouble] Leaderboard mirror sync failed (non-fatal):', e);
+      }
+    }
+    Toast.success(`+${bonus} bonus coins — doubled!`);
+    Sound.correct();
+    resultsGoHome();
+  } catch (e) {
+    console.error('[SoloDouble] Reward grant failed:', e);
+    Toast.error('Ad completed, but the bonus failed to apply. Contact support if this persists.');
+    if (btn) { btn.disabled = false; btn.textContent = '🎥 2X COINS'; }
+    _soloDoubleUsed = false;
+  }
 }
 
 /* ── DOUBLE WINNINGS (rewarded ad) ────────────────────────── */

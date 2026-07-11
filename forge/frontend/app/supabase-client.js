@@ -46,17 +46,12 @@ async function lbUpsertPlayer(googleId, name, coins, trophies, tickets = null) {
     throw new Error('Refusing to upsert invalid economy values');
   }
   const payload = {
-      google_id:        State.user.id,
-      display_name:     State.user.name || 'PLAYER',
-      last_reward_date: today,
-      reward_day:       day,
-      coins:            baseCoins + coins,
-      trophies:         baseTrophies,
-      updated_at:       new Date().toISOString(),
-    };
-    if (day === 7) {
-      payload.reward_cycle_completed = true;
-    }
+    google_id:    googleId,
+    display_name: name || 'PLAYER',
+    coins:        coinValue,
+    trophies:     trophyValue,
+    updated_at:   new Date().toISOString(),
+  };
   if (tickets) {
     payload.tickets_today = Number(tickets.tickets_today) || 0;
     payload.ad_tickets_used_today = Number(tickets.ad_tickets_used_today) || 0;
@@ -89,14 +84,13 @@ async function lbFetchProfile(googleId) {
     .from('leaderboard')
     .select('coins, trophies, display_name, last_reward_date, reward_day')
     .eq('google_id', googleId)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code !== 'PGRST116') { // PGRST116 is "no rows found"
-      console.error('[Supabase] Profile fetch failed:', error.message);
-    }
+    console.error('[Supabase] Profile fetch failed:', error.message);
     return null;
   }
+  if (!data) return null;
 
   // Ticket mirror columns are optional until migration 202606300001 is applied.
   const { data: ticketRow, error: ticketErr } = await db
