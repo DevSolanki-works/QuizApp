@@ -964,6 +964,21 @@ const API = {
     return r.json();
   },
 
+  async grantBonusGeneration(userId) {
+    const credential = State.user?._credential;
+    if (!credential) return null;
+    const r = await fetch(`${API_BASE}/tickets/bonus-generation-grant`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    if (!r.ok) throw new Error('Bonus generation grant failed');
+    return r.json();
+  },
+
   async grantDailyRewardTickets(userId, day) {
     const credential = State.user?._credential;
     if (!credential) return null;

@@ -1060,6 +1060,17 @@ async function _onGameOver(data) {
     }
   }
 
+  // ── Interstitial / Rewarded Interstitial frequency tracking ─────────
+  // Solo mode only, per current scope. Quick Pick and Custom Topic tracked
+  // as separate counters so the two ad experiences don't interfere.
+  if (State.playMode === 'solo' && typeof isQuickPickTopic === 'function') {
+    const isQuickPick = isQuickPickTopic(State.topic || '');
+    const counterKey = isQuickPick ? 'forge_qp_ad_counter' : 'forge_custom_ad_counter';
+    let count = Number(localStorage.getItem(counterKey) || 0) + 1;
+    localStorage.setItem(counterKey, String(count));
+    State._pendingAdCheck = { isQuickPick, count };
+  }
+
   // ── Daily streak update ───────────────────────────────────
   if (State.user?.id && typeof lbUpdateDailyStreak === 'function') {
     try {

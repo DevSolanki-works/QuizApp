@@ -327,6 +327,59 @@ function onResultsShow() {
   if (State.ws) { State.ws.close(); State.ws = null; }
   _renderEconomyResult();
   setTimeout(() => Sound.startBgMusic(), 1200);
+  setTimeout(() => _runAdFlowCheck(), 5000);
+}
+
+/* ── AD FLOW — Solo mode only, Quick Pick vs Custom Topic ─────────── */
+async function _runAdFlowCheck() {
+  const pending = State._pendingAdCheck;
+  State._pendingAdCheck = null;
+  if (!pending || !window.Capacitor?.isNativePlatform?.()) return;
+
+  if (pending.isQuickPick) {
+    // Every 2nd Quick Pick game → normal interstitial, then reset.
+    if (pending.count >= 2) {
+      localStorage.setItem('forge_qp_ad_counter', '0');
+      if (typeof Interstitial !== 'undefined') await Interstitial.show();
+    }
+  } else {
+    // Every 2nd Custom Topic game → Rewarded Interstitial (+1 free gen).
+    // Two consecutive skips (tracked via forge_custom_ad_declines) →
+    // fall back to a plain interstitial on the next game as a floor.
+    if (pending.count >= 2) {
+      localStorage.setItem('forge_custom_ad_counter', '0');
+
+      if (!State.user?.id || typeof RewardedInterstitial === 'undefined') return;
+
+      Toast.info('🎁 Watch this to get +1 free generation!');
+      await new Promise(r => setTimeout(r, 1500));
+
+      const rewarded = await RewardedInterstitial.show();
+      const declines = Number(localStorage.getItem('forge_custom_ad_declines') || 0);
+
+      if (rewarded) {
+        localStorage.setItem('forge_custom_ad_declines', '0');
+        try {
+          const data = await API.grantBonusGeneration(State.user.id);
+          if (data) {
+            State.user.free_generations_used_today = data.free_generations_used_today;
+            Session.save();
+            Toast.success('+1 free generation granted!');
+          }
+        } catch (e) {
+          console.warn('[AdFlow] Bonus generation grant failed:', e);
+          Toast.error('Ad completed, but the bonus failed to apply.');
+        }
+      } else {
+        const newDeclines = declines + 1;
+        localStorage.setItem('forge_custom_ad_declines', String(newDeclines));
+        if (newDeclines >= 2 && typeof Interstitial !== 'undefined') {
+          localStorage.setItem('forge_custom_ad_declines', '0');
+          await Interstitial.show();
+        }
+      }
+    }
+  }
 }
 
 function _renderEconomyResult() {

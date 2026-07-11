@@ -208,6 +208,31 @@ async def buy_tickets(
         raise HTTPException(status_code=500, detail="Ticket purchase failed")
 
 
+@router.post("/tickets/bonus-generation-grant")
+async def grant_bonus_generation_endpoint(
+    body: TicketUserRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Grant one bonus free generation from the Custom Topic Rewarded Interstitial."""
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    try:
+        from app.services.tickets import grant_bonus_generation
+        return grant_bonus_generation(body.user_id)
+    except Exception as e:
+        logger.error("Bonus generation grant failed: %s", e)
+        raise HTTPException(status_code=500, detail="Bonus generation grant failed")
+
+
 @router.post("/tickets/ad-grant")
 async def grant_ticket_for_ad(
     body: TicketUserRequest,

@@ -174,6 +174,27 @@ def use_generation(user_id: str) -> dict[str, Any]:
         raise TicketError("Out of free generations and tickets today.")
 
 
+def grant_bonus_generation(user_id: str) -> dict[str, Any]:
+    """
+    Grant one extra free generation for today, from the Custom Topic
+    Rewarded Interstitial flow. Distinct from refund_generation() — this
+    adds a genuinely new allowance rather than undoing a failed spend, so
+    it can push free_generations_used_today negative (safe: use_generation
+    just checks < DAILY_FREE_GENERATIONS, and a negative used-count means
+    "more free generations than usual today," exactly as intended).
+    """
+
+    with profiles._lock:
+        store = profiles._load_profiles()
+        profile = store.get(user_id) or profiles._new_profile(user_id)
+        profile = _normalise_ticket_fields(profile)
+        profile = _reset_free_generations_if_new_day(profile)
+        profile["free_generations_used_today"] = int(profile["free_generations_used_today"]) - 1
+        store[user_id] = profile
+        profiles._save_profiles(store)
+        return _ticket_state(profile)
+
+
 def refund_generation(user_id: str, source: str) -> dict[str, Any]:
     """Undo use_generation() after a failed quiz generation. `source` is
     the value returned by use_generation() — "free" or "ticket"."""
