@@ -263,15 +263,26 @@ function _shopRender() {
 
 /* ── WATCH AD FOR TICKET ──────────────────────────────────── */
 
+const SHOP_AD_COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes between individual ticket-ad grants
+let _shopAdCooldownTimer = null;
+
+function _shopAdCooldownRemainingMs() {
+  const last = Number(localStorage.getItem('forge_shop_ad_last_grant') || 0);
+  return Math.max(0, SHOP_AD_COOLDOWN_MS - (Date.now() - last));
+}
+
 function _shopUpdateAdRowState() {
   const row   = document.getElementById('shop-ad-row');
   const badge = document.getElementById('shop-ad-badge');
   const desc  = document.getElementById('shop-ad-desc');
   if (!row || !State.user) return;
 
+  clearInterval(_shopAdCooldownTimer);
+
   const used = Number(State.user.ad_tickets_used_today || 0);
   const cap  = Number(State.user.daily_ad_cap || 5);
   const available = typeof RewardedAd !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+  const cooldownMs = _shopAdCooldownRemainingMs();
 
   if (!available) {
     row.style.opacity = '0.55';
@@ -283,6 +294,22 @@ function _shopUpdateAdRowState() {
     row.style.pointerEvents = 'none';
     badge.textContent = 'DONE TODAY';
     desc.textContent = `Come back tomorrow for more (${used}/${cap} used)`;
+  } else if (cooldownMs > 0) {
+    row.style.opacity = '0.55';
+    row.style.pointerEvents = 'none';
+    const tick = () => {
+      const remaining = _shopAdCooldownRemainingMs();
+      if (remaining <= 0) {
+        clearInterval(_shopAdCooldownTimer);
+        _shopUpdateAdRowState();
+        return;
+      }
+      const secs = Math.ceil(remaining / 1000);
+      badge.textContent = `WAIT ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+      desc.textContent = 'Come back in a moment for another ticket';
+    };
+    tick();
+    _shopAdCooldownTimer = setInterval(tick, 1000);
   } else {
     row.style.opacity = '1';
     row.style.pointerEvents = 'auto';
@@ -325,6 +352,8 @@ async function shopWatchAdForTicket() {
         console.warn('[Shop] Leaderboard mirror sync failed (non-fatal):', e);
       }
     }
+
+    localStorage.setItem('forge_shop_ad_last_grant', String(Date.now()));
 
     Toast.success('+1 generation ticket!');
     Sound.correct();

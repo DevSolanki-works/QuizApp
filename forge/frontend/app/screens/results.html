@@ -351,8 +351,8 @@ async function _runAdFlowCheck() {
 
       if (!State.user?.id || typeof RewardedInterstitial === 'undefined') return;
 
-      Toast.info('🎁 Watch this to get +1 free generation!');
-      await new Promise(r => setTimeout(r, 1500));
+      Toast.info('🎁 Watch this to get +1 free generation!', 3500);
+      await new Promise(r => setTimeout(r, 5000));
 
       const rewarded = await RewardedInterstitial.show();
       const declines = Number(localStorage.getItem('forge_custom_ad_declines') || 0);

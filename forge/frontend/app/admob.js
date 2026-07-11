@@ -31,7 +31,7 @@ const RewardedAd = {
   TEST_AD_UNIT_ID: 'ca-app-pub-3940256099942544/5224354917',
   PROD_AD_UNIT_ID: 'ca-app-pub-4922314688440658/3665918421',
 
-  IS_TESTING: true,
+  IS_TESTING: false,
 
   get _adUnitId() {
     return this.IS_TESTING ? this.TEST_AD_UNIT_ID : this.PROD_AD_UNIT_ID;
