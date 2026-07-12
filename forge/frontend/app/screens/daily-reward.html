@@ -397,6 +397,19 @@ async function drClaim(day, coins, tickets) {
       return;
     }
 
+    const payload = {
+      google_id:        State.user.id,
+      display_name:     State.user.name || 'PLAYER',
+      last_reward_date: today,
+      reward_day:       day,
+      coins:            baseCoins + coins,
+      trophies:         baseTrophies,
+      updated_at:       new Date().toISOString(),
+    };
+    if (day === 7) {
+      payload.reward_cycle_completed = true;
+    }
+
     // 1. Coins + date/day tracking — Supabase upsert (also the display mirror)
     let { data, error } = await db
       .from('leaderboard')

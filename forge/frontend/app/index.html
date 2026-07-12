@@ -1903,6 +1903,8 @@ function waitForSupabase(timeoutMs = 3000) {
     // admob.js script and misses, show() self-heals by preloading on its
     // own first call, so a missed early init here is non-fatal.
     if (typeof RewardedAd !== 'undefined') RewardedAd.init().catch(() => {});
+    if (typeof RewardedInterstitial !== 'undefined') RewardedInterstitial.init().catch(() => {});
+    if (typeof Interstitial !== 'undefined') Interstitial._preload().catch(() => {});
 
     // Analytics — fire-and-forget init. Config lives in capacitor.config.json.
     if (typeof Analytics !== 'undefined') Analytics.init().catch(() => {});

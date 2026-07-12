@@ -234,7 +234,7 @@
     </div>
     <div id="results-actions-solo-double" style="display:none;flex-direction:column;gap:14px;">
       <button class="btn btn-primary" id="solo-double-btn" onclick="doubleSoloCoins()">🎥 &nbsp;2X COINS</button>
-      <button class="btn btn-secondary" onclick="resultsGoHome()">NO THANKS</button>
+      <button class="btn btn-secondary" onclick="soloDeclineDouble()">NO THANKS</button>
     </div>
   </div>
 </div>
@@ -327,63 +327,64 @@ function onResultsShow() {
   if (State.ws) { State.ws.close(); State.ws = null; }
   _renderEconomyResult();
   setTimeout(() => Sound.startBgMusic(), 1200);
-  setTimeout(() => _runAdFlowCheck(), 5000);
 }
 
-/* ── AD FLOW — Solo mode only, Quick Pick vs Custom Topic ─────────── */
-async function _runAdFlowCheck() {
-  const pending = State._pendingAdCheck;
-  State._pendingAdCheck = null;
-  if (!pending || !window.Capacitor?.isNativePlatform?.()) return;
+/* ── SOLO "NO THANKS" DECLINE TRACKING ────────────────────────────────
+   Every decline is counted separately for Quick Pick vs Custom Topic.
+   On the 2nd consecutive decline for that topic type, show the
+   appropriate ad THEN navigate home — never in the background, so this
+   can never overlap with the tap-triggered 2X Coins flow above it.
+   Watching the 2X Coins ad resets the relevant counter to 0 as a
+   thank-you, per current design. ───────────────────────────────────── */
+async function soloDeclineDouble() {
+  const isQuickPick = typeof isQuickPickTopic === 'function' ? isQuickPickTopic(State.topic || '') : true;
+  const key = isQuickPick ? 'forge_qp_declines' : 'forge_custom_declines';
+  const declines = Number(localStorage.getItem(key) || 0) + 1;
 
-  if (pending.isQuickPick) {
-    // Every 2nd Quick Pick game → normal interstitial, then reset.
-    if (pending.count >= 2) {
-      localStorage.setItem('forge_qp_ad_counter', '0');
-      if (typeof Interstitial !== 'undefined') await Interstitial.show();
-    }
-  } else {
-    // Every 2nd Custom Topic game → Rewarded Interstitial (+1 free gen).
-    // Two consecutive skips (tracked via forge_custom_ad_declines) →
-    // fall back to a plain interstitial on the next game as a floor.
-    if (pending.count >= 2) {
-      localStorage.setItem('forge_custom_ad_counter', '0');
+  if (declines < 2 || !window.Capacitor?.isNativePlatform?.()) {
+    localStorage.setItem(key, String(declines));
+    resultsGoHome();
+    return;
+  }
 
-      if (!State.user?.id || typeof RewardedInterstitial === 'undefined') return;
-      if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
-        _promptReauth();
-        return;
-      }
+  localStorage.setItem(key, '0');
 
-      Toast.info('🎁 Watch this to get +1 free generation!', 7000);
-      await new Promise(r => setTimeout(r, 7000));
+  if (isQuickPick) {
+    if (typeof Interstitial !== 'undefined') await Interstitial.show();
+    resultsGoHome();
+    return;
+  }
 
-      const rewarded = await RewardedInterstitial.show();
-      const declines = Number(localStorage.getItem('forge_custom_ad_declines') || 0);
+  // Custom topic — Rewarded Interstitial, +1 free generation.
+  if (!State.user?.id || typeof RewardedInterstitial === 'undefined') {
+    resultsGoHome();
+    return;
+  }
+  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
+    _promptReauth();
+    return;
+  }
 
-      if (rewarded) {
-        localStorage.setItem('forge_custom_ad_declines', '0');
-        try {
-          const data = await API.grantBonusGeneration(State.user.id);
-          if (data) {
-            State.user.free_generations_used_today = data.free_generations_used_today;
-            Session.save();
-            Toast.success('+1 free generation granted!');
-          }
-        } catch (e) {
-          console.warn('[AdFlow] Bonus generation grant failed:', e);
-          Toast.error('Ad completed, but the bonus failed to apply.');
+  Toast.info('🎁 Watch this to get +1 free generation!', 3500);
+  await new Promise(r => setTimeout(r, 3500));
+
+  const rewarded = await RewardedInterstitial.show();
+  if (rewarded) {
+    try {
+      const data = await API.grantBonusGeneration(State.user.id);
+      if (data) {
+        State.user.free_generations_used_today = data.free_generations_used_today;
+        Session.save();
+        if (typeof Analytics !== 'undefined') {
+          Analytics.track('ad_reward_granted', { trigger: 'custom_topic_rewarded_interstitial', amount: 1 });
         }
-      } else {
-        const newDeclines = declines + 1;
-        localStorage.setItem('forge_custom_ad_declines', String(newDeclines));
-        if (newDeclines >= 2 && typeof Interstitial !== 'undefined') {
-          localStorage.setItem('forge_custom_ad_declines', '0');
-          await Interstitial.show();
-        }
+        Toast.success('+1 free generation granted!');
       }
+    } catch (e) {
+      console.warn('[SoloDecline] Bonus generation grant failed:', e);
     }
   }
+  resultsGoHome();
 }
 
 function _renderEconomyResult() {
@@ -479,10 +480,12 @@ async function doubleSoloCoins() {
     if (data) {
             State.user.free_generations_used_today = data.free_generations_used_today;
             Session.save();
+            const declineKey = (typeof isQuickPickTopic === 'function' && isQuickPickTopic(State.topic || '')) ? 'forge_qp_declines' : 'forge_custom_declines';
+            localStorage.setItem(declineKey, '0');
             if (typeof Analytics !== 'undefined') {
-              Analytics.track('ad_reward_granted', { trigger: 'custom_topic_rewarded_interstitial', amount: 1 });
+              Analytics.track('ad_reward_granted', { trigger: 'solo_double_coins', amount: bonus });
             }
-            Toast.success('+1 free generation granted!');
+            Toast.success(`+${bonus} bonus coins — doubled!`);
           }
   } catch (e) {
     console.error('[SoloDouble] Reward grant failed:', e);
