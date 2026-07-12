@@ -1279,8 +1279,12 @@ function lobbyStartClassic() {
   if (btn) { btn.textContent = '⏳ GENERATING...'; btn.disabled = true; }
   Sound.gameStart();
   const playMode = State.playMode === 'solo' ? 'solo' : 'classic';
+  const isQuickPick = isQuickPickTopic(topic);
+  if (typeof Analytics !== 'undefined') {
+    Analytics.track('game_started', { play_mode: playMode, is_quick_pick: isQuickPick, difficulty: State.mode || 'medium' });
+  }
   WS.send({ action:'start_game', topic, mode: State.mode||'medium', play_mode: playMode });
-  Toast.info(isQuickPickTopic(topic) ? 'Loading Quick Pick questions...' : 'Generating your quiz...');
+  Toast.info(isQuickPick ? 'Loading Quick Pick questions...' : 'Generating your quiz...');
 }
 
 /** Team start — run randomizer animation then fire start_game */

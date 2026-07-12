@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "243012765504",
+    "project_id": "forgeai-trivia-showdown",
+    "storage_bucket": "forgeai-trivia-showdown.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:243012765504:android:b6575ebfb0141c26fc5ca5",
+        "android_client_info": {
+          "package_name": "com.devsolanki.forge"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbM1bkjyZUv8TaihCxDUupmVLwajg8zvU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

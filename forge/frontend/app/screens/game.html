@@ -1052,6 +1052,16 @@ async function _onGameOver(data) {
   State.playMode  = data.play_mode || State.playMode || 'classic';
   State.resultStats = data;
   State.phase     = 'complete';
+
+  if (typeof Analytics !== 'undefined') {
+    const myScore = (data.final_scores && data.final_scores[State.playerName]) || 0;
+    Analytics.track('game_completed', {
+      play_mode: State.playMode,
+      score: myScore,
+      total_questions: data.total_questions || State.totalQ,
+      is_quick_pick: isQuickPickTopic ? isQuickPickTopic(State.topic || '') : null,
+    });
+  }
   if (data.economy && data.economy[State.playerName]) {
     try {
       await applyUserEconomy(data.economy[State.playerName]);
@@ -1138,6 +1148,9 @@ function leaveModalClose() {
 }
 
 function leaveModalConfirm() {
+  if (typeof Analytics !== 'undefined') {
+    Analytics.track('game_abandoned', { play_mode: State.playMode, question_index: _qIndex });
+  }
   leaveModalClose();
   _stopTimer();
   _clearLeaderboardTimers();

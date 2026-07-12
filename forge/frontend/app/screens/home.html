@@ -1142,6 +1142,7 @@ function hCloseProfileModal(e) {
 
 function hSignOut() {
   Sound.click();
+  if (typeof Analytics !== 'undefined') Analytics.reset().catch(() => {});
   State.user = null;
   State._dailyRewardCheckedThisSession = false;
   Session.save();
@@ -1322,6 +1323,9 @@ async function hSaveStreak() {
       hCloseStreakSaverModal();
       const badge = document.getElementById('h-stat-streak-alert');
       if (badge) badge.style.display = 'none';
+      if (typeof Analytics !== 'undefined') {
+        Analytics.track('ad_reward_granted', { trigger: 'streak_saver', amount: 1 });
+      }
       Toast.success(`Streak saved at ${newStreak} days! 🔥`);
       Sound.correct();
     } else {

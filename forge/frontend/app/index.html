@@ -52,6 +52,8 @@
   <script src="supabase-client.js" defer></script>
   <!-- AdMob rewarded-ad wrapper — defer so it doesn't block render -->
   <script src="admob.js" defer></script>
+  <!-- PostHog analytics wrapper — defer so it doesn't block render -->
+  <script src="analytics.js" defer></script>
 
   <style>
     /* ══════════════════════════════════════════════════════
@@ -573,6 +575,7 @@ const Session = {
         email:            State.user.email,
         picture:          State.user.picture,
         _credential:      State.user._credential,
+        _signedInAt:      State.user._signedInAt,
         last_reward_date: State.user.last_reward_date,
         reward_day:       State.user.reward_day,
         // intentionally omit coins/trophies — always fetched fresh from Supabase
@@ -801,8 +804,13 @@ async function applyUserEconomy(economy) {
     );
   }
   const syncResults = await Promise.allSettled(syncTasks);
-  if (syncResults.some(r => r.status === 'rejected')) {
-    Toast.error('Saved balance loaded, but backend sync failed. Please retry before starting another game.');
+  const failure = syncResults.find(r => r.status === 'rejected');
+  if (failure) {
+    if (typeof _isAuthError === 'function' && _isAuthError(failure.reason)) {
+      _promptReauth();
+    } else {
+      Toast.error('Saved balance loaded, but backend sync failed. Please retry before starting another game.');
+    }
   }
 }
 
@@ -905,6 +913,7 @@ async function goTo(name, skipHash = false) {
 
   const hook = `on${name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('')}Show`;
   if (typeof window[hook] === 'function') window[hook]();
+  if (typeof Analytics !== 'undefined') Analytics.screen(name).catch(() => {});
 }
 
 window.addEventListener('hashchange', () => {
@@ -975,7 +984,7 @@ const API = {
       },
       body: JSON.stringify({ user_id: userId }),
     });
-    if (!r.ok) throw new Error('Bonus generation grant failed');
+    if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
 
@@ -990,7 +999,7 @@ const API = {
       },
       body: JSON.stringify({ user_id: userId, day }),
     });
-    if (!r.ok) throw new Error('Daily reward ticket grant failed');
+    if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
 
@@ -1030,7 +1039,7 @@ const API = {
       },
       body: JSON.stringify({ user_id: userId, coins, trophies }),
     });
-    if (!r.ok) throw new Error('Economy sync failed');
+    if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
 
@@ -1065,7 +1074,7 @@ const API = {
         last_ticket_date: lastTicketDate,
       }),
     });
-    if (!r.ok) throw new Error('Ticket sync failed');
+    if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
 };
@@ -1085,11 +1094,28 @@ function _isAuthError(err) {
       || msg.includes('token does not match the requested user account');
 }
 
+/**
+ * Best-effort staleness check for the current Google ID token. There's no
+ * client-side way to actually validate a JWT's expiry without the backend,
+ * so this is a heuristic: Google ID tokens are valid for ~1 hour, so
+ * anything signed in more than 50 minutes ago is treated as "likely
+ * stale." Used to proactively prompt re-auth BEFORE spending the user's
+ * time watching a full rewarded ad, rather than letting them find out
+ * only after finishing it that the grant call fails.
+ */
+function _isSessionLikelyStale() {
+  if (!State.user) return false; // guests never hit Bearer-gated calls
+  if (!State.user._signedInAt) return true; // unknown age — treat as stale to be safe
+  return (Date.now() - State.user._signedInAt) > 50 * 60 * 1000;
+}
+
 async function _promptReauth() {
+  Toast.info('Your session expired — please sign in again to continue.');
   await goTo('home');
   if (typeof hOpenSigninModal === 'function') hOpenSigninModal();
 }
 window._isAuthError = _isAuthError;
+window._isSessionLikelyStale = _isSessionLikelyStale;
 window._promptReauth = _promptReauth;
 
 /* ══════════════════════════════════════════════════════════
@@ -1737,8 +1763,12 @@ async function handleGoogleLogin(response) {
     if (fresh.display_name) user.name = fresh.display_name;
 
     State.user = user;
+    State.user._signedInAt = Date.now();
     State.playerName = user.name;
     freshProfile = fresh;
+    if (typeof Analytics !== 'undefined') {
+      Analytics.identify(user.id).catch(() => {});
+    }
     const nameInput = document.getElementById('input-name');
     if (nameInput) nameInput.value = user.name;
     Session.save();
@@ -1873,6 +1903,9 @@ function waitForSupabase(timeoutMs = 3000) {
     // admob.js script and misses, show() self-heals by preloading on its
     // own first call, so a missed early init here is non-fatal.
     if (typeof RewardedAd !== 'undefined') RewardedAd.init().catch(() => {});
+
+    // Analytics — fire-and-forget init. Config lives in capacitor.config.json.
+    if (typeof Analytics !== 'undefined') Analytics.init().catch(() => {});
 
     // ── Background: sync Supabase profile after home is already visible ──
     // Routed through the shared, de-duplicated refreshUserProfile() so this

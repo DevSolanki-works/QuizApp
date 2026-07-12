@@ -320,6 +320,12 @@ function _shopUpdateAdRowState() {
 
 async function shopWatchAdForTicket() {
   if (!State.user?.id) return;
+
+  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
+    _promptReauth();
+    return;
+  }
+
   const badge = document.getElementById('shop-ad-badge');
   if (badge) badge.textContent = '⏳...';
 
@@ -355,6 +361,9 @@ async function shopWatchAdForTicket() {
 
     localStorage.setItem('forge_shop_ad_last_grant', String(Date.now()));
 
+    if (typeof Analytics !== 'undefined') {
+      Analytics.track('ad_reward_granted', { trigger: 'shop_watch_for_ticket', amount: 1 });
+    }
     Toast.success('+1 generation ticket!');
     Sound.correct();
     _shopRender();
@@ -409,7 +418,11 @@ async function shopBuyTickets() {
     _shopRender();
   } catch (e) {
     console.error('[Shop] Buy failed:', e);
-    Toast.error('Purchase failed. Try again.');
+    if (typeof _isAuthError === 'function' && _isAuthError(e)) {
+      _promptReauth();
+    } else {
+      Toast.error('Purchase failed. Try again.');
+    }
     _shopRender();
   }
 }

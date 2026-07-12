@@ -350,9 +350,13 @@ async function _runAdFlowCheck() {
       localStorage.setItem('forge_custom_ad_counter', '0');
 
       if (!State.user?.id || typeof RewardedInterstitial === 'undefined') return;
+      if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
+        _promptReauth();
+        return;
+      }
 
-      Toast.info('🎁 Watch this to get +1 free generation!', 3500);
-      await new Promise(r => setTimeout(r, 5000));
+      Toast.info('🎁 Watch this to get +1 free generation!', 7000);
+      await new Promise(r => setTimeout(r, 7000));
 
       const rewarded = await RewardedInterstitial.show();
       const declines = Number(localStorage.getItem('forge_custom_ad_declines') || 0);
@@ -438,6 +442,11 @@ async function doubleSoloCoins() {
   const bonus = doubleWrap?._coinsDelta;
   if (!bonus || !State.user?.id) return;
 
+  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
+    _promptReauth();
+    return;
+  }
+
   if (btn) { btn.disabled = true; btn.textContent = '⏳ LOADING AD...'; }
 
   const watched = await RewardedAd.show();
@@ -467,9 +476,14 @@ async function doubleSoloCoins() {
         console.warn('[SoloDouble] Leaderboard mirror sync failed (non-fatal):', e);
       }
     }
-    Toast.success(`+${bonus} bonus coins — doubled!`);
-    Sound.correct();
-    resultsGoHome();
+    if (data) {
+            State.user.free_generations_used_today = data.free_generations_used_today;
+            Session.save();
+            if (typeof Analytics !== 'undefined') {
+              Analytics.track('ad_reward_granted', { trigger: 'custom_topic_rewarded_interstitial', amount: 1 });
+            }
+            Toast.success('+1 free generation granted!');
+          }
   } catch (e) {
     console.error('[SoloDouble] Reward grant failed:', e);
     Toast.error('Ad completed, but the bonus failed to apply. Contact support if this persists.');
@@ -499,6 +513,11 @@ async function doubleWinnings() {
   const payout = wrap?._payout;
   if (!payout || !State.user?.id) return;
 
+  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
+    _promptReauth();
+    return;
+  }
+
   if (btn) { btn.disabled = true; btn.textContent = '⏳ LOADING AD...'; }
 
   const watched = await RewardedAd.show();
@@ -527,6 +546,9 @@ async function doubleWinnings() {
       } catch (e) {
         console.warn('[DoubleWinnings] Leaderboard mirror sync failed (non-fatal):', e);
       }
+    }
+    if (typeof Analytics !== 'undefined') {
+      Analytics.track('ad_reward_granted', { trigger: 'double_winnings', amount: payout });
     }
     Toast.success(`+${payout} bonus coins — winnings doubled!`);
     Sound.correct();
@@ -558,6 +580,11 @@ async function recoverEntryFee() {
   const entryFee = wrap?._entryFee;
   if (!entryFee || !State.user?.id) return;
 
+  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
+    _promptReauth();
+    return;
+  }
+
   if (btn) { btn.disabled = true; btn.textContent = '⏳ LOADING AD...'; }
 
   const watched = await RewardedAd.show();
@@ -586,6 +613,9 @@ async function recoverEntryFee() {
       } catch (e) {
         console.warn('[EntryFeeRecovery] Leaderboard mirror sync failed (non-fatal):', e);
       }
+    }
+    if (typeof Analytics !== 'undefined') {
+      Analytics.track('ad_reward_granted', { trigger: 'entry_fee_recovery', amount: entryFee });
     }
     Toast.success(`+${entryFee} coins refunded!`);
     Sound.correct();
