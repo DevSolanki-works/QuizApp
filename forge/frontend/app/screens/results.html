@@ -379,6 +379,7 @@ async function soloDeclineDouble() {
           Analytics.track('ad_reward_granted', { trigger: 'custom_topic_rewarded_interstitial', amount: 1 });
         }
         Toast.success('+1 free generation granted!');
+        Sound.click();
       }
     } catch (e) {
       console.warn('[SoloDecline] Bonus generation grant failed:', e);
@@ -486,6 +487,7 @@ async function doubleSoloCoins() {
               Analytics.track('ad_reward_granted', { trigger: 'solo_double_coins', amount: bonus });
             }
             Toast.success(`+${bonus} bonus coins — doubled!`);
+            Sound.click();
           }
   } catch (e) {
     console.error('[SoloDouble] Reward grant failed:', e);

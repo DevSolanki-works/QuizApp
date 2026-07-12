@@ -331,6 +331,12 @@ function drRender() {
 
 async function drClaim(day, coins, tickets) {
   if (_drClaiming) return;
+
+  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
+    _promptReauth();
+    return;
+  }
+
   _drClaiming = true;
 
   try {
@@ -520,7 +526,11 @@ async function drClaim(day, coins, tickets) {
     const closeBtn = document.getElementById('dr-close-btn');
     if (closeBtn) closeBtn.textContent = 'CLOSE';
 
-    Toast.success(`+${coins} coins, +${ticketsGranted} tickets claimed!`);
+    if (ticketGrantOk) {
+      Toast.success(`+${coins} coins, +${ticketsGranted} tickets claimed!`);
+    } else if (!ticketAuthExpired) {
+      Toast.success(`+${coins} coins claimed! (Tickets pending — see message above)`);
+    }
     Sound.correct();
 
     // Auto-dismiss after 2s
