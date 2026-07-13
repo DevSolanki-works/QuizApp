@@ -349,42 +349,14 @@ async function soloDeclineDouble() {
 
   localStorage.setItem(key, '0');
 
-  if (isQuickPick) {
-    if (typeof Interstitial !== 'undefined') await Interstitial.show();
-    resultsGoHome();
-    return;
-  }
-
-  // Custom topic — Rewarded Interstitial, +1 free generation.
-  if (!State.user?.id || typeof RewardedInterstitial === 'undefined') {
-    resultsGoHome();
-    return;
-  }
-  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
-    _promptReauth();
-    return;
-  }
-
-  Toast.info('🎁 Watch this to get +1 free generation!', 3500);
-  await new Promise(r => setTimeout(r, 3500));
-
-  const rewarded = await RewardedInterstitial.show();
-  if (rewarded) {
-    try {
-      const data = await API.grantBonusGeneration(State.user.id);
-      if (data) {
-        State.user.free_generations_used_today = data.free_generations_used_today;
-        Session.save();
-        if (typeof Analytics !== 'undefined') {
-          Analytics.track('ad_reward_granted', { trigger: 'custom_topic_rewarded_interstitial', amount: 1 });
-        }
-        Toast.success('+1 free generation granted!');
-        Sound.click();
-      }
-    } catch (e) {
-      console.warn('[SoloDecline] Bonus generation grant failed:', e);
-    }
-  }
+  // Both Quick Pick and Custom Topic now use the same plain interstitial
+  // fallback on 2 consecutive declines. RewardedInterstitial wrapper and
+  // its backend grant endpoint are intentionally left intact and unused —
+  // real usage showed players didn't understand/engage with the rewarded
+  // format, and free generations are already abundant via other sources,
+  // so the extra complexity wasn't earning its keep. Easy to revive later
+  // for a higher-value reward if that changes.
+  if (typeof Interstitial !== 'undefined') await Interstitial.show();
   resultsGoHome();
 }
 
@@ -487,7 +459,7 @@ async function doubleSoloCoins() {
               Analytics.track('ad_reward_granted', { trigger: 'solo_double_coins', amount: bonus });
             }
             Toast.success(`+${bonus} bonus coins — doubled!`);
-            Sound.click();
+            Sound.correct();
           }
   } catch (e) {
     console.error('[SoloDouble] Reward grant failed:', e);
