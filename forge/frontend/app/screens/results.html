@@ -230,11 +230,11 @@
   <div class="results-actions z1">
     <div id="results-actions-normal" style="display:flex;flex-direction:column;gap:14px;">
       <button class="btn btn-primary" onclick="resultsPlayAgain()">🔄 &nbsp;PLAY AGAIN</button>
-      <button class="btn btn-secondary" onclick="resultsGoHome()">🏠 &nbsp;BACK TO HOME</button>
+      <button class="btn btn-secondary" onclick="resultsBackToHome()">🏠 &nbsp;BACK TO HOME</button>
     </div>
     <div id="results-actions-solo-double" style="display:none;flex-direction:column;gap:14px;">
       <button class="btn btn-primary" id="solo-double-btn" onclick="doubleSoloCoins()">🎥 &nbsp;2X COINS</button>
-      <button class="btn btn-secondary" onclick="soloDeclineDouble()">NO THANKS</button>
+      <button class="btn btn-secondary" id="solo-secondary-btn" onclick="soloSecondaryAction()">NO THANKS</button>
     </div>
   </div>
 </div>
@@ -329,16 +329,45 @@ function onResultsShow() {
   setTimeout(() => Sound.startBgMusic(), 1200);
 }
 
-/* ── SOLO "NO THANKS" DECLINE TRACKING ────────────────────────────────
-   Every decline is counted separately for Quick Pick vs Custom Topic.
-   On the 2nd consecutive decline for that topic type, show the
-   appropriate ad THEN navigate home — never in the background, so this
-   can never overlap with the tap-triggered 2X Coins flow above it.
-   Watching the 2X Coins ad resets the relevant counter to 0 as a
-   thank-you, per current design. ───────────────────────────────────── */
-async function soloDeclineDouble() {
+/* ── QUICK PICK: PLAIN INTERSTITIAL ON EVERY EXIT ─────────────────────
+   Temporary aggressive monetization until the static Quick Picks
+   question bank ships — fires an interstitial on every single exit to
+   home, whether from the normal Back to Home button or the solo-double
+   variant's secondary button, EXCEPT when the player just watched the
+   2X Coins ad (that path calls resultsGoHome() directly, never this
+   function, so no double-dipping). No decline counter — every game,
+   every time, by design, since even guests/low-scorers who never see
+   the 2X Coins offer at all were previously leaving without triggering
+   any ad whatsoever.
+   TODO: once the Quick Picks question bank replaces live Gemini calls,
+   revert this to the original every-2nd-decline cadence to ease off. */
+async function resultsBackToHome() {
+  const isSoloQuickPick = State.playMode === 'solo'
+    && typeof isQuickPickTopic === 'function'
+    && isQuickPickTopic(State.topic || '');
+
+  if (isSoloQuickPick && window.Capacitor?.isNativePlatform?.() && typeof Interstitial !== 'undefined') {
+    await Interstitial.show();
+  }
+  resultsGoHome();
+}
+
+/** Dispatches the solo-double variant's secondary button by topic type. */
+function soloSecondaryAction() {
   const isQuickPick = typeof isQuickPickTopic === 'function' ? isQuickPickTopic(State.topic || '') : true;
-  const key = isQuickPick ? 'forge_qp_declines' : 'forge_custom_declines';
+  if (isQuickPick) {
+    resultsBackToHome();
+  } else {
+    soloDeclineDouble();
+  }
+}
+
+/* ── CUSTOM TOPIC "NO THANKS" DECLINE TRACKING ────────────────────────
+   Unchanged from before — Custom Topic only now. On the 2nd consecutive
+   decline, shows the Rewarded Interstitial (+1 free generation) with its
+   disclosure toast. Quick Pick no longer goes through this path at all. */
+async function soloDeclineDouble() {
+  const key = 'forge_custom_declines';
   const declines = Number(localStorage.getItem(key) || 0) + 1;
 
   if (declines < 2 || !window.Capacitor?.isNativePlatform?.()) {
@@ -349,14 +378,34 @@ async function soloDeclineDouble() {
 
   localStorage.setItem(key, '0');
 
-  // Both Quick Pick and Custom Topic now use the same plain interstitial
-  // fallback on 2 consecutive declines. RewardedInterstitial wrapper and
-  // its backend grant endpoint are intentionally left intact and unused —
-  // real usage showed players didn't understand/engage with the rewarded
-  // format, and free generations are already abundant via other sources,
-  // so the extra complexity wasn't earning its keep. Easy to revive later
-  // for a higher-value reward if that changes.
-  if (typeof Interstitial !== 'undefined') await Interstitial.show();
+  if (!State.user?.id || typeof RewardedInterstitial === 'undefined') {
+    resultsGoHome();
+    return;
+  }
+  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
+    _promptReauth();
+    return;
+  }
+
+  Toast.info('🎁 Watch this to get +1 free generation!', 3500);
+  await new Promise(r => setTimeout(r, 3500));
+
+  const rewarded = await RewardedInterstitial.show();
+  if (rewarded) {
+    try {
+      const data = await API.grantBonusGeneration(State.user.id);
+      if (data) {
+        State.user.free_generations_used_today = data.free_generations_used_today;
+        Session.save();
+        if (typeof Analytics !== 'undefined') {
+          Analytics.track('ad_reward_granted', { trigger: 'custom_topic_rewarded_interstitial', amount: 1 });
+        }
+        Toast.success('+1 free generation granted!');
+      }
+    } catch (e) {
+      console.warn('[SoloDecline] Bonus generation grant failed:', e);
+    }
+  }
   resultsGoHome();
 }
 
@@ -397,6 +446,7 @@ function _renderEconomyResult() {
 function _maybeShowSoloDoubleCoins(economy) {
   const normalWrap = document.getElementById('results-actions-normal');
   const doubleWrap = document.getElementById('results-actions-solo-double');
+  const secondaryBtn = document.getElementById('solo-secondary-btn');
   if (!normalWrap || !doubleWrap) return;
 
   const isSolo = State.playMode === 'solo';
@@ -406,7 +456,11 @@ function _maybeShowSoloDoubleCoins(economy) {
 
   normalWrap.style.display = canShow ? 'none' : 'flex';
   doubleWrap.style.display = canShow ? 'flex' : 'none';
-  if (canShow) doubleWrap._coinsDelta = Number(economy.coins_delta);
+  if (canShow) {
+    doubleWrap._coinsDelta = Number(economy.coins_delta);
+    const isQuickPick = typeof isQuickPickTopic === 'function' ? isQuickPickTopic(State.topic || '') : true;
+    if (secondaryBtn) secondaryBtn.textContent = isQuickPick ? '🏠 BACK TO HOME' : 'NO THANKS';
+  }
 }
 
 async function doubleSoloCoins() {
@@ -453,8 +507,7 @@ async function doubleSoloCoins() {
     if (data) {
             State.user.free_generations_used_today = data.free_generations_used_today;
             Session.save();
-            const declineKey = (typeof isQuickPickTopic === 'function' && isQuickPickTopic(State.topic || '')) ? 'forge_qp_declines' : 'forge_custom_declines';
-            localStorage.setItem(declineKey, '0');
+            localStorage.setItem('forge_custom_declines', '0'); // no-op if this was a Quick Pick game — that path no longer uses a decline counter
             if (typeof Analytics !== 'undefined') {
               Analytics.track('ad_reward_granted', { trigger: 'solo_double_coins', amount: bonus });
             }

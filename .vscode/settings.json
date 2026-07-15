@@ -4,5 +4,6 @@
       "path": "C:\\Windows\\System32\\wsl.exe"
     }
   },
-  "terminal.integrated.defaultProfile.windows": "WSL"
+  "terminal.integrated.defaultProfile.windows": "WSL",
+  "java.configuration.updateBuildConfiguration": "disabled"
 }

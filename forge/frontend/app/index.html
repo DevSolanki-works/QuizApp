@@ -1905,8 +1905,12 @@ function waitForSupabase(timeoutMs = 3000) {
     // admob.js script and misses, show() self-heals by preloading on its
     // own first call, so a missed early init here is non-fatal.
     if (typeof RewardedAd !== 'undefined') RewardedAd.init().catch(() => {});
-    if (typeof RewardedInterstitial !== 'undefined') RewardedInterstitial.init().catch(() => {});
     if (typeof Interstitial !== 'undefined') Interstitial._preload().catch(() => {});
+    // RewardedInterstitial is intentionally NOT preloaded at boot — the
+    // custom-topic decline flow now uses the plain Interstitial instead
+    // (see results.html). The RewardedInterstitial wrapper itself stays
+    // in admob.js, dormant and ready to revive later, but auto-preloading
+    // it here would just be a 100% wasted ad request every session.
 
     // Analytics — fire-and-forget init. Config lives in capacitor.config.json.
     if (typeof Analytics !== 'undefined') Analytics.init().catch(() => {});
