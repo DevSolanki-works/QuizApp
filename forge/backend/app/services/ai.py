@@ -180,7 +180,7 @@ def _parse_and_validate(raw_text: str) -> List[Question]:
     return questions
 
 
-async def generate_questions(topic: str) -> List[Question]:
+async def generate_questions(topic: str, max_output_tokens: int = 1024) -> List[Question]:
     """
     Call Gemini 2.5 Flash Lite to generate 10 quiz questions on the given topic.
 
@@ -219,7 +219,7 @@ async def generate_questions(topic: str) -> List[Question]:
             prompt,
             generation_config=genai.types.GenerationConfig(
                 temperature=0.4,      # Balanced for stability + natural phrasing
-                max_output_tokens=1024,
+                max_output_tokens=max_output_tokens,
             ),
         )
     except Exception as e:

@@ -86,7 +86,7 @@ from app.services.profiles import (
     solo_rewards,
 )
 from app.services.tickets import TicketError, refund_generation, use_generation
-from app.services.quick_picks import is_quick_pick_topic
+from app.services.quick_picks import is_quick_pick_topic, get_quick_pick_questions
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -984,34 +984,49 @@ async def websocket_endpoint(
 
                 await broadcast(room_code, {"type": "GAME_STARTING", "data": starting_data})
 
-                # ── Generate questions ────────────────────────────────────────
-                try:
-                    # Quick Picks remain FREE (no ticket cost), but we still
-                    # generate fresh questions via Gemini for variety until the
-                    # per-topic question bank is ready.
-                    room.questions = await asyncio.wait_for(
-                        generate_questions(topic),
-                        timeout=GENERATION_TIMEOUT_SECONDS,
-                    )
-                except asyncio.TimeoutError:
-                    logger.warning(
-                        "Question generation timed out for room '%s'; using fallback", room_code
-                    )
-                    room.questions = [Question(**q) for q in FALLBACK_QUESTIONS]
-                except Exception as exc:
-                    logger.error(
-                        "Question generation failed for room '%s': %s", room_code, exc
-                    )
-                    if room.entry_fees:
-                        _refund_room_entry_fees(room)
-                    _refund_generation_ticket(room)
-                    room.status = GameStatus.WAITING
-                    room.phase  = RoundPhase.LOBBY
-                    await broadcast(room_code, {
-                        "type": "ERROR",
-                        "data": {"message": "Failed to generate questions. Try again."},
-                    })
-                    continue
+                # ── Generate questions ────────────────────────────────────
+                # Quick Pick topics are served from the static bank (zero
+                # Gemini cost, zero rate-limit pressure) whenever the bank
+                # has enough questions for this topic. Falls back to live
+                # Gemini generation transparently if the bank is missing or
+                # thin for this specific topic — a game must never fail to
+                # start just because the bank isn't fully populated yet.
+                served_from_bank = False
+                if is_quick_pick_topic(topic):
+                    try:
+                        room.questions = get_quick_pick_questions(topic)
+                        served_from_bank = True
+                    except ValueError as exc:
+                        logger.info(
+                            "Quick Picks bank unavailable for '%s' (%s) — falling back to Gemini",
+                            topic, exc,
+                        )
+
+                if not served_from_bank:
+                    try:
+                        room.questions = await asyncio.wait_for(
+                            generate_questions(topic),
+                            timeout=GENERATION_TIMEOUT_SECONDS,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            "Question generation timed out for room '%s'; using fallback", room_code
+                        )
+                        room.questions = [Question(**q) for q in FALLBACK_QUESTIONS]
+                    except Exception as exc:
+                        logger.error(
+                            "Question generation failed for room '%s': %s", room_code, exc
+                        )
+                        if room.entry_fees:
+                            _refund_room_entry_fees(room)
+                        _refund_generation_ticket(room)
+                        room.status = GameStatus.WAITING
+                        room.phase  = RoundPhase.LOBBY
+                        await broadcast(room_code, {
+                            "type": "ERROR",
+                            "data": {"message": "Failed to generate questions. Try again."},
+                        })
+                        continue
 
                 for p in room.players.values():
                     p.score = 0; p.correct_answers = 0; p.streak = 0
