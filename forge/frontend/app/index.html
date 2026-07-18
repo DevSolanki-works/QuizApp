@@ -1100,7 +1100,8 @@ const API = {
     return r.json();
   },
 
-  async completeChallenge(code, challengerName, challengerUserId, score, correctAnswers) {
+ async completeChallenge(code, challengerName, challengerUserId, score, correctAnswers) {
+    // placeholder marker — real method body follows below, unchanged
     const r = await fetch(`${API_BASE}/challenges/${encodeURIComponent(code)}/complete`, {
       method  : 'POST',
       headers : { 'Content-Type': 'application/json' },
@@ -1115,6 +1116,64 @@ const API = {
     return r.json();
   },
 };
+
+/* ══════════════════════════════════════════════════════════
+   PENDING CHALLENGE TRACKER (Duel Phase 1 — completion check)
+   No FCM/true push wired yet — this checks on app open/resume instead,
+   using the same lifecycle points StreakNotif already hooks into.
+   A completed friend's challenge surfaces the next time the creator
+   opens the app, not the instant it happens.
+   ══════════════════════════════════════════════════════════ */
+const PENDING_CHALLENGES_KEY = 'forge_pending_challenges';
+const MAX_TRACKED_CHALLENGES = 20;
+
+function _chalTrackPending(code, topic) {
+  try {
+    const list = JSON.parse(localStorage.getItem(PENDING_CHALLENGES_KEY) || '[]');
+    list.push({ code, topic, createdAt: Date.now() });
+    // Cap size — oldest entries drop off first if someone spams the button
+    const trimmed = list.slice(-MAX_TRACKED_CHALLENGES);
+    localStorage.setItem(PENDING_CHALLENGES_KEY, JSON.stringify(trimmed));
+  } catch (_) {}
+}
+
+async function checkPendingChallenges() {
+  let list;
+  try {
+    list = JSON.parse(localStorage.getItem(PENDING_CHALLENGES_KEY) || '[]');
+  } catch (_) { return; }
+  if (!list.length) return;
+
+  const stillPending = [];
+  for (const entry of list) {
+    try {
+      const data = await API.getChallenge(entry.code);
+      if (data.is_completed) {
+        const won = data.creator_score > (data.challenger_score || 0);
+        Toast.success(
+          `🎯 ${data.challenger_name} played your "${entry.topic}" challenge — ` +
+          `${data.challenger_score} vs your ${data.creator_score}. ${won ? 'You won!' : 'They beat you!'}`,
+          6000
+        );
+        // Completed — don't keep tracking it.
+      } else {
+        stillPending.push(entry); // still open, or expired-but-unplayed — keep checking either way until TTL sweep drops it server-side
+      }
+    } catch (e) {
+      // 404 means expired and swept — drop it silently. Any other error,
+      // keep it in the list to retry next app open.
+      const msg = String(e?.message || '');
+      if (!msg.includes('404') && !msg.toLowerCase().includes('not found')) {
+        stillPending.push(entry);
+      }
+    }
+  }
+  try {
+    localStorage.setItem(PENDING_CHALLENGES_KEY, JSON.stringify(stillPending));
+  } catch (_) {}
+}
+window._chalTrackPending = _chalTrackPending;
+window.checkPendingChallenges = checkPendingChallenges;
 
 /* ══════════════════════════════════════════════════════════
    AUTH ERROR HELPERS
@@ -1721,6 +1780,7 @@ async function checkAndShowDailyReward() {
       }).catch(() => {});
     }
     StreakNotif.schedule();
+    checkPendingChallenges().catch(() => {});
   }, false);
 }());
 
@@ -1949,6 +2009,10 @@ function waitForSupabase(timeoutMs = 3000) {
     // Notification permission — fire-and-forget, shown (if needed) on top
     // of the already-visible home screen. Never blocks boot again.
     _maybeShowNotifPermission().catch(() => {});
+
+    // Pending challenge completion check — fire-and-forget, surfaces any
+    // friend's result that came in since the player last opened the app.
+    checkPendingChallenges().catch(() => {});
 
     // AdMob — fire-and-forget init + preload. If this races the deferred
     // admob.js script and misses, show() self-heals by preloading on its

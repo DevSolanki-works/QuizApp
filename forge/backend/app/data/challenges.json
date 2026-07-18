@@ -1,0 +1,240 @@
+{
+  "7DAHO": {
+    "challenger_correct_answers": null,
+    "challenger_name": null,
+    "challenger_score": null,
+    "challenger_user_id": null,
+    "code": "7DAHO",
+    "completed_at": null,
+    "created_at": 1784410571.167688,
+    "creator_correct_answers": 5,
+    "creator_name": "Dev Solanki",
+    "creator_score": 4422,
+    "creator_user_id": "108093677169253029238",
+    "expires_at": 1784496971.167688,
+    "mode": "hard",
+    "questions": [
+      {
+        "correct_index": 3,
+        "options": [
+          "OpenAI",
+          "Meta AI",
+          "Microsoft",
+          "Google"
+        ],
+        "question": "The groundbreaking 'Transformer' neural network architecture, which revolutionized natural language processing and powers models like GPT, was introduced in a 2017 paper titled 'Attention Is All You Need' by researchers from which company?"
+      },
+      {
+        "correct_index": 3,
+        "options": [
+          "Yann LeCun",
+          "Yoshua Bengio",
+          "Andrew Ng",
+          "Geoffrey Hinton"
+        ],
+        "question": "Often referred to as one of the 'Godfathers of AI,' this British-Canadian cognitive psychologist and computer scientist is renowned for his foundational work on artificial neural networks and deep learning. Who is he?"
+      },
+      {
+        "correct_index": 1,
+        "options": [
+          "SHRDLU",
+          "ELIZA",
+          "PARRY",
+          "ALICE"
+        ],
+        "question": "Developed in the mid-1960s at MIT, which early natural language processing computer program simulated a Rogerian psychotherapist by rephrasing user input as questions?"
+      },
+      {
+        "correct_index": 2,
+        "options": [
+          "AlphaZero",
+          "DeepMind Go",
+          "AlphaGo",
+          "GoMaster"
+        ],
+        "question": "What is the name of the AI model developed by Google DeepMind that defeated the world champion in the game of Go?"
+      },
+      {
+        "correct_index": 1,
+        "options": [
+          "Machine Learning",
+          "Artificial Intelligence",
+          "Cognitive Computing",
+          "Neural Networks"
+        ],
+        "question": "What term did John McCarthy coin in 1955 to describe \"the science and engineering of making intelligent machines\"?"
+      },
+      {
+        "correct_index": 1,
+        "options": [
+          "CPU (Central Processing Unit)",
+          "GPU (Graphics Processing Unit)",
+          "RAM (Random Access Memory)",
+          "SSD (Solid State Drive)"
+        ],
+        "question": "While originally designed for rendering graphics, which hardware component became crucial for accelerating the training of deep learning models due to its parallel processing capabilities?"
+      },
+      {
+        "correct_index": 1,
+        "options": [
+          "Anatoly Karpov",
+          "Garry Kasparov",
+          "Bobby Fischer",
+          "Magnus Carlsen"
+        ],
+        "question": "In 1997, IBM's Deep Blue became the first computer program to defeat a reigning world chess champion in a match. Who was that champion?"
+      },
+      {
+        "correct_index": 2,
+        "options": [
+          "iRobot",
+          "Honda Robotics",
+          "Boston Dynamics",
+          "SoftBank Robotics"
+        ],
+        "question": "Which robotics company is famous for developing advanced humanoid robots like Atlas and dog-like robots such as Spot?"
+      },
+      {
+        "correct_index": 2,
+        "options": [
+          "Marvin Minsky",
+          "John von Neumann",
+          "Alan Turing",
+          "Claude Shannon"
+        ],
+        "question": "Who is widely credited with proposing the concept of the 'Turing Test' to assess a machine's ability to exhibit intelligent behavior?"
+      },
+      {
+        "correct_index": 2,
+        "options": [
+          "Philip K. Dick",
+          "Arthur C. Clarke",
+          "Isaac Asimov",
+          "Ray Bradbury"
+        ],
+        "question": "Which science fiction author formulated the 'Three Laws of Robotics'?"
+      }
+    ],
+    "time_limit_ms": 10000,
+    "topic": "AI & Tech"
+  },
+  "CCZFP": {
+    "challenger_correct_answers": 8,
+    "challenger_name": "Hola",
+    "challenger_score": 11421,
+    "challenger_user_id": null,
+    "code": "CCZFP",
+    "completed_at": 1784388112.105553,
+    "created_at": 1784388007.222324,
+    "creator_correct_answers": 5,
+    "creator_name": "Prakash Bhatt",
+    "creator_score": 4576,
+    "creator_user_id": "117924988118227957938",
+    "expires_at": 1784474407.222324,
+    "mode": "hard",
+    "questions": [
+      {
+        "correct_index": 0,
+        "options": [
+          "Dartmouth College",
+          "MIT (Massachusetts Institute of Technology)",
+          "Stanford University",
+          "Carnegie Mellon University"
+        ],
+        "question": "The term 'Artificial Intelligence' was coined in 1956 at a workshop held at which American university?"
+      },
+      {
+        "correct_index": 3,
+        "options": [
+          "A robot may not injure a human being or, through inaction, allow a human being to come to harm.",
+          "A robot must obey orders given it by human beings except where such orders would conflict with the First Law.",
+          "A robot must protect its own existence as long as such protection does not conflict with the First or Second Laws.",
+          "A robot must always identify itself as a human being when interacting with humans."
+        ],
+        "question": "Isaac Asimov, a prolific science fiction writer, formulated three 'Laws of Robotics' to govern the behavior of robots. Which of these is NOT one of his original three laws?"
+      },
+      {
+        "correct_index": 2,
+        "options": [
+          "Executing sequential instructions",
+          "Storing long-term data",
+          "Performing parallel computations",
+          "Managing network traffic"
+        ],
+        "question": "What is the primary function of a 'GPU' (Graphics Processing Unit) in modern AI and machine learning applications?"
+      },
+      {
+        "correct_index": 2,
+        "options": [
+          "Chess",
+          "Shogi",
+          "Go",
+          "Backgammon"
+        ],
+        "question": "Google DeepMind's AlphaGo famously defeated the world champion of which ancient board game in 2016?"
+      },
+      {
+        "correct_index": 1,
+        "options": [
+          "Marvin Minsky",
+          "John McCarthy",
+          "Herbert A. Simon",
+          "Allen Newell"
+        ],
+        "question": "Often considered one of the \"founding fathers of AI,\" this American computer scientist coined the term \"Artificial Intelligence\" in 1956 and was a co-founder of the MIT AI Lab. Who is he?"
+      },
+      {
+        "correct_index": 2,
+        "options": [
+          "John von Neumann",
+          "Claude Shannon",
+          "Alan Turing",
+          "Norbert Wiener"
+        ],
+        "question": "Which British mathematician proposed the \"Imitation Game,\" later known as the Turing Test, to determine a machine's ability to exhibit intelligent behavior equivalent to, or indistinguishable from, that of a human?"
+      },
+      {
+        "correct_index": 1,
+        "options": [
+          "AlphaGo",
+          "Deep Blue",
+          "Watson",
+          "Stockfish"
+        ],
+        "question": "Which computer program famously defeated world chess champion Garry Kasparov in 1997?"
+      },
+      {
+        "correct_index": 1,
+        "options": [
+          "GPT-1",
+          "GPT-2",
+          "DALL-E",
+          "CLIP"
+        ],
+        "question": "Before GPT-3 and GPT-4, OpenAI released a groundbreaking language model in 2019 that was initially deemed \"too dangerous to release\" due to its advanced text generation capabilities. What was it called?"
+      },
+      {
+        "correct_index": 1,
+        "options": [
+          "ASIMO",
+          "Sophia",
+          "Atlas",
+          "Pepper"
+        ],
+        "question": "What is the name of the first robot to be granted citizenship by a country?"
+      },
+      {
+        "correct_index": 0,
+        "options": [
+          "Reinforcement Learning",
+          "Supervised Learning",
+          "Unsupervised Learning",
+          "Semi-supervised Learning"
+        ],
+        "question": "What type of machine learning involves an agent learning to make decisions by performing actions in an environment and receiving rewards or penalties?"
+      }
+    ],
+    "time_limit_ms": 10000,
+    "topic": "AI & Tech"
+  }
+}

@@ -57,6 +57,7 @@ jobs:
             --region us-central1 \
             --allow-unauthenticated \
             --set-env-vars GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GEMINI_MODEL=gemini-2.5-flash-lite,GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            --update-secrets FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest \
             --min-instances 0 \
             --max-instances 3 \
             --memory 512Mi \

@@ -29,6 +29,7 @@ from app.services.challenges import (
     create_challenge,
     get_challenge,
 )
+from app.services.push import send_challenge_completed
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -73,7 +74,7 @@ async def create_challenge_endpoint(body: CreateChallengeRequest, request: Reque
     name  = sanitize_string(body.creator_name, MAX_NAME_LEN) or "Player"
     topic = sanitize_string(body.topic, MAX_TOPIC_LEN) or "General Knowledge"
 
-    challenge = create_challenge(
+    challenge = await create_challenge(
         creator_name=name,
         creator_user_id=body.creator_user_id,
         topic=topic,
@@ -91,7 +92,7 @@ async def create_challenge_endpoint(body: CreateChallengeRequest, request: Reque
 async def get_challenge_endpoint(code: str):
     """Return challenge metadata + questions for the challenger to play."""
 
-    challenge = get_challenge(code)
+    challenge = await get_challenge(code)
     if not challenge:
         raise HTTPException(status_code=404, detail="Challenge not found or expired.")
 
@@ -119,7 +120,7 @@ async def complete_challenge_endpoint(code: str, body: CompleteChallengeRequest)
     name = sanitize_string(body.challenger_name, MAX_NAME_LEN) or "Player"
 
     try:
-        challenge = complete_challenge(
+        challenge = await complete_challenge(
             code=code,
             challenger_name=name,
             challenger_user_id=body.challenger_user_id,
@@ -128,6 +129,19 @@ async def complete_challenge_endpoint(code: str, body: CompleteChallengeRequest)
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    if challenge.creator_user_id:
+        try:
+            await send_challenge_completed(
+                creator_user_id=challenge.creator_user_id,
+                challenger_name=challenge.challenger_name or "Someone",
+                challenger_score=challenge.challenger_score or 0,
+                creator_score=challenge.creator_score,
+                topic=challenge.topic,
+                challenge_code=challenge.code,
+            )
+        except Exception as e:
+            logger.warning("Push notification failed (non-fatal): %s", e)
 
     return {
         "creator_name":     challenge.creator_name,

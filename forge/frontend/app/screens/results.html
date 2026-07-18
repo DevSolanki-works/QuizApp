@@ -410,6 +410,9 @@ async function resultsChallengeFriend() {
       Toast.info(shareUrl);
     }
 
+    if (typeof _chalTrackPending === 'function') {
+      _chalTrackPending(data.code, State.topic || 'Trivia');
+    }
     if (typeof Analytics !== 'undefined') {
       Analytics.track('challenge_created', { topic: State.topic || '' });
     }
