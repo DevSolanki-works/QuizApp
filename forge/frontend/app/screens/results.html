@@ -359,13 +359,28 @@ function onResultsShow() {
    still be in backend memory — the socket is still open/recently closed
    at this point in the flow, so this is normally fine. */
 async function resultsChallengeFriend() {
-  if (State.playMode !== 'solo' || !State.roomCode) return;
+  if (State.playMode !== 'solo') return;
+
+  const questions = State.resultStats?.questions;
+  if (!questions || questions.length !== 10) {
+    Toast.error('Could not create challenge — question data unavailable for this game.');
+    return;
+  }
+
   Sound.click();
   const btn = document.getElementById('challenge-friend-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ CREATING...'; }
 
   try {
-    const data = await API.createChallenge(State.roomCode, State.user?.id || null);
+    const data = await API.createChallenge({
+      creator_name:     State.playerName,
+      creator_user_id:  State.user?.id || null,
+      topic:            State.resultStats.topic || State.topic || 'General Knowledge',
+      mode:             State.resultStats.mode  || State.mode  || 'medium',
+      questions,
+      score:            (State.scores && State.scores[State.playerName]) || 0,
+      correct_answers:  (State.resultStats.correct_answers && State.resultStats.correct_answers[State.playerName]) || 0,
+    });
     // Challenge links must always point at the frontend/app deployment
     // (forge-app-taupe.vercel.app), NOT forgetrivia.online — that domain
     // serves the separate frozen frontend/web landing page and has no

@@ -1,23 +1,19 @@
 """
 REST endpoints for Async Challenge Mode (Online Duel — Phase 1).
 
-Deliberately plain REST, not WebSocket — this is turn-based (creator
-plays, then later a challenger plays), not live, so it doesn't need any
-of the room/game-loop machinery in websocket.py. No economy, no entry
-fees, no ticket gating.
+WHY THIS DOES NOT LOOK UP app.core.state.rooms:
+  An earlier version fetched the just-finished room from in-memory state
+  by room_code. That breaks on Cloud Run whenever more than one instance
+  is warm (--max-instances 3): the WebSocket that ran the game stays
+  pinned to one instance, but the follow-up POST /challenges/create is a
+  new HTTP request that the load balancer can route to ANY instance —
+  including one that never held that room in memory, causing a false
+  "session expired" 404 even seconds after the game ended.
 
-WHY room_code INSTEAD OF client-submitted questions:
-  The frontend never retains the full 10-question array client-side —
-  game.html only ever holds one question in memory at a time via WS
-  messages. Pulling from app.core.state.rooms (the authoritative source,
-  already populated at game start) avoids both that gap and the need to
-  trust a client-submitted question list.
-
-  This does mean a challenge can only be created within the room's
-  cleanup grace window (60s after the last player disconnects — see
-  _delayed_room_cleanup in websocket.py). Results screen closes the
-  socket almost immediately, so this is a tight but workable window for
-  v1; worth revisiting if players report missing the button in time.
+  Instead, the client submits the frozen question set directly, sourced
+  from the GAME_OVER WebSocket payload it already received (see
+  websocket.py _finish_game). This makes challenge creation fully
+  independent of which instance happens to serve the request.
 """
 
 import logging
@@ -26,8 +22,8 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.core.limiter import is_rate_limited, extract_real_ip
-from app.core.sanitize import sanitize_string, MAX_NAME_LEN
-from app.models.quiz import PlayMode
+from app.core.sanitize import sanitize_string, MAX_NAME_LEN, MAX_TOPIC_LEN
+from app.models.quiz import GameMode, Question, time_limit_for_mode
 from app.services.challenges import (
     complete_challenge,
     create_challenge,
@@ -39,8 +35,13 @@ router = APIRouter()
 
 
 class CreateChallengeRequest(BaseModel):
-    room_code: str
+    creator_name: str
     creator_user_id: str | None = None
+    topic: str
+    mode: GameMode
+    questions: list[Question]
+    score: int
+    correct_answers: int
 
 
 class CreateChallengeResponse(BaseModel):
@@ -57,7 +58,7 @@ class CompleteChallengeRequest(BaseModel):
 
 @router.post("/challenges/create", response_model=CreateChallengeResponse)
 async def create_challenge_endpoint(body: CreateChallengeRequest, request: Request):
-    """Freeze a just-finished Solo game (still in memory) as a shareable challenge."""
+    """Freeze a just-finished Solo game (from its own GAME_OVER payload) as a shareable challenge."""
 
     ip = extract_real_ip(request)
     if is_rate_limited(ip, action="room"):  # reuse the room-creation bucket — same abuse shape
@@ -66,33 +67,21 @@ async def create_challenge_endpoint(body: CreateChallengeRequest, request: Reque
             detail="Too many challenges created. Please wait a minute.",
         )
 
-    from app.core.state import rooms
+    if len(body.questions) != 10:
+        raise HTTPException(status_code=400, detail="A challenge requires exactly 10 questions.")
 
-    room = rooms.get(body.room_code.upper())
-    if not room:
-        raise HTTPException(
-            status_code=404,
-            detail="That game session has expired. Challenges must be created shortly after the game ends.",
-        )
-    if room.play_mode != PlayMode.SOLO:
-        raise HTTPException(status_code=400, detail="Challenges can only be created from Solo games.")
-    if not room.questions:
-        raise HTTPException(status_code=400, detail="This room has no question set to challenge with.")
-
-    creator_name = room.host
-    player = room.players.get(creator_name)
-    if not player:
-        raise HTTPException(status_code=404, detail="Creator player not found in room.")
+    name  = sanitize_string(body.creator_name, MAX_NAME_LEN) or "Player"
+    topic = sanitize_string(body.topic, MAX_TOPIC_LEN) or "General Knowledge"
 
     challenge = create_challenge(
-        creator_name=creator_name,
+        creator_name=name,
         creator_user_id=body.creator_user_id,
-        topic=room.topic or "General Knowledge",
-        mode=room.mode.value,
-        time_limit_ms=room.time_limit_ms,
-        questions=[q.model_dump() for q in room.questions],
-        creator_score=player.score,
-        creator_correct_answers=player.correct_answers,
+        topic=topic,
+        mode=body.mode.value,
+        time_limit_ms=time_limit_for_mode(body.mode),
+        questions=[q.model_dump() for q in body.questions],
+        creator_score=body.score,
+        creator_correct_answers=body.correct_answers,
     )
 
     return CreateChallengeResponse(code=challenge.code, expires_at=challenge.expires_at)

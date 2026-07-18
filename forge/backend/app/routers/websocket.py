@@ -561,6 +561,17 @@ async def _finish_game(room_code: str) -> None:
         "play_mode":            room.play_mode.value,
         "economy":              economy,
     }
+    if room.play_mode == PlayMode.SOLO:
+        # Include the frozen question set so the client can offer "Challenge
+        # a Friend" without a follow-up request depending on this room still
+        # being in THIS Cloud Run instance's memory — a later HTTP request
+        # can land on a different instance that never saw this room at all.
+        # No new leakage: each question's correct_index was already sent to
+        # this client during its own ANSWER_REVEAL earlier in the game.
+        game_over["topic"]         = room.topic
+        game_over["mode"]          = room.mode.value
+        game_over["time_limit_ms"] = room.time_limit_ms
+        game_over["questions"]     = [q.model_dump() for q in room.questions]
     if room.play_mode == PlayMode.TEAM:
         game_over["team_scores"] = _team_scores(room)
         game_over["teams"]       = dict(room.teams)
