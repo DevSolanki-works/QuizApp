@@ -489,6 +489,7 @@
   <section id="screen-daily-reward" class="screen"></section>
   <section id="screen-shop"         class="screen"></section>
   <section id="screen-how-to-play"  class="screen"></section>
+  <section id="screen-challenge"    class="screen"></section>
 
   <!-- COOKIE CONSENT BANNER -->
   <div id="cookie-banner" role="dialog" aria-modal="false" aria-label="Cookie consent">
@@ -619,6 +620,7 @@ const State = {
   teamScores : {},
   currentScreen : 'home',
   _dailyRewardCheckedThisSession: false,
+  _challengeCode: null,
 };
 
 function formatCoins(value) {
@@ -864,6 +866,7 @@ const Screens = {
   'daily-reward': { id: 'screen-daily-reward', file: 'screens/daily-reward.html' },
   shop         : { id: 'screen-shop',         file: 'screens/shop.html'         },
   'how-to-play': { id: 'screen-how-to-play',  file: 'screens/how-to-play.html'  },
+  challenge    : { id: 'screen-challenge',    file: 'screens/challenge.html'    },
 };
 
 const SCREEN_GUARDS = {
@@ -871,6 +874,7 @@ const SCREEN_GUARDS = {
   game         : () => !!(State.roomCode && State.playerName && State.ws),
   results      : () => !!(State.scores && Object.keys(State.scores).length > 0),
   'daily-reward': () => !!(State.user),
+  challenge     : () => !!State._challengeCode,
 };
 
 async function goTo(name, skipHash = false) {
@@ -1074,6 +1078,37 @@ const API = {
         tickets_today: ticketsToday,
         ad_tickets_used_today: adTicketsUsedToday,
         last_ticket_date: lastTicketDate,
+      }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async createChallenge(roomCode, creatorUserId) {
+    const r = await fetch(`${API_BASE}/challenges/create`, {
+      method  : 'POST',
+      headers : { 'Content-Type': 'application/json' },
+      body    : JSON.stringify({ room_code: roomCode, creator_user_id: creatorUserId || null }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async getChallenge(code) {
+    const r = await fetch(`${API_BASE}/challenges/${encodeURIComponent(code)}`);
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async completeChallenge(code, challengerName, challengerUserId, score, correctAnswers) {
+    const r = await fetch(`${API_BASE}/challenges/${encodeURIComponent(code)}/complete`, {
+      method  : 'POST',
+      headers : { 'Content-Type': 'application/json' },
+      body    : JSON.stringify({
+        challenger_name    : challengerName,
+        challenger_user_id : challengerUserId || null,
+        score,
+        correct_answers    : correctAnswers,
       }),
     });
     if (!r.ok) throw new Error(await r.text());
@@ -1867,6 +1902,20 @@ function waitForSupabase(timeoutMs = 3000) {
     API.health().catch(() => {});
 
     const hash = window.location.hash.replace('#', '') || 'home';
+
+    // ── Challenge deep link: ?challenge=CODE (opened via a shared link) ──
+    // Takes priority over any saved session — a friend tapping a challenge
+    // link should land on the challenge preview, not get reconnected into
+    // someone else's old room state.
+    const challengeCode = new URLSearchParams(window.location.search).get('challenge');
+    if (challengeCode) {
+      State._challengeCode = challengeCode.toUpperCase();
+      await goTo('challenge', true);
+      _dismissSplash();
+      _maybeShowNotifPermission().catch(() => {});
+      if (typeof Analytics !== 'undefined') Analytics.init().catch(() => {});
+      return;
+    }
 
     // ── Navigate and dismiss splash immediately — never wait for network,
     //    and never wait for the notification permission prompt either.

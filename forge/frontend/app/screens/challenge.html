@@ -1,0 +1,527 @@
+<!--
+  CHALLENGE SCREEN — Async Challenge Mode (Duel Phase 1)
+  Reached via a shared deep link (?challenge=CODE). Three states:
+    1. PREVIEW  — shows creator's topic/score, name input if guest, Play button
+    2. PLAY     — same question/timer/option UI shape as game.html, but
+                  driven from a pre-fetched local question array instead
+                  of WebSocket messages (this challenge is turn-based,
+                  not live — no room, no socket).
+    3. RESULT   — head-to-head comparison against the creator's score.
+
+  Deliberately isolated from the live economy — no coins/trophies/tickets
+  are touched anywhere in this file, matching the Duel Phase 1 spec.
+-->
+<style>
+  .chal-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; padding: 0 20px 40px;
+  }
+
+  /* ── PREVIEW STATE ──────────────────────────────────────── */
+  .chal-preview-card {
+    width: 100%; margin-top: 40px;
+    padding: 28px 22px; border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.08);
+    border: 1.5px solid rgba(255,255,255,0.15);
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+    text-align: center;
+  }
+  .chal-icon { font-size: 48px; animation: winner-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both; }
+  @keyframes winner-pop {
+    from { transform: scale(0) rotate(-15deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0deg);   opacity: 1; }
+  }
+  .chal-title {
+    font-family: var(--font-pixel); font-size: 13px;
+    color: var(--white); letter-spacing: 0.5px; line-height: 1.6;
+  }
+  .chal-vs-name { color: var(--yellow); }
+  .chal-topic-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.12); border: 1px solid rgba(255,217,61,0.3);
+    font-family: var(--font-pixel); font-size: 7px; color: var(--yellow);
+  }
+  .chal-score-target {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 16px; border-radius: var(--radius-md);
+    background: rgba(6,214,160,0.08); border: 1px solid rgba(6,214,160,0.25);
+    width: 100%;
+  }
+  .chal-score-label { font-family: var(--font-pixel); font-size: 7px; color: rgba(255,255,255,0.5); }
+  .chal-score-value { font-family: var(--font-pixel); font-size: 26px; color: var(--green); }
+  .chal-name-input-wrap { width: 100%; text-align: left; }
+  .chal-expiry-note {
+    font-family: var(--font-pixel); font-size: 5.5px;
+    color: rgba(255,255,255,0.3); letter-spacing: 0.3px; line-height: 1.8;
+  }
+  .chal-error-card {
+    width: 100%; margin-top: 60px; padding: 32px 24px;
+    border-radius: var(--radius-lg);
+    background: rgba(239,35,60,0.08); border: 1.5px solid rgba(239,35,60,0.3);
+    text-align: center; display: flex; flex-direction: column; gap: 14px; align-items: center;
+  }
+
+  /* ── PLAY STATE (mirrors game.html question card shape) ──── */
+  .chal-play-topbar {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 0 12px;
+  }
+  .chal-q-counter { font-family: var(--font-pixel); font-size: 8px; color: rgba(255,255,255,0.55); }
+  .chal-score-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.15); border: 1px solid rgba(255,217,61,0.3);
+    font-family: var(--font-pixel); font-size: 9px; color: var(--yellow);
+  }
+  .chal-timer-wrap {
+    margin: 16px 0 20px; position: relative; width: 72px; height: 72px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .chal-timer-svg { position: absolute; top: 0; left: 0; width: 72px; height: 72px; transform: rotate(-90deg); }
+  .chal-timer-bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 5; }
+  .chal-timer-fg {
+    fill: none; stroke: var(--yellow); stroke-width: 5; stroke-linecap: round;
+    stroke-dasharray: 200; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+  }
+  .chal-timer-fg.urgent { stroke: var(--red); }
+  .chal-timer-number {
+    font-family: var(--font-pixel); font-size: 18px; color: var(--white);
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  }
+  .chal-question-card {
+    width: 100%; padding: 22px 20px; border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.15);
+    text-align: center;
+  }
+  .chal-question-number { font-family: var(--font-pixel); font-size: 8px; color: var(--yellow); margin-bottom: 12px; }
+  .chal-question-text { font-family: var(--font-body); font-size: 18px; font-weight: 800; color: var(--white); line-height: 1.45; }
+  .chal-options-grid {
+    width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px;
+  }
+  @media (max-width: 300px) { .chal-options-grid { grid-template-columns: 1fr; } }
+  .chal-option-btn {
+    min-height: 72px; padding: 12px 14px; border-radius: var(--radius-md);
+    border: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+    transition: transform 0.1s, filter 0.15s; -webkit-tap-highlight-color: transparent;
+    text-align: left; position: relative; overflow: hidden;
+  }
+  .chal-option-btn:active:not([disabled]) { transform: scale(0.97); }
+  .chal-option-btn[data-idx="0"] { background: var(--opt-a); box-shadow: 0 5px 0 #8b0011; }
+  .chal-option-btn[data-idx="1"] { background: var(--opt-b); box-shadow: 0 5px 0 #0d5fa3; }
+  .chal-option-btn[data-idx="2"] { background: var(--opt-c); box-shadow: 0 5px 0 #038a67; }
+  .chal-option-btn[data-idx="3"] { background: var(--opt-d); box-shadow: 0 5px 0 #5a2d8e; }
+  .chal-option-letter {
+    width: 28px; height: 28px; border-radius: 6px; background: rgba(0,0,0,0.22);
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-pixel); font-size: 11px; color: #fff;
+  }
+  .chal-option-text { flex: 1; font-family: var(--font-body); font-size: 14px; font-weight: 800; color: #fff; line-height: 1.3; }
+  .chal-option-btn.correct { box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(6,214,160,0.7) !important; filter: brightness(1.15); }
+  .chal-option-btn.dimmed { opacity: 0.4; filter: grayscale(60%); box-shadow: none !important; transform: scale(0.96); }
+  .chal-option-btn.chosen-wrong { background: var(--red) !important; box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(230,57,70,0.62) !important; }
+
+  /* ── RESULT STATE ───────────────────────────────────────── */
+  .chal-result-header { text-align: center; padding: 30px 0 10px; }
+  .chal-result-emoji { font-size: 52px; display: block; margin-bottom: 8px; animation: winner-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both; }
+  .chal-result-title { font-family: var(--font-pixel); font-size: 14px; color: var(--white); letter-spacing: 1px; }
+  .chal-vs-row {
+    width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;
+    align-items: stretch; margin-top: 20px;
+  }
+  .chal-vs-card {
+    padding: 18px 12px; border-radius: var(--radius-md); text-align: center;
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+  }
+  .chal-vs-card.winner { border: 2px solid var(--yellow); box-shadow: 0 0 20px rgba(255,217,61,0.25); }
+  .chal-vs-card.you { background: rgba(255,217,61,0.08); }
+  .chal-vs-card.them { background: rgba(255,255,255,0.06); }
+  .chal-vs-name-label { font-family: var(--font-pixel); font-size: 7px; color: rgba(255,255,255,0.5); }
+  .chal-vs-score { font-family: var(--font-pixel); font-size: 22px; color: var(--white); }
+  .chal-vs-divider { display: flex; align-items: center; font-family: var(--font-pixel); font-size: 10px; color: rgba(255,255,255,0.35); }
+  .chal-result-actions { width: 100%; display: flex; flex-direction: column; gap: 14px; margin-top: 28px; }
+</style>
+
+<div class="chal-wrap" id="chal-wrap">
+  <div id="chal-content">
+    <!-- Populated by onChallengeShow() -->
+    <div class="dot-loader" style="justify-content:center;margin-top:80px;">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   CHALLENGE SCREEN — Duel Phase 1
+   ══════════════════════════════════════════════════════════ */
+
+let _chalData        = null;   // fetched challenge payload
+let _chalQIndex      = 0;
+let _chalScore       = 0;
+let _chalCorrect     = 0;
+let _chalStreak      = 0;
+let _chalAnswered    = false;
+let _chalTimerId     = null;
+let _chalTimerStart  = null;
+const CHAL_CIRCUMFERENCE = 200;
+
+async function onChallengeShow() {
+  if (Sound.bgmEnabled) Sound.startBgMusic();
+  const code = State._challengeCode;
+  if (!code) { goTo('home'); return; }
+
+  _chalRenderLoading();
+
+  try {
+    _chalData = await API.getChallenge(code);
+  } catch (e) {
+    console.error('[Challenge] Fetch failed:', e);
+    _chalRenderError();
+    return;
+  }
+
+  if (_chalData.is_completed) {
+    _chalRenderAlreadyCompleted();
+    return;
+  }
+
+  _chalRenderPreview();
+}
+
+/* ── LOADING / ERROR STATES ──────────────────────────────── */
+
+function _chalRenderLoading() {
+  const el = document.getElementById('chal-content');
+  if (el) el.innerHTML = `
+    <div class="dot-loader" style="justify-content:center;margin-top:80px;">
+      <span></span><span></span><span></span>
+    </div>`;
+}
+
+function _chalRenderError() {
+  const el = document.getElementById('chal-content');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="chal-error-card">
+      <span style="font-size:44px;">😕</span>
+      <p style="font-family:var(--font-pixel);font-size:10px;color:var(--red);line-height:1.8;">
+        CHALLENGE NOT FOUND
+      </p>
+      <p style="font-family:var(--font-body);font-size:13px;font-weight:700;color:rgba(255,255,255,0.55);line-height:1.6;">
+        This link may have expired (challenges last 24 hours) or already been used.
+      </p>
+      <button class="btn btn-primary" style="margin-top:8px;" onclick="_chalGoHome()">🏠 &nbsp;BACK TO HOME</button>
+    </div>`;
+}
+
+function _chalRenderAlreadyCompleted() {
+  const el = document.getElementById('chal-content');
+  if (!el) return;
+  const d = _chalData;
+  const challengerWon = (d.challenger_score || 0) > d.creator_score;
+  el.innerHTML = `
+    <div class="chal-error-card" style="background:rgba(255,217,61,0.08);border-color:rgba(255,217,61,0.3);">
+      <span style="font-size:44px;">🏁</span>
+      <p style="font-family:var(--font-pixel);font-size:10px;color:var(--yellow);line-height:1.8;">
+        CHALLENGE ALREADY PLAYED
+      </p>
+      <p style="font-family:var(--font-body);font-size:13px;font-weight:700;color:rgba(255,255,255,0.6);line-height:1.7;">
+        ${_chalEsc(d.challenger_name)} scored <b>${d.challenger_score}</b> vs
+        ${_chalEsc(d.creator_name)}'s <b>${d.creator_score}</b> — ${challengerWon ? _chalEsc(d.challenger_name) + ' won!' : _chalEsc(d.creator_name) + ' won!'}
+      </p>
+      <button class="btn btn-primary" style="margin-top:8px;" onclick="_chalGoHome()">🏠 &nbsp;BACK TO HOME</button>
+    </div>`;
+}
+
+/* ── PREVIEW STATE ────────────────────────────────────────── */
+
+function _chalRenderPreview() {
+  const el = document.getElementById('chal-content');
+  if (!el) return;
+  const d = _chalData;
+  const needsName = !State.playerName && !State.user;
+
+  el.innerHTML = `
+    <div class="chal-preview-card">
+      <span class="chal-icon">🎯</span>
+      <p class="chal-title">CAN YOU BEAT<br><span class="chal-vs-name">${_chalEsc(d.creator_name)}</span>?</p>
+      <div class="chal-topic-badge">🎓 ${_chalEsc(d.topic)}</div>
+      <div class="chal-score-target">
+        <span class="chal-score-label">SCORE TO BEAT</span>
+        <span class="chal-score-value">${d.creator_score.toLocaleString()}</span>
+      </div>
+      ${needsName ? `
+        <div class="chal-name-input-wrap">
+          <label class="input-label" for="chal-name-input">YOUR NAME</label>
+          <input id="chal-name-input" class="input-field" type="text" maxlength="20"
+            placeholder="Enter your callsign" autocomplete="off" autocorrect="off" />
+        </div>
+      ` : ''}
+      <button class="btn btn-primary" style="margin-top:4px;" onclick="_chalStartPlay()">
+        ⚡ &nbsp;PLAY NOW
+      </button>
+      <p class="chal-expiry-note">10 QUESTIONS · SAME QUIZ ${_chalEsc(d.creator_name).toUpperCase()} PLAYED · NO SIGN-IN REQUIRED</p>
+    </div>`;
+}
+
+function _chalStartPlay() {
+  const nameInput = document.getElementById('chal-name-input');
+  if (nameInput) {
+    const name = nameInput.value.trim();
+    if (!name) { Toast.error('Enter your name first!'); return; }
+    State.playerName = name;
+  }
+  Sound.click();
+  Sound.stopBgMusic();
+  Sound.gameStart();
+  _chalQIndex   = 0;
+  _chalScore    = 0;
+  _chalCorrect  = 0;
+  _chalStreak   = 0;
+  _chalRenderPlayShell();
+  _chalShowQuestion();
+}
+
+/* ── PLAY STATE ───────────────────────────────────────────── */
+
+function _chalRenderPlayShell() {
+  const el = document.getElementById('chal-content');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="chal-play-topbar">
+      <span class="chal-q-counter" id="chal-q-counter">Q 1 / 10</span>
+      <div class="chal-score-chip">⭐ <span id="chal-my-score">0</span></div>
+    </div>
+    <div class="chal-timer-wrap">
+      <svg class="chal-timer-svg" viewBox="0 0 72 72">
+        <circle class="chal-timer-bg" cx="36" cy="36" r="32"/>
+        <circle class="chal-timer-fg" id="chal-timer-circle" cx="36" cy="36" r="32"/>
+      </svg>
+      <span class="chal-timer-number" id="chal-timer-number">—</span>
+    </div>
+    <div class="chal-question-card" id="chal-question-card"></div>
+    <div class="chal-options-grid" id="chal-options-grid"></div>
+  `;
+}
+
+const CHAL_OPTION_LETTERS = ['A','B','C','D'];
+
+function _chalShowQuestion() {
+  const d        = _chalData;
+  const question = d.questions[_chalQIndex];
+  _chalAnswered  = false;
+
+  const counterEl = document.getElementById('chal-q-counter');
+  if (counterEl) counterEl.textContent = `Q ${_chalQIndex + 1} / ${d.questions.length}`;
+
+  const card = document.getElementById('chal-question-card');
+  if (card) {
+    card.innerHTML = `
+      <p class="chal-question-number">QUESTION ${_chalQIndex + 1}</p>
+      <p class="chal-question-text">${_chalEsc(question.question)}</p>`;
+  }
+
+  const grid = document.getElementById('chal-options-grid');
+  if (grid) {
+    grid.innerHTML = question.options.map((opt, i) => `
+      <button class="chal-option-btn" data-idx="${i}" onclick="_chalAnswer(${i})">
+        <span class="chal-option-letter">${CHAL_OPTION_LETTERS[i]}</span>
+        <span class="chal-option-text">${_chalEsc(opt)}</span>
+      </button>`).join('');
+  }
+
+  _chalStartTimer(d.time_limit_ms || 20000);
+}
+
+function _chalStartTimer(limitMs) {
+  _chalStopTimer();
+  _chalTimerStart = Date.now();
+  const circleEl = document.getElementById('chal-timer-circle');
+  const numberEl = document.getElementById('chal-timer-number');
+  if (!circleEl || !numberEl) return;
+  numberEl.textContent = Math.ceil(limitMs / 1000);
+  circleEl.style.strokeDashoffset = 0;
+  circleEl.classList.remove('urgent');
+
+  _chalTimerId = setInterval(() => {
+    const elapsed   = Date.now() - _chalTimerStart;
+    const remaining = Math.max(0, limitMs - elapsed);
+    const secsLeft  = Math.ceil(remaining / 1000);
+    const progress  = elapsed / limitMs;
+    numberEl.textContent = secsLeft;
+    circleEl.style.strokeDashoffset = Math.min(1, progress) * CHAL_CIRCUMFERENCE;
+    if (remaining <= 5000) circleEl.classList.add('urgent');
+    if (remaining <= 0) {
+      _chalStopTimer();
+      if (!_chalAnswered) _chalAnswer(null); // timeout — counts as wrong, no answer
+    }
+  }, 200);
+}
+
+function _chalStopTimer() {
+  if (_chalTimerId) { clearInterval(_chalTimerId); _chalTimerId = null; }
+}
+
+/**
+ * Client-side scoring — mirrors backend calculate_score() in
+ * websocket.py exactly (base 500-1000 by speed, streak multiplier),
+ * since there is no live server round-trip per answer in this async
+ * mode. Only the final score is ever sent to the backend, purely for
+ * storage/display — nothing here is economy-gated so client-side
+ * scoring carries no abuse risk beyond a player being able to inflate
+ * their own bragging-rights number, same trust level as a local
+ * high-score list.
+ */
+function _chalCalculateScore(timeMs, limitMs, streak) {
+  const clamped = Math.max(0, Math.min(timeMs, limitMs));
+  let base = Math.floor(1000 * (1 - (clamped / limitMs) * 0.5));
+  base = Math.max(500, Math.min(1000, base));
+  const multiplier = Math.min(1.0 + Math.floor(streak / 3) * 0.5, 3.0);
+  return Math.floor(base * multiplier);
+}
+
+function _chalAnswer(choiceIndex) {
+  if (_chalAnswered) return;
+  _chalAnswered = true;
+  _chalStopTimer();
+  Sound.click();
+
+  const d          = _chalData;
+  const question   = d.questions[_chalQIndex];
+  const timeMs     = Date.now() - (_chalTimerStart || Date.now());
+  const isCorrect  = choiceIndex !== null && choiceIndex === question.correct_index;
+
+  if (isCorrect) {
+    _chalStreak++;
+    const points = _chalCalculateScore(timeMs, d.time_limit_ms || 20000, _chalStreak);
+    _chalScore  += points;
+    _chalCorrect++;
+    Sound.correct();
+  } else {
+    _chalStreak = 0;
+    Sound.wrong();
+  }
+
+  const scoreEl = document.getElementById('chal-my-score');
+  if (scoreEl) scoreEl.textContent = _chalScore.toLocaleString();
+
+  document.querySelectorAll('.chal-option-btn').forEach((btn, i) => {
+    btn.setAttribute('disabled', 'true');
+    if (i === question.correct_index) btn.classList.add('correct');
+    else if (i === choiceIndex)        btn.classList.add('chosen-wrong');
+    else                                btn.classList.add('dimmed');
+  });
+
+  setTimeout(_chalNextQuestion, 1400);
+}
+
+function _chalNextQuestion() {
+  _chalQIndex++;
+  if (_chalQIndex >= _chalData.questions.length) {
+    _chalSubmitAndShowResult();
+    return;
+  }
+  _chalShowQuestion();
+}
+
+/* ── RESULT STATE ─────────────────────────────────────────── */
+
+async function _chalSubmitAndShowResult() {
+  Sound.gameOver();
+  const el = document.getElementById('chal-content');
+  if (el) el.innerHTML = `
+    <div class="dot-loader" style="justify-content:center;margin-top:80px;">
+      <span></span><span></span><span></span>
+    </div>`;
+
+  let result;
+  try {
+    result = await API.completeChallenge(
+      _chalData.code,
+      State.playerName || 'Player',
+      State.user?.id || null,
+      _chalScore,
+      _chalCorrect,
+    );
+  } catch (e) {
+    console.error('[Challenge] Complete failed:', e);
+    // Still show a local result even if the submit failed — the player
+    // already played the game, don't make that feel wasted.
+    result = {
+      creator_name: _chalData.creator_name,
+      creator_score: _chalData.creator_score,
+      challenger_name: State.playerName || 'Player',
+      challenger_score: _chalScore,
+      winner: _chalScore > _chalData.creator_score ? 'challenger'
+            : _chalScore < _chalData.creator_score ? 'creator' : 'tie',
+    };
+    Toast.error('Result saved locally, but syncing to the server failed.');
+  }
+
+  if (typeof Analytics !== 'undefined') {
+    Analytics.track('challenge_completed', {
+      won: result.winner === 'challenger',
+      score: _chalScore,
+    });
+  }
+
+  _chalRenderResult(result);
+  setTimeout(() => Sound.startBgMusic(), 1200);
+}
+
+function _chalRenderResult(result) {
+  const el = document.getElementById('chal-content');
+  if (!el) return;
+
+  const youWon   = result.winner === 'challenger';
+  const tie      = result.winner === 'tie';
+  const emoji    = tie ? '🤝' : youWon ? '🏆' : '😤';
+  const titleTxt = tie ? "IT'S A TIE!" : youWon ? 'YOU WON!' : 'SO CLOSE!';
+
+  el.innerHTML = `
+    <div class="chal-result-header">
+      <span class="chal-result-emoji">${emoji}</span>
+      <p class="chal-result-title">${titleTxt}</p>
+    </div>
+    <div class="chal-vs-row">
+      <div class="chal-vs-card you ${youWon ? 'winner' : ''}">
+        <span class="chal-vs-name-label">YOU</span>
+        <span class="chal-vs-score">${result.challenger_score.toLocaleString()}</span>
+      </div>
+      <div class="chal-vs-divider">VS</div>
+      <div class="chal-vs-card them ${!youWon && !tie ? 'winner' : ''}">
+        <span class="chal-vs-name-label">${_chalEsc(result.creator_name).toUpperCase()}</span>
+        <span class="chal-vs-score">${result.creator_score.toLocaleString()}</span>
+      </div>
+    </div>
+    <div class="chal-result-actions">
+      <button class="btn btn-primary" onclick="_chalGoHome()">🏠 &nbsp;BACK TO HOME</button>
+    </div>`;
+
+  const conf = document.createElement('div');
+  conf.className = 'confetti-bg';
+  conf.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+  document.getElementById('chal-wrap')?.prepend(conf);
+  if (youWon) spawnConfetti(conf);
+}
+
+/* ── NAVIGATION ───────────────────────────────────────────── */
+
+function _chalGoHome() {
+  _chalStopTimer();
+  State._challengeCode = null;
+  // Strip the ?challenge= param so re-navigating home doesn't loop back here
+  const url = new URL(window.location.href);
+  url.searchParams.delete('challenge');
+  window.history.replaceState({}, '', url.pathname + url.hash);
+  goTo('home');
+}
+
+/* ── UTILS ────────────────────────────────────────────────── */
+
+function _chalEsc(s) {
+  return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+}
+</script>

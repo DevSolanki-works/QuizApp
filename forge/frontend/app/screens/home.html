@@ -1338,7 +1338,10 @@ async function hSaveStreak() {
         Analytics.track('ad_reward_granted', { trigger: 'streak_saver', amount: 1 });
       }
       Toast.success(`Streak saved at ${newStreak} days! 🔥`);
+      const wasPlaying = !!Sound._bgInterval;
+      if (wasPlaying) Sound.stopBgMusic();
       Sound.correct();
+      if (wasPlaying) setTimeout(() => { if (Sound.bgmEnabled) Sound.startBgMusic(); }, 900);
     } else {
       throw new Error('Streak update returned null');
     }

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import http as http_router
 from app.routers import websocket as ws_router          # Milestone 5
 from app.routers import auth as auth_router            # Milestone 17
+from app.routers import challenges as challenges_router  # Duel Phase 1
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
@@ -28,3 +29,4 @@ app.add_middleware(
 app.include_router(http_router.router, tags=["rooms"])
 app.include_router(ws_router.router, tags=["websocket"])  # Milestone 5
 app.include_router(auth_router.router, prefix="/auth", tags=["auth"])  # Milestone 17
+app.include_router(challenges_router.router, tags=["challenges"])  # Duel Phase 1

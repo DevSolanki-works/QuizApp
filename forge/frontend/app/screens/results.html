@@ -236,6 +236,9 @@
       <button class="btn btn-primary" id="solo-double-btn" onclick="doubleSoloCoins()">🎥 &nbsp;2X COINS</button>
       <button class="btn btn-secondary" id="solo-secondary-btn" onclick="soloSecondaryAction()">NO THANKS</button>
     </div>
+    <button class="btn btn-secondary" id="challenge-friend-btn" style="display:none;margin-top:2px;" onclick="resultsChallengeFriend()">
+      🎯 &nbsp;CHALLENGE A FRIEND
+    </button>
   </div>
 </div>
 
@@ -243,6 +246,23 @@
 let _entryFeeAdUsed = false;
 let _doubleWinAdUsed = false;
 let _soloDoubleUsed = false;
+
+/**
+ * Plays the standard reward chime cleanly, without background music
+ * clashing underneath it. Watching a rewarded ad can take anywhere from
+ * a few seconds to much longer than the BGM's own resume delay, so BGM
+ * may already be playing by the time the reward fires — this mutes it
+ * for the chime, then restores it, so the reward always sounds the same
+ * regardless of how long the ad took.
+ */
+function _playRewardChimeOverBgm() {
+  const wasPlaying = !!Sound._bgInterval;
+  if (wasPlaying) Sound.stopBgMusic();
+  Sound.correct();
+  if (wasPlaying) {
+    setTimeout(() => { if (Sound.bgmEnabled) Sound.startBgMusic(); }, 900);
+  }
+}
 
 function onResultsShow() {
   _entryFeeAdUsed = false;
@@ -324,9 +344,66 @@ function onResultsShow() {
     }
   }
 
+  const challengeBtn = document.getElementById('challenge-friend-btn');
+  if (challengeBtn) challengeBtn.style.display = isSolo ? 'flex' : 'none';
+
   if (State.ws) { State.ws.close(); State.ws = null; }
   _renderEconomyResult();
   setTimeout(() => Sound.startBgMusic(), 1200);
+}
+
+/* ── CHALLENGE A FRIEND (Duel Phase 1 — async challenge) ──────────────
+   Freezes the just-finished Solo room's question set server-side and
+   shares a deep link. Only works within the room's ~60s post-game grace
+   window (see websocket.py _delayed_room_cleanup) since the room must
+   still be in backend memory — the socket is still open/recently closed
+   at this point in the flow, so this is normally fine. */
+async function resultsChallengeFriend() {
+  if (State.playMode !== 'solo' || !State.roomCode) return;
+  Sound.click();
+  const btn = document.getElementById('challenge-friend-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ CREATING...'; }
+
+  try {
+    const data = await API.createChallenge(State.roomCode, State.user?.id || null);
+    // Challenge links must always point at the frontend/app deployment
+    // (forge-app-taupe.vercel.app), NOT forgetrivia.online — that domain
+    // serves the separate frozen frontend/web landing page and has no
+    // knowledge of challenge.html or the /challenges/* API at all.
+    // TODO: swap CHALLENGE_LINK_BASE to a custom subdomain (e.g.
+    // play.forgetrivia.online) once one is set up in Vercel — see
+    // Domains tab on the forge-app Vercel project.
+    const CHALLENGE_LINK_BASE = 'https://forge-app-taupe.vercel.app/';
+    const shareBase = IS_NATIVE_APP
+      ? CHALLENGE_LINK_BASE
+      : (window.location.hostname === 'forgetrivia.online'
+          ? CHALLENGE_LINK_BASE
+          : `${window.location.origin}${window.location.pathname}`);
+    const shareUrl  = `${shareBase}?challenge=${data.code}`;
+    const shareText = `Think you can beat my score in Forge Trivia (${State.topic || 'Trivia'})? 🎯`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Forge Trivia Challenge', text: shareText, url: shareUrl });
+      } catch (e) {
+        // User closed the native share sheet — not an error, do nothing.
+      }
+    } else if (navigator.clipboard) {
+      await navigator.clipboard.writeText(shareUrl);
+      Toast.success('Challenge link copied — send it to a friend!');
+    } else {
+      Toast.info(shareUrl);
+    }
+
+    if (typeof Analytics !== 'undefined') {
+      Analytics.track('challenge_created', { topic: State.topic || '' });
+    }
+  } catch (e) {
+    console.error('[Challenge] Create failed:', e);
+    Toast.error('Could not create challenge — the game session may have expired. Try right after your next game.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🎯 CHALLENGE A FRIEND'; }
+  }
 }
 
 /* ── QUICK PICK: PLAIN INTERSTITIAL ON EVERY EXIT ─────────────────────
@@ -512,7 +589,7 @@ async function doubleSoloCoins() {
               Analytics.track('ad_reward_granted', { trigger: 'solo_double_coins', amount: bonus });
             }
             Toast.success(`+${bonus} bonus coins — doubled!`);
-            Sound.correct();
+            _playRewardChimeOverBgm();
           }
   } catch (e) {
     console.error('[SoloDouble] Reward grant failed:', e);
@@ -581,7 +658,7 @@ async function doubleWinnings() {
       Analytics.track('ad_reward_granted', { trigger: 'double_winnings', amount: payout });
     }
     Toast.success(`+${payout} bonus coins — winnings doubled!`);
-    Sound.correct();
+    _playRewardChimeOverBgm();
     if (wrap) wrap.style.display = 'none';
   } catch (e) {
     console.error('[DoubleWinnings] Reward grant failed:', e);
@@ -648,7 +725,7 @@ async function recoverEntryFee() {
       Analytics.track('ad_reward_granted', { trigger: 'entry_fee_recovery', amount: entryFee });
     }
     Toast.success(`+${entryFee} coins refunded!`);
-    Sound.correct();
+    _playRewardChimeOverBgm();
     if (wrap) wrap.style.display = 'none';
   } catch (e) {
     console.error('[EntryFeeRecovery] Reward grant failed:', e);
