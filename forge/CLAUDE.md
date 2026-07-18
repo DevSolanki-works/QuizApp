@@ -43,7 +43,7 @@ A real-time multiplayer mobile quiz game. Players enter **ANY** topic → AI gen
 ## 💰 Economy System (stable, unchanged this session)
 
 - **Coins:** 200 starter, standard win/ad/pot sources, standard sinks. Pure balance, no reset logic.
-- **Trophies:** 50 starter, never spent, standard tier/floor system.
+- **Trophies:** 50 starter, never spent, standard tier/floor system. **DECISION (July 2026, not yet coded):** Trophies will become exclusively earned/lost through Online Duel Mode matchmaking, since trophies represent competitive rank — Solo Mode will stop granting trophies entirely. `solo_rewards()` in `profiles.py` still grants trophies today; this is a confirmed pending change, not yet live. Solo will continue granting coins only once this ships.
 - **Generation Tickets:** Pure persistent balance (architecturally identical to coins, redesigned July 2026). 2 free custom-topic generations/day (isolated counter, only date-sensitive logic in the whole system), then spends from ticket balance. Earned via coins (25/ticket), ads (5/day cap + 2-min cooldown), Daily Reward.
 - **Daily Reward:** 7-day cycle, terminates permanently after first Day-7 completion (`reward_cycle_completed` flag).
 
@@ -124,15 +124,62 @@ Wrapper: `frontend/app/app-update.js`, via `@capawesome/capacitor-app-update`. Z
 
 ---
 
-## 🌐 Online 1v1 Duel Mode — Design Spec (unchanged, still not started)
+## 🌐 Online Duel Mode — NOW ACTIVE DEVELOPMENT (July 2026)
 
-> **NEW PRIORITY CONTEXT (July 2026):** Given the current growth bottleneck (near-zero conversion from LinkedIn/Instagram/Discord-indie-dev-group posting — wrong audiences for a casual mobile game, see Decisions Log), **Async Challenge Mode specifically is now the top feature priority**, not because it was next in sequence, but because it's a built-in viral growth loop ("Can you beat my score?") that directly attacks the actual current bottleneck, reuses existing Solo infrastructure, and doesn't touch the live economy (low regression risk).
+> **Status change:** Moved from "design spec, not started" to actively being built — this is now the single biggest feature on the roadmap. Goal: a genuine second pillar for the game (competitive replay value) that also directly attacks the current growth bottleneck (near-zero conversion from LinkedIn/Instagram/Discord-indie-dev-group posting — wrong audiences for a casual mobile game, see Decisions Log) via built-in virality.
 
-**Async Challenge Mode (build first):** Player completes a solo game → "Challenge a friend to beat this score" → shareable link/code → friend plays identical cached questions → sees their result against the original player's ghost score → 24-hour window, push notification on result.
+### Phase 1 — Async Challenge Mode (build first)
 
-**Sync 1v1 Queue (second, unchanged spec):** Matchmaking within ±100 trophies, 30s wait/bot fallback, 50-coin entry, Blind Draft topic selection.
+Player finishes a Solo game → **"Challenge a friend to beat this score"** → generates a shareable link/code → friend opens it → plays the **identical cached question set** the original player faced → sees their result immediately compared against the original player's "ghost" score → result window open for **24 hours** → push notification to both players when the challenge is completed/expires.
 
-No code exists for either yet.
+**Why this is priority 1:** reuses existing Solo infrastructure (question caching, scoring, results screen) — low build cost. Does NOT touch the live economy — low regression risk on a system that's had several real incidents this session. Built-in viral loop — every challenge sent is a personal, socially-charged invitation, stronger than any manual marketing post.
+
+**Open design questions to resolve before coding:**
+- Challenge link/code: short room-code-style string (reusing existing 4-char room code infra) vs full deep link (needs Android App Links / Play Store deferred-deep-linking setup)?
+- Does the challenged friend need to sign in, or can they play as guest and only see results (no economy grant) unless they sign in afterward?
+- Original player's economy/trophies if their score gets beaten — reward/penalty loop, or pure score-comparison with zero economy stakes (recommended for v1, keeps blast radius small)?
+- Push notification delivery — reuse existing `@capacitor/local-notifications` (already wired for Streak Reminders) or needs something else for a friend-initiated notification?
+
+### Phase 2 — Sync 1v1 Duel Queue (after Phase 1 ships and stabilizes)
+
+Real-time matchmaking within ±100 trophies, 30-second wait window with **live online-in-queue count shown** (skip straight to bot-fallback offer if count is 0, rather than a fake 30s wait), 25-coin entry fee per player (pot = 50 coins, winner takes all — reuses the existing `ROOM_ENTRY_FEE`/`_charge_room_entry_fees`/pot-split pattern already proven in Classic/Team, same shape with exactly 2 players).
+
+**Questions:** drawn from the static Quick Picks bank only (not live Gemini) — keeps Duel mode fully isolated from the ticket/generation economy, and guarantees both players get the identical question set for a fair match.
+
+**Timer:** 15 seconds per question — shorter than standard Medium (20s) to keep real competitive pressure and reduce cheating window, but deliberately not shorter than existing Hard mode (10s) so it doesn't feel like pure reflexes over knowledge.
+
+**Topic selection flow:** both players shown the same 3 random bank topics → each picks independently → same pick on both sides → 3–5s confirm pause → game starts on that topic. Different picks → reuse the existing Team Mode topic-randomizer spin UI directly (already built, no new UI needed) → lands on one of the two chosen topics → game starts.
+
+**Tiebreaker:** if scores are exactly level after the final question, one extra bank question decides it (sudden death) — avoids an anticlimactic draw in a mode specifically about "who's better."
+
+**Engagement add-ons (small, cheap, worth building alongside core mechanics):**
+- One-tap Rematch on the results screen — re-queues the same two players directly, skips matchmaking.
+- Opponent trophy count shown before match starts ("You: 73 🏆 vs Them: 68 🏆") — pure stakes-building, zero new backend needed.
+- Preset emoji reactions at match end (👏 😤 🔥) — adds personality without the moderation risk of open chat between strangers. Deliberately NOT free-text chat.
+- Lightweight head-to-head record shown if two players are matched again later ("2–1 vs this player") — proven retention hook in casual competitive games.
+- Streak fire badge (already built for Solo) carried over into Duel for visual consistency, zero new UI cost.
+
+This phase DOES touch the live economy (entry fees, payouts) — treat with the same caution as the existing Classic/Team entry-fee system. Do not start Phase 2 implementation until Phase 1 has been live and stable for a real stretch.
+
+### Phase 3 — Ticket Duel Mode (future, after Phase 1 + 2 are live and stable)
+
+A second, distinct duel variant using **Generation Tickets** instead of coins as the stake — entry: 1 ticket per player, pot: 2–5 tickets depending on stake tier (mirrors the planned Casual/Pro/High Stakes coin room tiers).
+
+**Unique mechanic (not a reskin of Phase 2):** both players each pick one topic; the match draws **5 questions from each player's chosen topic** (10 total), rather than a single randomly-chosen topic. This makes both players' topic choice matter for the whole match, not just a coin-flip randomizer outcome — a genuinely different competitive shape from Phase 2, not just a different currency skin.
+
+**Requires bank support for partial draws** — `get_quick_pick_questions()` currently returns a full 10-question set per call; this mode needs it callable for exactly 5 from two different topics and interleaved/shuffled together, which is a small extension to `quick_picks.py`, not a rewrite.
+
+Since this uses tickets (not coins), it's naturally isolated from the coin economy — reduces blast radius risk relative to Phase 2, similar reasoning to why Phase 1 avoided touching the coin economy at all.
+
+### Tickets Leaderboard — reconsidered, now conditionally justified
+
+Previously recommended against (tickets were purely a spend-gate resource, no skill signal — ranking on it would reward hoarding, not skill). **Revisit once Phase 3 ships**: at that point, ticket count reflects competitive duel success, not just accumulation — the original objection no longer applies. Do NOT add a Tickets tab to the leaderboard before Phase 3 exists; it would still just reward hoarding today.
+
+### Explicitly not decided yet — do not assume defaults, ask before building
+
+- Whether ranked ladder/seasonal reset applies to Duel mode at all, or if it's purely casual.
+- Whether Duel results feed into the existing trophy tier system or need their own separate rating.
+- Anti-abuse: entry-fee duels (Phase 2 and 3) create a real incentive for someone to run two accounts on one device and "duel themselves" to farm coins/tickets risk-free. Known open question, not yet mitigated — worth a fraud-detection pass before Phase 2 goes live with real stakes.
 
 ---
 
@@ -210,7 +257,11 @@ forge/
 | 55 | Solo ad-flow architecture rebuild — removed race-condition-prone background timer, replaced with tap-driven decline counter | Done |
 | 56 | Custom Topic decline flow simplified: RewardedInterstitial → plain Interstitial (real engagement data), RewardedInterstitial kept dormant | Done |
 | 57 | Google Play In-App Update API integration — flexible/immediate via Play Console priority field, zero new backend | Done |
-| — | **Async Challenge Mode (viral growth loop)** | **Not started — NEW top priority** |
+| — | **Async Challenge Mode (Duel Phase 1 — viral growth loop)** | **Not started — NEW top priority** |
+| — | Sync 1v1 Duel Queue (Duel Phase 2 — coin entry/pot) | Not started — after Phase 1 stable |
+| — | Ticket Duel Mode (Duel Phase 3 — dual-topic 5+5 mechanic) | Not started — after Phase 2 stable |
+| — | Remove trophy grants from Solo Mode (`solo_rewards()`) | **Decided, not yet coded — do when ready, not bundled silently** |
+| — | Tickets Leaderboard tab | Deferred — contingent on Phase 3 shipping first |
 | — | Classic/Team mode interstitial system | Not started |
 | — | Daily Lucky Draw | Not started |
 | — | Power-Up system | Not started |

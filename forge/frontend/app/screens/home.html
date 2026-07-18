@@ -1274,10 +1274,21 @@ function _hCheckStreakSaver() {
   if (!badge) return;
 
   const today = _todayDateString();
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const yesterday = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
   const alreadyPlayedToday = State._homeLastPlayedDate === today;
+  // Only genuinely "at risk" (and therefore savable) if the last played
+  // date is EXACTLY yesterday — one missed day, streak still intact until
+  // midnight. If it's older than that, the streak has already broken and
+  // showing a "save" option would be misleading: watching the ad would
+  // still reset it to 1 regardless, since lbUpdateDailyStreak() correctly
+  // treats a 2+ day gap as a genuine break, not something an ad can undo.
+  const isGenuinelyAtRisk = State._homeLastPlayedDate === yesterday;
   const hasStreakWorthSaving = (State._homeStreak || 0) >= 1;
   const isAfter6pm = new Date().getHours() >= 18;
-  const canShow = State.user && !alreadyPlayedToday && hasStreakWorthSaving
+  const canShow = State.user && !alreadyPlayedToday && isGenuinelyAtRisk && hasStreakWorthSaving
     && isAfter6pm && !_streakSaverUsed
     && typeof RewardedAd !== 'undefined' && window.Capacitor?.isNativePlatform?.();
 
