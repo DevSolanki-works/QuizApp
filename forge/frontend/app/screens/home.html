@@ -1143,6 +1143,7 @@ function hCloseProfileModal(e) {
 function hSignOut() {
   Sound.click();
   if (typeof Analytics !== 'undefined') Analytics.reset().catch(() => {});
+  if (typeof Push !== 'undefined') Push._initialized = false; // re-register fresh if a different account signs in next
   State.user = null;
   State._dailyRewardCheckedThisSession = false;
   Session.save();

@@ -56,6 +56,8 @@
   <script src="admob.js" defer></script>
   <!-- PostHog analytics wrapper — defer so it doesn't block render -->
   <script src="analytics.js" defer></script>
+  <!-- Firebase Cloud Messaging wrapper — defer so it doesn't block render -->
+  <script src="push.js" defer></script>
 
   <style>
     /* ══════════════════════════════════════════════════════
@@ -1896,6 +1898,7 @@ async function handleGoogleLogin(response) {
     Toast.error('Signed in, but syncing your saved data failed. Some balances may look out of date until this succeeds.');
   }
   if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
+  if (typeof Push !== 'undefined') Push.initAndRegister().catch(() => {});
 }
 
 let _googleNativeInitialized = false;
@@ -2063,6 +2066,10 @@ function waitForSupabase(timeoutMs = 3000) {
       // Ticket state — also background, never blocks render
       await syncTicketsForUser();
       if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
+
+      // Push token — re-registers on every boot in case the token rotated
+      // since the last session (app reinstall, cleared data, etc).
+      if (typeof Push !== 'undefined') Push.initAndRegister().catch(() => {});
     }
 
   } catch (e) {
