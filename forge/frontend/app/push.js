@@ -39,6 +39,22 @@ const Push = {
     if (!State.user?.id) return;
 
     try {
+      // Explicitly create the channel referenced by AndroidManifest.xml's
+      // default_notification_channel_id. Some OEM Android builds (MIUI,
+      // One UI, ColorOS) silently drop background/killed-app notification
+      // delivery when a message references a channel that was never
+      // actually created on-device — this ensures it exists before any
+      // message can arrive.
+      if (plugin.createChannel) {
+        await plugin.createChannel({
+          id: 'forge_challenges',
+          name: 'Challenge Results',
+          description: 'Notifies you when a friend completes your Forge challenge',
+          importance: 4, // IMPORTANCE_HIGH — required for heads-up/tray display
+          visibility: 1,
+        }).catch(() => {}); // no-op if already exists or unsupported
+      }
+
       const { receive } = await plugin.checkPermissions();
       if (receive !== 'granted') {
         const result = await plugin.requestPermissions();

@@ -212,7 +212,7 @@ function _chalRenderError() {
       <p style="font-family:var(--font-body);font-size:13px;font-weight:700;color:rgba(255,255,255,0.55);line-height:1.6;">
         This link may have expired (challenges last 24 hours) or already been used.
       </p>
-      <button class="btn btn-primary" style="margin-top:8px;" onclick="_chalGoHome()">🏠 &nbsp;BACK TO HOME</button>
+      <div style="margin-top:8px;">${_chalRenderAppCta()}</div>
     </div>`;
 }
 
@@ -231,7 +231,7 @@ function _chalRenderAlreadyCompleted() {
         ${_chalEsc(d.challenger_name)} scored <b>${d.challenger_score}</b> vs
         ${_chalEsc(d.creator_name)}'s <b>${d.creator_score}</b> — ${challengerWon ? _chalEsc(d.challenger_name) + ' won!' : _chalEsc(d.creator_name) + ' won!'}
       </p>
-      <button class="btn btn-primary" style="margin-top:8px;" onclick="_chalGoHome()">🏠 &nbsp;BACK TO HOME</button>
+      <div style="margin-top:8px;">${_chalRenderAppCta()}</div>
     </div>`;
 }
 
@@ -307,6 +307,32 @@ function _chalRenderPlayShell() {
 }
 
 const CHAL_OPTION_LETTERS = ['A','B','C','D'];
+const FORGE_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.devsolanki.forge';
+
+/**
+ * Renders a "Get the App" CTA instead of "Back to Home" everywhere a
+ * challenge-flow screen would otherwise send a web visitor back into the
+ * web build's home screen. The web track has no ads/economy gating, so
+ * routing casual challenge recipients back into full free play there
+ * undercuts the real app. Opens the Play Store on native/Android, and
+ * falls back to a disabled "iOS — Coming Soon" pill when the visitor's
+ * own device clearly isn't Android (best-effort UA sniff — worst case a
+ * desktop visitor just sees the Android-styled button, which is fine
+ * since they can't install either way).
+ */
+function _chalRenderAppCta() {
+  const ua = navigator.userAgent || '';
+  const looksIOS = /iPhone|iPad|iPod/i.test(ua);
+  if (looksIOS) {
+    return `<button class="btn btn-secondary" disabled style="opacity:0.4;">🍎 &nbsp;COMING SOON ON iOS</button>`;
+  }
+  return `<button class="btn btn-primary" onclick="_chalOpenPlayStore()">📲 &nbsp;GET THE APP</button>`;
+}
+
+function _chalOpenPlayStore() {
+  Sound.click();
+  window.open(FORGE_PLAY_STORE_URL, '_blank', 'noopener');
+}
 
 function _chalShowQuestion() {
   const d        = _chalData;
@@ -497,7 +523,10 @@ function _chalRenderResult(result) {
       </div>
     </div>
     <div class="chal-result-actions">
-      <button class="btn btn-primary" onclick="_chalGoHome()">🏠 &nbsp;BACK TO HOME</button>
+      ${_chalRenderAppCta()}
+      <p style="font-family:var(--font-pixel);font-size:5.5px;color:rgba(255,255,255,0.25);text-align:center;letter-spacing:0.3px;">
+        FORGE IS FREE ON THE PLAY STORE — PLAY UNLIMITED, EARN COINS &amp; TROPHIES
+      </p>
     </div>`;
 
   const conf = document.createElement('div');
