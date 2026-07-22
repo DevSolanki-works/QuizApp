@@ -43,7 +43,7 @@ const AppUpdate = {
     // updateAvailability: 1 = unknown, 2 = update available, 3 = not available
     if (info.updateAvailability !== 2) return;
 
-    const isCritical = (info.updatePriority || 0) >= 4;
+    const isCritical = (info.updatePriority || 5) >= 4;
 
     if (isCritical && info.immediateUpdateAllowed) {
       try {
