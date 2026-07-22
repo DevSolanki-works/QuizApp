@@ -28,32 +28,40 @@ from app.services import profiles
 
 # id → catalog entry. `duel_only` types never appear in other modes;
 # `modes` lists where the power-up may be used.
+# Repriced July 2026 — original prices (25-40) sat ABOVE the generation
+# ticket's 25-coin anchor despite power-ups being single-round, consumable
+# effects with no lasting value outside Duel. New prices rank below the
+# ticket, scaled by real impact: Time Freeze (lowest impact) cheapest,
+# Time Steal (Duel-only, directly swings a 50-coin pot) highest. Still
+# costs a full Solo win to afford one — not so cheap it invites spamming,
+# but no longer priced as if a single question-effect outranks an entire
+# custom AI quiz.
 POWERUP_CATALOG: dict[str, dict[str, Any]] = {
     "fifty_fifty": {
         "name": "50/50",
         "icon": "➗",
-        "price": 30,
+        "price": 15,
         "desc": "Removes two wrong answers on the current question.",
         "modes": ["solo", "classic", "team", "duel"],
     },
     "time_freeze": {
         "name": "Time Freeze",
         "icon": "❄️",
-        "price": 25,
+        "price": 10,
         "desc": "Adds 5 bonus seconds to your clock on the current question.",
         "modes": ["solo", "classic", "team", "duel"],
     },
     "double_points": {
         "name": "Double Points",
         "icon": "✨",
-        "price": 40,
+        "price": 15,
         "desc": "Your next correct answer scores 2x points.",
         "modes": ["solo", "classic", "team", "duel"],
     },
     "time_steal": {
         "name": "Time Steal",
         "icon": "⏳",
-        "price": 35,
+        "price": 20,
         "desc": "Steals 5 seconds from your opponent's clock. Duels only!",
         "modes": ["duel"],
     },
