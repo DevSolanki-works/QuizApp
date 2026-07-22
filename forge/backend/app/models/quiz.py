@@ -34,6 +34,7 @@ class PlayMode(str, Enum):
     SOLO = "solo"
     CLASSIC = "classic"
     TEAM = "team"
+    DUEL = "duel"
 
 
 class RoundPhase(str, Enum):
@@ -126,5 +127,34 @@ class Room(BaseModel):
     team_topics: dict[str, str] = Field(default_factory=dict)
     # The resolved topic after randomisation (also used by classic/solo)
     topic: str = ""
+
+    # ── Duel mode fields (Sync 1v1 Duel Queue) ─────────────────────────────────
+    duel_is_bot: bool = False            # practice match vs bot — no fees/trophies
+    duel_bot_name: str = ""              # display name of the bot player, if any
+    duel_bot_accuracy: float = 0.6       # per-match bot correctness probability
+    # Reserve bank questions consumed one at a time by sudden-death tiebreakers.
+    duel_reserves: list[Question] = Field(default_factory=list)
+    sudden_death_count: int = 0
+    # Set when a player abandons an ACTIVE duel — the named player wins by forfeit.
+    duel_forfeit_winner: str = ""
+    # Topic-pick phase state: the 3 offered topics and each player's pick.
+    duel_topic_options: list[str] = Field(default_factory=list)
+    duel_picks: dict[str, str] = Field(default_factory=dict)
+    # Rematch handshake: names of players who have requested a rematch.
+    duel_rematch_votes: set[str] = Field(default_factory=set)
+
+    # ── Power-up state ─────────────────────────────────────────────────────────
+    # "player:powerup_id" pairs used THIS question (reset each broadcast) —
+    # blocks double-firing the same effect twice on one question.
+    round_powerups_used: set[str] = Field(default_factory=set)
+    # Players whose next correct answer this question scores 2x (reset each question).
+    double_points_active: set[str] = Field(default_factory=set)
+    # Extra seconds added to the current round's server timeout by TIME_FREEZE.
+    round_extra_secs: float = 0.0
+    # Duel only: name → "fast"/"mid"/"slow" speed tier hit this question.
+    round_speed_tiers: dict[str, str] = Field(default_factory=dict)
+    # Duel only: power-up ids each player has used across the whole match
+    # (max 2 per player, no repeats — enforced in websocket.py).
+    duel_powerups_used: dict[str, list[str]] = Field(default_factory=dict)
 
     model_config = {"arbitrary_types_allowed": True}

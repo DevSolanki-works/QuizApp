@@ -12,6 +12,7 @@ from app.routers import http as http_router
 from app.routers import websocket as ws_router          # Milestone 5
 from app.routers import auth as auth_router            # Milestone 17
 from app.routers import challenges as challenges_router  # Duel Phase 1
+from app.routers import duel_queue as duel_queue_router   # Duel Phase 2 (1v1 queue)
 from app.routers import push as push_router               # Push notifications
 from app.core.config import settings
 
@@ -50,6 +51,9 @@ app.add_middleware(
 )
 
 app.include_router(http_router.router, tags=["rooms"])
+# Duel queue MUST register before the generic room WS — otherwise
+# /ws/{room_code}/{player_name} captures /ws/duel/queue as room "duel".
+app.include_router(duel_queue_router.router, tags=["duel"])        # Duel Phase 2
 app.include_router(ws_router.router, tags=["websocket"])  # Milestone 5
 app.include_router(auth_router.router, prefix="/auth", tags=["auth"])  # Milestone 17
 app.include_router(challenges_router.router, tags=["challenges"])  # Duel Phase 1

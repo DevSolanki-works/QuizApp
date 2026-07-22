@@ -169,13 +169,12 @@ def apply_batch_deltas(deltas: dict[str, dict[str, Any]]) -> dict[str, dict[str,
 
 
 def solo_rewards(correct_answers: int) -> tuple[float, int]:
-    """Calculate Solo Mode coin and trophy rewards from correct-answer count."""
+    """Calculate Solo Mode rewards from correct-answer count.
+
+    Solo grants coins only. Trophies are a competitive rank earned/lost
+    exclusively through Duel Mode matchmaking, so the trophy delta here is
+    always zero (decided July 2026).
+    """
 
     coins_delta = SOLO_PASSING_COIN_REWARD if correct_answers >= 5 else 0
-    if correct_answers < 4:
-        trophies_delta = -2
-    elif correct_answers in (4, 5):
-        trophies_delta = 1
-    else:
-        trophies_delta = (correct_answers - 5) * 2
-    return float(coins_delta), trophies_delta
+    return float(coins_delta), 0

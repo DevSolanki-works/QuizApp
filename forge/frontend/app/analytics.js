@@ -45,6 +45,11 @@ const Analytics = {
     }
   },
 
+  /** Alias for track() — several screens call logEvent; keep both valid. */
+  async logEvent(eventName, params = {}) {
+    return this.track(eventName, params);
+  },
+
   /** Tag events with the signed-in Google account. */
   async identify(userId) {
     const plugin = this._plugin;

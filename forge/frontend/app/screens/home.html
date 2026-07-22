@@ -177,6 +177,24 @@
     color: rgba(255,255,255,0.4); line-height: 1.8; letter-spacing: 0.3px;
   }
 
+  /* ── LUCKY DRAW BANNER ─────────────────────────────────── */
+  .h-lucky-card {
+    background: rgba(155,93,229,0.12);
+    border: 1.5px solid rgba(155,93,229,0.35);
+    border-radius: 12px; padding: 13px 16px;
+    display: flex; align-items: center; gap: 14px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .h-lucky-card:active { background: rgba(155,93,229,0.2); }
+  .h-lucky-icon { font-size: 24px; line-height: 1; flex-shrink: 0; }
+  .h-lucky-info { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+  .h-lucky-name { font-family: var(--font-pixel); font-size: 9px; color: #c4a0ff; }
+  .h-lucky-desc {
+    font-family: var(--font-pixel); font-size: 5px;
+    color: rgba(255,255,255,0.4); line-height: 1.8; letter-spacing: 0.3px;
+  }
+
   .h-solo-arrow {
     width: 34px; height: 34px; background: var(--yellow);
     border-radius: 8px;
@@ -202,6 +220,7 @@
   .h-mode-card:active:not(.h-mode-locked) { filter: brightness(1.12); }
 
   .h-mode-card.h-mode-create { background: rgba(6,214,160,0.10);  border-color: rgba(6,214,160,0.22); }
+  .h-mode-card.h-mode-duel   { background: rgba(239,35,60,0.10);  border-color: rgba(239,35,60,0.25); }
   .h-mode-card.h-mode-join   { background: rgba(79,195,247,0.09); border-color: rgba(79,195,247,0.20); }
   .h-mode-card.h-mode-team   { background: rgba(155,93,229,0.10); border-color: rgba(155,93,229,0.25); }
   .h-mode-card.h-mode-locked { opacity: 0.35; cursor: default; }
@@ -630,12 +649,22 @@
         <span class="h-mode-name">TEAM</span>
         <span class="h-mode-desc">2 TEAMS<br>1 WINNER</span>
       </div>
-      <div class="h-mode-card h-mode-locked">
-        <span class="h-mode-badge h-badge-soon">SOON</span>
-        <span class="h-mode-icon">🌐</span>
-        <span class="h-mode-name" style="color:rgba(255,255,255,0.2);">RANKED</span>
-        <span class="h-mode-desc" style="color:rgba(255,255,255,0.12);">COMING SOON</span>
+      <div class="h-mode-card h-mode-duel" onclick="hEnterDuel()">
+        <span class="h-mode-badge h-badge-live">NEW</span>
+        <span class="h-mode-icon">⚔️</span>
+        <span class="h-mode-name">DUEL</span>
+        <span class="h-mode-desc">RANKED 1V1<br>WINNER TAKES POT</span>
       </div>
+    </div>
+
+    <!-- LUCKY DRAW BANNER -->
+    <div class="h-lucky-card z1" onclick="hEnterLuckyDraw()">
+      <span class="h-lucky-icon">🎡</span>
+      <div class="h-lucky-info">
+        <span class="h-lucky-name">DAILY LUCKY DRAW</span>
+        <span class="h-lucky-desc">FREE SPIN EVERY DAY · WIN COINS & TICKETS</span>
+      </div>
+      <div class="h-solo-arrow">▶</div>
     </div>
 
     <!-- PAGE DOTS -->
@@ -1110,28 +1139,8 @@ function hOpenProfileSheet() {
     hOpenSigninModal();
     return;
   }
-
-  // Populate sheet
-  const avatarEl   = document.getElementById('h-sheet-avatar');
-  const nameEl     = document.getElementById('h-sheet-name');
-  const emailEl    = document.getElementById('h-sheet-email');
-  const levelEl    = document.getElementById('h-sheet-level');
-  const coinsEl    = document.getElementById('h-sheet-coins');
-  const trophiesEl = document.getElementById('h-sheet-trophies');
-  const streakEl   = document.getElementById('h-sheet-streak');
-
-  if (avatarEl) avatarEl.innerHTML = State.user.picture
-    ? `<img src="${State.user.picture}" alt="avatar" />`
-    : '👾';
-  if (nameEl)     nameEl.textContent     = (State.user.name  || 'PLAYER').toUpperCase();
-  if (emailEl)    emailEl.textContent    = State.user.email  || '';
-  if (levelEl)    levelEl.textContent    = _hRankLabel(Number(State.user.trophies || 0));
-  if (coinsEl)    coinsEl.textContent    = State.user.coins    != null ? Number(State.user.coins).toLocaleString()    : '—';
-  if (trophiesEl) trophiesEl.textContent = State.user.trophies != null ? Number(State.user.trophies).toLocaleString() : '—';
-  if (streakEl)   streakEl.textContent   = State._homeStreak || 0;
-
-  const modal = document.getElementById('h-profile-modal');
-  if (modal) modal.style.display = 'flex';
+  // Signed in → full Profile screen (superseded the old bottom sheet).
+  goTo('profile');
 }
 
 function hCloseProfileModal(e) {
@@ -1183,6 +1192,24 @@ async function hCreateRoom() {
     WS.connect(State.roomCode, State.playerName);
     await goTo('lobby');
   } catch (e) { console.error(e); Toast.error('Could not create room. Try again.'); }
+}
+
+function hEnterLuckyDraw() {
+  Sound.click();
+  if (!State.user?.id) {
+    Toast.error('Sign in with Google to spin the Lucky Draw.');
+    return;
+  }
+  goTo('lucky-draw');
+}
+
+function hEnterDuel() {
+  Sound.click();
+  if (!State.user?.id) {
+    Toast.error('Sign in with Google to enter the Duel Arena.');
+    return;
+  }
+  goTo('duel');
 }
 
 async function hCreateTeamRoom() {

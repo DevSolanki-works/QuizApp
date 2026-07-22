@@ -141,6 +141,40 @@
     flex-shrink: 0; white-space: nowrap;
   }
 
+  /* ── POWER-UP CARDS ──────────────────────────────────────── */
+  .shop-pu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .shop-pu-card {
+    background: rgba(33,150,243,0.08); border: 1.5px solid rgba(33,150,243,0.3);
+    border-radius: var(--radius-md); padding: 14px 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    position: relative;
+  }
+  .shop-pu-icon  { font-size: 28px; line-height: 1; }
+  .shop-pu-name  { font-family: var(--font-pixel); font-size: 7px; color: #8fc7ff; text-align: center; }
+  .shop-pu-desc  {
+    font-family: var(--font-body); font-size: 11px; font-weight: 700;
+    color: rgba(255,255,255,0.5); text-align: center; line-height: 1.5;
+    min-height: 33px;
+  }
+  .shop-pu-owned {
+    position: absolute; top: 8px; right: 8px;
+    font-family: var(--font-pixel); font-size: 6px; color: var(--yellow);
+    background: rgba(255,217,61,0.12); border: 1px solid rgba(255,217,61,0.35);
+    border-radius: var(--radius-pill); padding: 3px 7px;
+  }
+  .shop-pu-duel-tag {
+    font-family: var(--font-pixel); font-size: 4.5px; color: var(--red);
+    letter-spacing: 0.5px;
+  }
+  .shop-pu-buy {
+    width: 100%; height: 36px; border-radius: var(--radius-pill);
+    background: rgba(255,217,61,0.9); color: var(--text-dark); border: none;
+    font-family: var(--font-pixel); font-size: 6.5px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .shop-pu-buy:active { transform: translateY(2px); }
+  .shop-pu-buy:disabled { opacity: 0.4; pointer-events: none; }
+
   /* ── INSUFFICIENT COINS NOTE ──────────────────────────────── */
   .shop-insufficient-note {
     font-family: var(--font-pixel); font-size: 6px; color: var(--red);
@@ -186,9 +220,29 @@
 let _shopQty = 1;
 const SHOP_QUICK_QTYS = [1, 3, 5];
 
+// Power-up catalog + owned counts, fetched from the server on shop open.
+// Mirrored into State.user.powerups so the game screen knows what's usable.
+let _shopPowerups = null;
+
 function onShopShow() {
   _shopQty = 1;
   _shopRender();
+  _shopLoadPowerups();
+}
+
+async function _shopLoadPowerups() {
+  if (!State.user?.id) return;
+  try {
+    _shopPowerups = await API.powerupsState(State.user.id);
+    State.user.powerups = _shopPowerups.inventory || {};
+    Session.save();
+    _shopRenderPowerups();
+  } catch (e) {
+    console.warn('[Shop] Power-up state load failed:', e);
+    if (typeof _isAuthError === 'function' && _isAuthError(e)) { _promptReauth(); return; }
+    const grid = document.getElementById('shop-pu-grid');
+    if (grid) grid.innerHTML = '<p class="shop-insufficient-note">COULD NOT LOAD POWER-UPS</p>';
+  }
 }
 
 function _shopRender() {
@@ -246,6 +300,11 @@ function _shopRender() {
       ${canAfford ? '' : `<p class="shop-insufficient-note">Not enough coins — you need ${totalCost - Number(State.user.coins || 0)} more.</p>`}
     </div>
 
+    <p class="shop-section-label" style="margin-top:6px;">⚡ POWER-UPS</p>
+    <div class="shop-pu-grid" id="shop-pu-grid">
+      <p class="shop-insufficient-note" style="grid-column:1/-1;color:rgba(255,255,255,0.35);">LOADING…</p>
+    </div>
+
     <p class="shop-section-label" style="margin-top:6px;">MORE WAYS TO EARN TICKETS</p>
 
     <div class="shop-ad-row" id="shop-ad-row" onclick="shopWatchAdForTicket()">
@@ -259,6 +318,59 @@ function _shopRender() {
   `;
 
   _shopUpdateAdRowState();
+  if (_shopPowerups) _shopRenderPowerups();
+}
+
+/* ── POWER-UPS ────────────────────────────────────────────── */
+
+function _shopRenderPowerups() {
+  const grid = document.getElementById('shop-pu-grid');
+  if (!grid || !_shopPowerups) return;
+  const coins = Number(State.user?.coins || 0);
+  const inv   = _shopPowerups.inventory || {};
+  grid.innerHTML = _shopPowerups.catalog.map(p => {
+    const owned     = Number(inv[p.id] || 0);
+    const canAfford = coins >= p.price;
+    const duelOnly  = p.modes.length === 1 && p.modes[0] === 'duel';
+    return `
+      <div class="shop-pu-card">
+        ${owned > 0 ? `<span class="shop-pu-owned">×${owned}</span>` : ''}
+        <span class="shop-pu-icon">${p.icon}</span>
+        <span class="shop-pu-name">${p.name.toUpperCase()}</span>
+        <p class="shop-pu-desc">${p.desc}</p>
+        ${duelOnly ? '<span class="shop-pu-duel-tag">⚔️ DUEL MODE ONLY</span>' : ''}
+        <button class="shop-pu-buy" ${canAfford ? '' : 'disabled'} onclick="shopBuyPowerup('${p.id}')">
+          BUY — ${p.price} 🪙
+        </button>
+      </div>`;
+  }).join('');
+}
+
+async function shopBuyPowerup(powerupId) {
+  if (!State.user?.id) return;
+  Sound.click();
+  try {
+    const data = await API.powerupsBuy(State.user.id, powerupId);
+    State.user.coins    = data.coins;
+    State.user.powerups = data.inventory || {};
+    _shopPowerups.inventory = data.inventory || {};
+    Session.save();
+    if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
+    if (typeof lbUpsertPlayer === 'function') {
+      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies).catch(() => {});
+    }
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('powerup_purchased', { powerup_id: powerupId }).catch?.(() => {});
+    }
+    Toast.success('Power-up added to your arsenal!');
+    Sound.correct();
+    _shopRender(); // refreshes coin pill, ticket affordability, and the grid
+  } catch (e) {
+    console.error('[Shop] Power-up buy failed:', e);
+    if (typeof _isAuthError === 'function' && _isAuthError(e)) { _promptReauth(); return; }
+    const msg = String(e?.message || '');
+    Toast.error(msg.includes('coins') ? 'Not enough coins!' : 'Purchase failed. Try again.');
+  }
 }
 
 /* ── WATCH AD FOR TICKET ──────────────────────────────────── */

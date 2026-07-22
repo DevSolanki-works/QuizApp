@@ -50,6 +50,11 @@
   .team-score-side.team-a { background: rgba(230,57,70,0.2); border-right: 1px solid rgba(255,255,255,0.1); }
   .team-score-side.team-b { background: rgba(33,150,243,0.2); }
   .team-score-side.my-team { box-shadow: inset 0 0 0 2px rgba(255,217,61,0.5); }
+  .team-score-side.duel-answered { animation: duel-lock-flash 0.9s ease; }
+  @keyframes duel-lock-flash {
+    0%   { background: rgba(76,175,80,0.55); }
+    100% { background: rgba(33,150,243,0.2); }
+  }
   .team-score-name {
     font-family: var(--font-pixel); font-size: 7px;
     color: rgba(255,255,255,0.6); letter-spacing: 0.3px;
@@ -64,6 +69,158 @@
     background: rgba(0,0,0,0.2);
     font-family: var(--font-pixel); font-size: 8px;
     color: rgba(255,255,255,0.4);
+  }
+
+  /* ── DUEL IN-GAME EMOJI BAR (duel mode only) ────────────── */
+  .duel-emoji-bar {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    display: none; gap: 10px; z-index: 400;
+    background: rgba(9,15,80,0.85); backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius-pill); padding: 6px 10px;
+  }
+  .duel-emoji-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+    font-size: 19px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+  .duel-emoji-btn:active { transform: scale(0.85); }
+  .duel-emoji-bar.cooling .duel-emoji-btn { opacity: 0.35; pointer-events: none; }
+  /* Reactions float up from the sender's side of the VS banner */
+  .duel-game-react {
+    position: fixed; top: 18%; font-size: 38px;
+    pointer-events: none; z-index: 9999;
+    animation: duel-game-react-up 1.5s ease-out both;
+  }
+  .duel-game-react.mine   { left: 22%; }
+  .duel-game-react.theirs { right: 22%; }
+  @keyframes duel-game-react-up {
+    0%   { transform: translateY(20px) scale(0.5); opacity: 0; }
+    15%  { transform: translateY(0)    scale(1.15); opacity: 1; }
+    100% { transform: translateY(-70px) scale(1); opacity: 0; }
+  }
+
+  /* ── POWER-UP BAR (signed-in players, all modes) ────────── */
+  .powerup-bar {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    display: none; gap: 10px; z-index: 401;
+    background: rgba(9,15,80,0.85); backdrop-filter: blur(6px);
+    border: 1px solid rgba(33,150,243,0.4);
+    border-radius: var(--radius-pill); padding: 6px 10px;
+  }
+  /* In duels the emoji bar owns the bottom slot — power-ups sit above it */
+  .powerup-bar.raised { bottom: 68px; }
+  .powerup-btn {
+    position: relative;
+    width: 42px; height: 42px; border-radius: 50%;
+    background: rgba(33,150,243,0.15); border: 1px solid rgba(33,150,243,0.45);
+    font-size: 18px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+  .powerup-btn:active { transform: scale(0.85); }
+  .powerup-btn:disabled { opacity: 0.3; pointer-events: none; }
+  .powerup-count {
+    position: absolute; top: -4px; right: -4px;
+    font-family: var(--font-pixel); font-size: 5px; color: var(--text-dark);
+    background: var(--yellow); border-radius: var(--radius-pill);
+    padding: 2px 5px; pointer-events: none;
+  }
+  /* 2X badge shown while DOUBLE_POINTS is armed for this question */
+  #powerup-2x-badge {
+    position: fixed; top: 20%; right: 12px; z-index: 402; display: none;
+    font-family: var(--font-pixel); font-size: 9px; color: var(--yellow);
+    background: rgba(255,217,61,0.14); border: 1.5px solid rgba(255,217,61,0.5);
+    border-radius: var(--radius-pill); padding: 8px 12px;
+    animation: pu-2x-pulse 1.2s ease infinite;
+  }
+  @keyframes pu-2x-pulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(255,217,61,0.25); }
+    50%      { box-shadow: 0 0 18px rgba(255,217,61,0.55); }
+  }
+  /* Frozen / stolen timer flash cues */
+  .timer-freeze-flash { animation: pu-freeze 0.9s ease; }
+  @keyframes pu-freeze { 0% { filter: drop-shadow(0 0 18px #8fc7ff); } 100% { filter: none; } }
+  .timer-steal-flash { animation: pu-steal 0.9s ease; }
+  @keyframes pu-steal { 0% { filter: drop-shadow(0 0 18px #ef233c); } 100% { filter: none; } }
+
+  /* ── DUEL SCORE GAP CHIP ───────────────────────────────── */
+  .duel-gap-chip {
+    display: none; margin: 4px auto 0; width: fit-content;
+    font-family: var(--font-pixel); font-size: 7px; letter-spacing: 1px;
+    padding: 4px 10px; border-radius: var(--radius-pill);
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.6);
+  }
+  .duel-gap-chip.ahead  { color: var(--green, #2ecc71); border-color: rgba(46,204,113,0.4); }
+  .duel-gap-chip.behind { color: var(--red, #ef233c);   border-color: rgba(239,35,60,0.4); }
+  .duel-gap-chip.even   { color: var(--gold, #ffd166);  border-color: rgba(255,209,102,0.4); }
+
+  /* ── SUDDEN DEATH DRAMA ────────────────────────────────── */
+  .sd-flash {
+    position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: radial-gradient(circle, rgba(239,35,60,0.28), rgba(0,0,0,0.85));
+    animation: sd-flash-in 2.4s ease both;
+  }
+  .sd-flash .sd-skull { font-size: 64px; animation: sd-shake 0.4s ease infinite; }
+  .sd-flash .sd-title {
+    font-family: var(--font-pixel); font-size: 18px; color: #ef233c;
+    text-shadow: 0 0 18px rgba(239,35,60,0.8); margin-top: 12px; letter-spacing: 2px;
+  }
+  .sd-flash .sd-sub {
+    font-family: var(--font-pixel); font-size: 8px; color: rgba(255,255,255,0.85);
+    margin-top: 10px; letter-spacing: 1px;
+  }
+  @keyframes sd-flash-in { 0% { opacity: 0; } 10% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes sd-shake { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+  .timer-wrap.sudden-death #timer-circle { stroke: #ef233c !important; }
+  .timer-wrap.sudden-death .timer-number { color: #ef233c !important; animation: sd-pulse 0.8s ease infinite; }
+  @keyframes sd-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+
+  /* ── FINAL STRETCH 2X ──────────────────────────────────── */
+  .final-stretch-banner {
+    position: fixed; top: 24%; left: 50%; transform: translateX(-50%);
+    z-index: 9997; pointer-events: none;
+    font-family: var(--font-pixel); font-size: 13px; color: #ffd166;
+    text-shadow: 0 0 16px rgba(255,209,102,0.9); letter-spacing: 2px;
+    padding: 12px 18px; border-radius: 10px;
+    background: rgba(0,0,0,0.75); border: 2px solid rgba(255,209,102,0.6);
+    animation: fs-banner 2.2s ease both;
+  }
+  @keyframes fs-banner {
+    0% { opacity: 0; transform: translateX(-50%) scale(0.6); }
+    15% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+    80% { opacity: 1; transform: translateX(-50%) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) scale(1); }
+  }
+  .final-stretch-tag {
+    display: none; margin: 4px auto 0; width: fit-content;
+    font-family: var(--font-pixel); font-size: 6px; letter-spacing: 1px;
+    padding: 3px 8px; border-radius: var(--radius-pill);
+    color: #ffd166; background: rgba(255,209,102,0.12);
+    border: 1px solid rgba(255,209,102,0.4);
+    animation: fs-tag-pulse 1.4s ease infinite;
+  }
+  @keyframes fs-tag-pulse { 0%,100% { opacity: 0.75; } 50% { opacity: 1; } }
+
+  /* ── SPEED TIER CHIP (duel reveal) ─────────────────────── */
+  .speed-tier-chip {
+    position: fixed; top: 30%; left: 50%; transform: translateX(-50%);
+    z-index: 9996; pointer-events: none;
+    font-family: var(--font-pixel); font-size: 10px; letter-spacing: 1px;
+    padding: 8px 14px; border-radius: var(--radius-pill);
+    background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.25);
+    animation: tier-pop 1.6s ease both;
+  }
+  .speed-tier-chip.fast { color: #ffd166; border-color: rgba(255,209,102,0.6); }
+  .speed-tier-chip.mid  { color: #8fc7ff; border-color: rgba(143,199,255,0.6); }
+  .speed-tier-chip.slow { color: rgba(255,255,255,0.6); }
+  @keyframes tier-pop {
+    0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.7); }
+    15% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.08); }
+    75% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
   }
 
   /* ── PROGRESS STRIP ─────────────────────────────────────── */
@@ -476,6 +633,21 @@
       <span class="team-score-pts" id="tsb-b-pts">0</span>
     </div>
   </div>
+  <div class="duel-gap-chip z1" id="duel-gap-chip"></div>
+  <div class="final-stretch-tag z1" id="final-stretch-tag">🔥 FINAL STRETCH — 2X POINTS</div>
+
+  <!-- DUEL IN-GAME EMOJI BAR (duel mode only; presets match the server allowlist) -->
+  <div class="duel-emoji-bar" id="duel-emoji-bar">
+    <button class="duel-emoji-btn" onclick="duelGameReact('👏')">👏</button>
+    <button class="duel-emoji-btn" onclick="duelGameReact('😤')">😤</button>
+    <button class="duel-emoji-btn" onclick="duelGameReact('🔥')">🔥</button>
+    <button class="duel-emoji-btn" onclick="duelGameReact('😂')">😂</button>
+    <button class="duel-emoji-btn" onclick="duelGameReact('🤯')">🤯</button>
+  </div>
+
+  <!-- POWER-UP BAR (populated from State.user.powerups by _puRenderBar) -->
+  <div class="powerup-bar" id="powerup-bar"></div>
+  <div id="powerup-2x-badge">✨ 2X ARMED</div>
 
   <!-- PROGRESS STRIP -->
   <div class="game-progress-track z1" style="width:100%">
@@ -583,6 +755,7 @@ let _latestScores   = null;
 let _lastTickSecond = -1;
 let _myStreak       = 0;       // local streak mirror (updated from server broadcasts)
 let _streakTimeout  = null;    // used to time the shatter → hide transition
+let _finalStretchAnnounced = false; // duel: 2X banner shown once per match
 
 /** Called by router when screen becomes active */
 function onGameShow() {
@@ -602,11 +775,30 @@ function onGameShow() {
     topicEl.textContent = State.topic ? `${State.topic} · ${modeLabel}` : modeLabel;
   }
 
-  // Team banner setup
+  // Team banner setup — reused as a live YOU-vs-OPPONENT bar in duels
   const isTeam = State.playMode === 'team';
+  const isDuel = State.playMode === 'duel';
   const teamBanner = document.getElementById('team-score-banner');
-  if (teamBanner) teamBanner.style.display = isTeam ? 'flex' : 'none';
+  if (teamBanner) teamBanner.style.display = (isTeam || isDuel) ? 'flex' : 'none';
   if (isTeam) _updateTeamBanner({});
+  if (isDuel) _updateDuelBanner(State.scores || {});
+  if (isDuel) State._duelRecordCounted = false; // new match → results may count W/L once
+  _puUsedThisQuestion = {};
+  _puUsedThisDuel     = [];
+  _suddenDeath = false;
+  _finalStretchAnnounced = false;
+  document.getElementById('timer-wrap')?.classList.remove('sudden-death');
+  const gapChip = document.getElementById('duel-gap-chip');
+  if (gapChip) gapChip.style.display = 'none';
+  const fsTag = document.getElementById('final-stretch-tag');
+  if (fsTag) fsTag.style.display = 'none';
+  const puBar = document.getElementById('powerup-bar');
+  if (puBar) puBar.style.display = 'none'; // shown per-question by _puRenderBar
+  const emojiBar = document.getElementById('duel-emoji-bar');
+  if (emojiBar) {
+    emojiBar.style.display = isDuel ? 'flex' : 'none';
+    emojiBar.classList.remove('cooling');
+  }
 
   // Reset local per-game state
   _answered = false;
@@ -619,7 +811,34 @@ function onGameShow() {
   WS.on('ANSWER_REVEAL',           _onAnswerReveal);
   WS.on('INTERMISSION_LEADERBOARD',_onIntermissionLeaderboard);
   WS.on('GAME_OVER',               _onGameOver);
+  WS.on('SUDDEN_DEATH',            _onSuddenDeath);
+  WS.on('DUEL_PLAYER_ANSWERED',    _onDuelPlayerAnswered);
+  WS.on('DUEL_REACTION',           _onDuelGameReaction);
+  WS.on('POWERUP_5050',            _onPowerup5050);
+  WS.on('POWERUP_FREEZE',          _onPowerupFreeze);
+  WS.on('POWERUP_DOUBLE',          _onPowerupDouble);
+  WS.on('POWERUP_STEAL',           _onPowerupSteal);
+  WS.on('POWERUP_USED',            _onPowerupUsed);
   WS.on('ERROR', (d)               => Toast.error(d.message || 'Error'));
+}
+
+/* ── DUEL SUDDEN DEATH ──────────────────────────────────── */
+let _suddenDeath = false;
+
+function _onSuddenDeath(d) {
+  _suddenDeath = true;
+  _setPhaseLabel('☠️ SUDDEN DEATH');
+  Sound.gameStart();
+  const flash = document.createElement('div');
+  flash.className = 'sd-flash';
+  flash.innerHTML = `
+    <div class="sd-skull">☠️</div>
+    <div class="sd-title">SUDDEN DEATH</div>
+    <div class="sd-sub">ROUND ${d.round || 1} — NEXT QUESTION DECIDES IT</div>
+  `;
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 2400);
+  document.getElementById('timer-wrap')?.classList.add('sudden-death');
 }
 
 /* ── STREAK UI ──────────────────────────────────────────── */
@@ -724,6 +943,25 @@ function _onQuestion(data) {
   State.phase  = data.phase || 'question';
   State.currentQ = data;
   _setPhaseLabel('QUESTION LIVE');
+
+  // Fresh question → per-question power-up state resets
+  _puUsedThisQuestion = {};
+  const twoXBadge = document.getElementById('powerup-2x-badge');
+  if (twoXBadge) twoXBadge.style.display = 'none';
+  _puRenderBar();
+
+  // Duel FINAL STRETCH (last 3 main questions = 2x points)
+  const fsTag = document.getElementById('final-stretch-tag');
+  if (fsTag) fsTag.style.display = data.final_stretch ? 'block' : 'none';
+  if (data.final_stretch && !_finalStretchAnnounced) {
+    _finalStretchAnnounced = true;
+    const banner = document.createElement('div');
+    banner.className = 'final-stretch-banner';
+    banner.textContent = '🔥 FINAL STRETCH — 2X POINTS!';
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 2200);
+    Sound.gameStart?.();
+  }
 
   _clearLeaderboardTimers();
   _hideLB();
@@ -837,6 +1075,7 @@ function gameAnswer(choiceIndex) {
   const timeMs = Date.now() - (_timerStart || Date.now());
   WS.send({ action: 'answer', choice: choiceIndex, time_ms: timeMs });
   _disableOptions(choiceIndex);
+  _puRenderBar(); // answered → all power-up buttons disable
 }
 
 function _disableOptions(chosenIdx = null) {
@@ -920,6 +1159,24 @@ function _onAnswerReveal(data) {
 
   // Update team banner
   if (data.team_scores) _updateTeamBanner(data);
+  if (State.playMode === 'duel') {
+    _updateDuelBanner(_latestScores || {});
+    // Speed-tier feedback: show which speed bracket your correct answer hit.
+    if (isCorrect && data.speed_tiers) {
+      const tier = data.speed_tiers[State.playerName];
+      const gained = (data.points_gained && data.points_gained[State.playerName]) || 0;
+      const label = tier === 'fast' ? `⚡ FAST +${gained}`
+                  : tier === 'mid'  ? `🕐 QUICK +${gained}`
+                  : tier === 'slow' ? `🐢 +${gained}` : '';
+      if (label) {
+        const chip = document.createElement('div');
+        chip.className = `speed-tier-chip ${tier}`;
+        chip.textContent = label;
+        document.body.appendChild(chip);
+        setTimeout(() => chip.remove(), 1600);
+      }
+    }
+  }
 }
 
 /* ── LEADERBOARD ─────────────────────────────────────────── */
@@ -1028,6 +1285,176 @@ function _updateTeamBanner(data) {
   if (data.teams) { State.teams = data.teams; }
 }
 
+/* ── DUEL BANNER (reuses team banner slots: A = you, B = opponent) ── */
+
+function _onDuelPlayerAnswered(d) {
+  if (!d || d.name === State.playerName) return;
+  // Opponent locked in — flash a "LOCKED IN" cue on their HUD side.
+  const nameB = document.getElementById('tsb-b-name');
+  const sideB = document.getElementById('tsb-b');
+  if (nameB) nameB.textContent = '✓ LOCKED IN';
+  if (sideB) {
+    sideB.classList.add('duel-answered');
+    setTimeout(() => sideB.classList.remove('duel-answered'), 900);
+  }
+}
+
+/* ── DUEL IN-GAME EMOJI REACTIONS ────────────────────────── */
+
+const DUEL_REACT_COOLDOWN_MS = 2500; // spam guard — one reaction per 2.5s
+
+function duelGameReact(emoji) {
+  const bar = document.getElementById('duel-emoji-bar');
+  if (!bar || bar.classList.contains('cooling')) return;
+  Sound.click();
+  _floatDuelGameReaction(emoji, true);
+  if (State.ws?.readyState === WebSocket.OPEN) {
+    WS.send({ action: 'duel_reaction', emoji });
+  }
+  bar.classList.add('cooling');
+  setTimeout(() => bar.classList.remove('cooling'), DUEL_REACT_COOLDOWN_MS);
+}
+
+/* ── POWER-UPS ───────────────────────────────────────────── */
+
+// Ordered ids + icons mirror the server catalog in powerups.py.
+const PU_CATALOG = [
+  { id: 'fifty_fifty',   icon: '➗' },
+  { id: 'time_freeze',   icon: '❄️' },
+  { id: 'double_points', icon: '✨' },
+  { id: 'time_steal',    icon: '⏳', duelOnly: true },
+];
+let _puUsedThisQuestion = {};   // id → true (client-side echo of server rule)
+let _puUsedThisDuel     = [];   // ids used across the whole duel (max 2, distinct)
+
+function _puRenderBar() {
+  const bar = document.getElementById('powerup-bar');
+  if (!bar) return;
+  const inv = State.user?.powerups || {};
+  const isDuel = State.playMode === 'duel';
+  const usable = PU_CATALOG.filter(p =>
+    (isDuel || !p.duelOnly) && Number(inv[p.id] || 0) > 0
+  );
+  if (!State.user || !usable.length) { bar.style.display = 'none'; return; }
+
+  bar.classList.toggle('raised', isDuel); // emoji bar owns the bottom slot in duels
+  bar.innerHTML = usable.map(p => {
+    const disabled = _answered
+      || _puUsedThisQuestion[p.id]
+      || (isDuel && (_puUsedThisDuel.length >= 2 || _puUsedThisDuel.includes(p.id)));
+    return `<button class="powerup-btn" ${disabled ? 'disabled' : ''} onclick="puUse('${p.id}')">
+      ${p.icon}<span class="powerup-count">×${inv[p.id]}</span>
+    </button>`;
+  }).join('');
+  bar.style.display = 'flex';
+}
+
+function puUse(id) {
+  if (_answered || _puUsedThisQuestion[id]) return;
+  Sound.click();
+  _puUsedThisQuestion[id] = true;
+  if (State.playMode === 'duel') _puUsedThisDuel.push(id);
+  // Optimistic decrement — server is authoritative; an ERROR reply just
+  // means the effect never arrives and the shop resyncs the real count.
+  if (State.user?.powerups) {
+    State.user.powerups[id] = Math.max(0, Number(State.user.powerups[id] || 0) - 1);
+    Session.save();
+  }
+  WS.send({ action: 'use_powerup', powerup_id: id, user_id: State.user?.id });
+  if (typeof Analytics !== 'undefined') {
+    Analytics.logEvent('powerup_used', { powerup_id: id, play_mode: State.playMode }).catch?.(() => {});
+  }
+  _puRenderBar();
+}
+
+function _onPowerup5050(d) {
+  // Hide the two server-chosen wrong options.
+  (d.remove || []).forEach(i => {
+    const btn = document.querySelector(`#game-options-grid .option-btn[data-idx="${i}"]`);
+    if (btn) { btn.style.opacity = '0.15'; btn.style.pointerEvents = 'none'; }
+  });
+  Toast.success('50/50 — two wrong answers removed!');
+}
+
+function _puShiftTimer(deltaMs) {
+  // Restart the local countdown with adjusted remaining time; the server
+  // deadline was already adjusted (freeze) or unchanged-for-me (steal is
+  // cosmetic pressure on the victim's local clock only if server said so).
+  if (_answered || _timerStart == null) return;
+  const elapsed   = Date.now() - _timerStart;
+  const remaining = Math.max(600, (State.timeLimitMs || TIME_LIMIT_MS) - elapsed + deltaMs);
+  State.timeLimitMs = remaining;
+  _startTimer(remaining);
+}
+
+function _onPowerupFreeze(d) {
+  _puShiftTimer((d.seconds || 5) * 1000);
+  const wrap = document.getElementById('timer-wrap');
+  if (wrap) { wrap.classList.add('timer-freeze-flash'); setTimeout(() => wrap.classList.remove('timer-freeze-flash'), 950); }
+  Toast.success(`❄️ +${d.seconds || 5} SECONDS!`);
+}
+
+function _onPowerupDouble() {
+  const badge = document.getElementById('powerup-2x-badge');
+  if (badge) badge.style.display = 'block';
+  Toast.success('✨ 2X POINTS ARMED — make it count!');
+}
+
+function _onPowerupSteal(d) {
+  _puShiftTimer(-(d.seconds || 5) * 1000);
+  const wrap = document.getElementById('timer-wrap');
+  if (wrap) { wrap.classList.add('timer-steal-flash'); setTimeout(() => wrap.classList.remove('timer-steal-flash'), 950); }
+  Toast.error(`⏳ ${(d.from || 'Opponent')} stole ${d.seconds || 5} seconds from you!`);
+  Sound.wrong?.();
+}
+
+function _onPowerupUsed(d) {
+  if (!d || d.name === State.playerName) return;
+  // Opponent/roommate used a power-up — show who and what for stakes.
+  Toast.info(`${d.icon || '⚡'} ${(d.name || 'A player')} used ${d.label || 'a power-up'}!`);
+}
+
+function _onDuelGameReaction(d) {
+  if (!d || d.from === State.playerName) return;
+  _floatDuelGameReaction(d.emoji || '👏', false);
+}
+
+function _floatDuelGameReaction(emoji, mine) {
+  const el = document.createElement('div');
+  el.className = 'duel-game-react ' + (mine ? 'mine' : 'theirs');
+  el.textContent = emoji;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1600);
+}
+
+function _updateDuelBanner(scores) {
+  const me  = State.playerName;
+  const opp = Object.keys(scores).find(n => n !== me)
+           || State.duelOpponent
+           || 'OPPONENT';
+  const nameA = document.getElementById('tsb-a-name');
+  const ptsA  = document.getElementById('tsb-a-pts');
+  const nameB = document.getElementById('tsb-b-name');
+  const ptsB  = document.getElementById('tsb-b-pts');
+  const sideA = document.getElementById('tsb-a');
+  if (nameA) nameA.textContent = 'YOU';
+  if (nameB) nameB.textContent = opp;
+  if (ptsA)  ptsA.textContent  = (scores[me]  || 0).toLocaleString();
+  if (ptsB)  ptsB.textContent  = (scores[opp] || 0).toLocaleString();
+  if (sideA) sideA.classList.add('my-team');
+
+  // Live score-gap chip: always know if you're ahead, behind, or level.
+  const chip = document.getElementById('duel-gap-chip');
+  if (chip) {
+    const gap = (scores[me] || 0) - (scores[opp] || 0);
+    chip.style.display = 'block';
+    chip.classList.remove('ahead', 'behind', 'even');
+    if (gap > 0)      { chip.classList.add('ahead');  chip.textContent = `▲ AHEAD BY ${gap}`; }
+    else if (gap < 0) { chip.classList.add('behind'); chip.textContent = `▼ BEHIND BY ${-gap}`; }
+    else              { chip.classList.add('even');   chip.textContent = '⚡ ALL TIED UP'; }
+  }
+}
+
 function _showLB() {
   const overlay = document.getElementById('lb-overlay');
   if (overlay) { overlay.classList.add('visible'); overlay.setAttribute('aria-hidden','false'); }
@@ -1059,7 +1486,7 @@ async function _onGameOver(data) {
       play_mode: State.playMode,
       score: myScore,
       total_questions: data.total_questions || State.totalQ,
-      is_quick_pick: isQuickPickTopic ? isQuickPickTopic(State.topic || '') : null,
+      is_quick_pick: typeof isQuickPickTopic === 'function' ? isQuickPickTopic(State.topic || '') : null,
     });
   }
   if (data.economy && data.economy[State.playerName]) {
@@ -1072,16 +1499,11 @@ async function _onGameOver(data) {
 
   
 
-  // ── Daily streak update ───────────────────────────────────
+  // ── Daily streak update — background, never blocks the results screen ──
   if (State.user?.id && typeof lbUpdateDailyStreak === 'function') {
-    try {
-      const newStreak = await lbUpdateDailyStreak(State.user.id);
-      if (newStreak !== null) {
-        State._homeStreak = newStreak;   // cached for home screen stat display
-      }
-    } catch (e) {
-      console.warn('[Streak] Update failed silently:', e);
-    }
+    lbUpdateDailyStreak(State.user.id)
+      .then(newStreak => { if (newStreak !== null) State._homeStreak = newStreak; })
+      .catch(e => console.warn('[Streak] Update failed silently:', e));
   }
   //Cancel today's reminder since they just played, reschedule for tomorrow
   StreakNotif.cancel();
@@ -1108,15 +1530,20 @@ function _escHtml(s) {
 function leaveModalOpen() {
   const isSolo = State.playMode === 'solo';
   const isMulti = State.playMode === 'classic' || State.playMode === 'team';
+  const isDuel = State.playMode === 'duel';
 
   const items = [];
 
   if (isMulti && State.user) {
     items.push('💰 25 coin entry fee (not refunded)');
   }
+  if (isDuel) {
+    items.push('☠️ You forfeit — opponent wins the pot');
+    items.push('🏆 −5 trophies for the loss');
+  }
   items.push('📊 All score progress this round');
   if (isSolo) {
-    items.push('🏆 Trophy changes for this session');
+    items.push('💰 Coin rewards for this session');
   }
   if (isMulti) {
     items.push('🏆 Your spot in the winner pool');
@@ -1150,6 +1577,8 @@ function leaveModalConfirm() {
   WS.off('ANSWER_REVEAL');
   WS.off('INTERMISSION_LEADERBOARD');
   WS.off('GAME_OVER');
+  WS.off('SUDDEN_DEATH');
+  WS.off('DUEL_REACTION');
   if (State.ws) { State.ws.close(); State.ws = null; }
   goTo('home');
 }

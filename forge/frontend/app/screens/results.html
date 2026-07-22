@@ -162,6 +162,43 @@
 
   /* ── ACTIONS ─────────────────────────────────────────────── */
   .results-actions { width: 100%; display: flex; flex-direction: column; gap: 14px; margin-top: 10px; padding-bottom: 20px; }
+
+  /* ── DUEL ────────────────────────────────────────────────── */
+  .duel-result-banner {
+    width: 100%; border-radius: var(--radius-lg); padding: 24px 20px;
+    text-align: center; display: flex; flex-direction: column; gap: 10px;
+    animation: winner-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  .duel-result-banner.win  { background: linear-gradient(135deg, rgba(255,217,61,0.22), rgba(255,217,61,0.08)); border: 2px solid rgba(255,217,61,0.55); box-shadow: 0 0 30px rgba(255,217,61,0.18); }
+  .duel-result-banner.loss { background: rgba(239,35,60,0.10); border: 2px solid rgba(239,35,60,0.4); }
+  .duel-result-banner.tie  { background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.2); }
+  .duel-result-emoji { font-size: 48px; }
+  .duel-result-title { font-family: var(--font-pixel); font-size: 15px; color: var(--white); letter-spacing: 1px; line-height: 1.5; }
+  .duel-result-sub   { font-family: var(--font-pixel); font-size: 7px; color: rgba(255,255,255,0.55); letter-spacing: 0.5px; line-height: 2; }
+  .duel-score-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; margin-top: 6px; }
+  .duel-score-cell { padding: 10px; border-radius: var(--radius-md); background: rgba(255,255,255,0.05); }
+  .duel-score-cell.me { background: rgba(255,217,61,0.12); }
+  .duel-score-cell-name { font-family: var(--font-pixel); font-size: 7px; color: rgba(255,255,255,0.55); margin-bottom: 4px; word-break: break-word; }
+  .duel-score-cell-pts  { font-family: var(--font-pixel); font-size: 14px; color: var(--white); }
+  .duel-reactions-row { display: flex; justify-content: center; gap: 14px; margin-top: 4px; }
+  .duel-reaction-btn {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.18);
+    font-size: 24px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s;
+  }
+  .duel-reaction-btn:active { transform: scale(0.9); }
+  .duel-reaction-float {
+    position: fixed; left: 50%; bottom: 30%; transform: translateX(-50%);
+    font-size: 44px; pointer-events: none; z-index: 9999;
+    animation: duel-react-up 1.4s ease-out both;
+  }
+  @keyframes duel-react-up {
+    from { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
+    20%  { opacity: 1; }
+    to   { transform: translate(-50%, -140px) scale(1.25); opacity: 0; }
+  }
+  .duel-rematch-note { font-family: var(--font-pixel); font-size: 7px; color: rgba(255,255,255,0.5); text-align: center; letter-spacing: 0.5px; line-height: 2; }
 </style>
 
 <div class="results-wrap" id="results-wrap">
@@ -179,6 +216,9 @@
 
     <!-- A. TEAM WINNER BANNER (team mode only) -->
     <div id="team-winner-section" style="display:none;"></div>
+
+    <!-- A2. DUEL RESULT BANNER (duel mode only) -->
+    <div id="duel-result-section" style="display:none;"></div>
 
     <!-- B. PODIUM (classic + team) -->
     <div id="classic-podium-wrap" style="display:none;">
@@ -228,6 +268,18 @@
 
   <!-- ACTIONS -->
   <div class="results-actions z1">
+    <div id="results-actions-duel" style="display:none;flex-direction:column;gap:14px;">
+      <div class="duel-reactions-row">
+        <button class="duel-reaction-btn" onclick="duelSendReaction('👏')">👏</button>
+        <button class="duel-reaction-btn" onclick="duelSendReaction('😤')">😤</button>
+        <button class="duel-reaction-btn" onclick="duelSendReaction('🔥')">🔥</button>
+        <button class="duel-reaction-btn" onclick="duelSendReaction('😂')">😂</button>
+        <button class="duel-reaction-btn" onclick="duelSendReaction('🤯')">🤯</button>
+      </div>
+      <button class="btn btn-primary" id="duel-rematch-btn" onclick="duelRequestRematch()">🔄 &nbsp;REMATCH</button>
+      <p class="duel-rematch-note" id="duel-rematch-note" style="display:none;"></p>
+      <button class="btn btn-secondary" onclick="duelResultsHome()">🏠 &nbsp;BACK TO HOME</button>
+    </div>
     <div id="results-actions-normal" style="display:flex;flex-direction:column;gap:14px;">
       <button class="btn btn-primary" onclick="resultsPlayAgain()">🔄 &nbsp;PLAY AGAIN</button>
       <button class="btn btn-secondary" onclick="resultsBackToHome()">🏠 &nbsp;BACK TO HOME</button>
@@ -278,6 +330,7 @@ function onResultsShow() {
 
   const isSolo  = State.playMode === 'solo';
   const isTeam  = State.playMode === 'team';
+  const isDuel  = State.playMode === 'duel';
 
   // Element refs
   const podiumWrap     = document.getElementById('classic-podium-wrap');
@@ -323,6 +376,19 @@ function onResultsShow() {
       Object.entries(teamScores).every(([tid, s]) => tid === myTeam || s <= teamScores[myTeam]);
     if (trophy) trophy.textContent = myTeamWon ? '🏆' : '🎮';
 
+  } else if (isDuel) {
+    podiumWrap.style.display  = 'none';
+    lbList.style.display      = 'block';
+    soloNest.style.display    = 'none';
+    teamSection.style.display = 'none';
+    lbTitle.textContent       = '⚔️ FINAL SCORES';
+    myResultLabel.textContent = 'YOUR FINAL SCORE';
+    _renderDuelResult();
+
+    const sortedD = Object.entries(State.scores || {}).sort((a,b) => b[1]-a[1]);
+    _renderFullLB(sortedD, sortedD[0]?.[1] || 1, false);
+    _renderMyResult(sortedD);
+
   } else {
     // Classic
     podiumWrap.style.display  = 'block';
@@ -347,7 +413,14 @@ function onResultsShow() {
   const challengeBtn = document.getElementById('challenge-friend-btn');
   if (challengeBtn) challengeBtn.style.display = isSolo ? 'flex' : 'none';
 
-  if (State.ws) { State.ws.close(); State.ws = null; }
+  // Duel keeps the room socket alive for rematch/reactions; every other
+  // mode is done with it here.
+  if (isDuel) {
+    _duelResultsBind();
+  } else {
+    document.getElementById('results-actions-duel').style.display = 'none';
+    if (State.ws) { State.ws.close(); State.ws = null; }
+  }
   _renderEconomyResult();
   setTimeout(() => Sound.startBgMusic(), 1200);
 }
@@ -443,8 +516,37 @@ async function resultsBackToHome() {
 
   if (isSoloQuickPick && window.Capacitor?.isNativePlatform?.() && typeof Interstitial !== 'undefined') {
     await Interstitial.show();
+  } else {
+    await _maybeShowMultiplayerInterstitial();
   }
   resultsGoHome();
+}
+
+/* Classic/Team results exit interstitial — tap-driven, mirrors the duel-exit
+   ad. Skipped when the player already watched a rewarded ad on this screen
+   (Double Winnings / Entry Fee Recovery) so we never stack two ads, and
+   frequency-capped to every 2nd multiplayer exit so it isn't oppressive. */
+async function _maybeShowMultiplayerInterstitial() {
+  const isMultiplayer = State.playMode === 'classic' || State.playMode === 'team';
+  if (!isMultiplayer) return;
+  if (_doubleWinAdUsed || _entryFeeAdUsed) return;   // already showed an ad here
+  if (!window.Capacitor?.isNativePlatform?.() || typeof Interstitial === 'undefined') return;
+
+  const key = 'forge_mp_exit_count';
+  const count = Number(localStorage.getItem(key) || 0) + 1;
+  if (count < 2) {
+    localStorage.setItem(key, String(count));
+    return;
+  }
+  localStorage.setItem(key, '0');
+  try {
+    await Interstitial.show();
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('interstitial_shown', { trigger: 'multiplayer_results_exit', play_mode: State.playMode });
+    }
+  } catch (e) {
+    console.warn('[Ad] Multiplayer-exit interstitial skipped:', e);
+  }
 }
 
 /** Dispatches the solo-double variant's secondary button by topic type. */
@@ -527,10 +629,15 @@ function _renderEconomyResult() {
   const coinText = coinDelta === 0
     ? '0 COINS'
     : (coinDelta > 0 ? '+' : '') + fmt(coinDelta) + ' COINS';
+  // Solo no longer touches trophies (they're Duel-only rank now) — hide the
+  // trophy segment entirely there instead of showing a confusing "0 TROPHIES".
+  const isSolo = State.playMode === 'solo';
   const trophyText = trophyDelta === 0
     ? '0 TROPHIES'
     : (trophyDelta > 0 ? '+' : '') + fmt(trophyDelta) + ' TROPHIES';
-  el.textContent = coinText + ' · ' + trophyText + ' · BALANCE ' + fmt(economy.coins) + ' COINS / ' + fmt(economy.trophies) + ' TROPHIES';
+  el.textContent = isSolo && trophyDelta === 0
+    ? coinText + ' · BALANCE ' + fmt(economy.coins) + ' COINS'
+    : coinText + ' · ' + trophyText + ' · BALANCE ' + fmt(economy.coins) + ' COINS / ' + fmt(economy.trophies) + ' TROPHIES';
   if (note) note.textContent = State.user ? '' : 'Play without Google if you want. Progress, coins, and trophies only save when you sign in.';
   _maybeShowEntryFeeRecovery(economy);
   _maybeShowDoubleWinnings(economy);
@@ -545,6 +652,13 @@ function _maybeShowSoloDoubleCoins(economy) {
   if (!normalWrap || !doubleWrap) return;
 
   const isSolo = State.playMode === 'solo';
+  const isDuel = State.playMode === 'duel';
+  if (isDuel) {
+    // Duel has its own action block (rematch/reactions/home).
+    normalWrap.style.display = 'none';
+    doubleWrap.style.display = 'none';
+    return;
+  }
   const earnedCoins = Number(economy?.coins_delta || 0) > 0;
   const canShow = isSolo && earnedCoins && State.user && !_soloDoubleUsed
     && typeof RewardedAd !== 'undefined' && window.Capacitor?.isNativePlatform?.();
@@ -905,6 +1019,150 @@ function resultsGoHome() {
   State.teams = {}; State.teamScores = {};
   if (State.ws) { State.ws.close(); State.ws = null; }
   goTo('home');
+}
+
+/* ── DUEL RESULTS (banner + rematch + reactions) ─────────── */
+
+let _duelRematchAsked = false;
+
+function _renderDuelResult() {
+  const section = document.getElementById('duel-result-section');
+  if (!section) return;
+  section.style.display = 'block';
+
+  const stats   = State.resultStats || {};
+  const winner  = stats.duel_winner || null;
+  const me      = State.playerName;
+  const iWon    = winner === me;
+  const tie     = !winner;
+  const isBot   = !!stats.is_bot_match;
+  const scores  = State.scores || {};
+  const names   = Object.keys(scores);
+  const oppName = names.find(n => n !== me) || '???';
+
+  // Lifetime duel record (human matches only — bot practice doesn't count),
+  // client-side in localStorage; shown on the Profile screen.
+  if (!isBot && !State._duelRecordCounted) {
+    State._duelRecordCounted = true; // rematches re-enter results — count once per match
+    try {
+      const key = tie ? 'forge_duel_ties' : (iWon ? 'forge_duel_wins' : 'forge_duel_losses');
+      localStorage.setItem(key, String(Number(localStorage.getItem(key) || 0) + 1));
+    } catch (_) {}
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('duel_completed', {
+        outcome: tie ? 'tie' : (iWon ? 'win' : 'loss'),
+        is_forfeit: !!stats.is_forfeit,
+        sudden_death_rounds: Number(stats.sudden_death_count || 0),
+        my_score: Number(scores[me] || 0),
+      });
+      if (stats.sudden_death_count) {
+        Analytics.logEvent('sudden_death_reached', { rounds: Number(stats.sudden_death_count) });
+      }
+    }
+  }
+
+  const cls   = tie ? 'tie' : (iWon ? 'win' : 'loss');
+  const emoji = tie ? '🤝' : (iWon ? '🏆' : '💀');
+  const title = tie ? "IT'S A DRAW!" : (iWon ? 'VICTORY!' : 'DEFEAT');
+  let sub = '';
+  if (stats.is_forfeit)             sub = iWon ? 'OPPONENT FORFEITED — YOU WIN' : 'YOU FORFEITED THE DUEL';
+  else if (stats.sudden_death_count) sub = `DECIDED IN SUDDEN DEATH (ROUND ${stats.sudden_death_count})`;
+  if (isBot) sub += (sub ? '<br>' : '') + 'PRACTICE MATCH — NO TROPHIES AT STAKE';
+
+  section.innerHTML = '<div class="duel-result-banner ' + cls + '">' +
+    '<span class="duel-result-emoji">' + emoji + '</span>' +
+    '<p class="duel-result-title">' + title + '</p>' +
+    (sub ? '<p class="duel-result-sub">' + sub + '</p>' : '') +
+    '<div class="duel-score-row">' +
+      '<div class="duel-score-cell me">' +
+        '<p class="duel-score-cell-name">' + _escHtml(me) + '</p>' +
+        '<p class="duel-score-cell-pts">' + Number(scores[me] || 0).toLocaleString() + '</p>' +
+      '</div>' +
+      '<span class="team-vs-divider">VS</span>' +
+      '<div class="duel-score-cell">' +
+        '<p class="duel-score-cell-name">' + _escHtml(oppName) + '</p>' +
+        '<p class="duel-score-cell-pts">' + Number(scores[oppName] || 0).toLocaleString() + '</p>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  const trophyEl = document.getElementById('results-trophy');
+  if (trophyEl) trophyEl.textContent = emoji;
+  const titleEl = document.getElementById('results-title');
+  if (titleEl) titleEl.textContent = 'DUEL OVER!';
+}
+
+function _duelResultsBind() {
+  _duelRematchAsked = false;
+  const duelActions = document.getElementById('results-actions-duel');
+  const normalWrap  = document.getElementById('results-actions-normal');
+  if (duelActions) duelActions.style.display = 'flex';
+  if (normalWrap)  normalWrap.style.display  = 'none';
+  const btn  = document.getElementById('duel-rematch-btn');
+  const note = document.getElementById('duel-rematch-note');
+  if (btn)  { btn.disabled = false; btn.textContent = '🔄  REMATCH'; }
+  if (note) note.style.display = 'none';
+
+  const alive = State.ws && State.ws.readyState === WebSocket.OPEN;
+  if (btn && !alive) { btn.disabled = true; btn.textContent = '🔄  REMATCH UNAVAILABLE'; }
+
+  WS.on('DUEL_REMATCH_UPDATE', (d) => {
+    const votes = d.votes || [];
+    if (note && votes.length === 1 && !votes.includes(State.playerName)) {
+      note.textContent = 'OPPONENT WANTS A REMATCH — TAP TO ACCEPT!';
+      note.style.display = 'block';
+    }
+  });
+  WS.on('DUEL_TOPIC_PICK', (d) => {
+    // Rematch accepted by both — route back through the duel screen's pick UI.
+    WS.off('DUEL_REMATCH_UPDATE'); WS.off('DUEL_TOPIC_PICK'); WS.off('DUEL_REACTION');
+    State._duelRematchPick = true;
+    State._duelPickOptions = d.options || [];
+    State.scores = {};
+    goTo('duel');
+  });
+  WS.on('DUEL_REACTION', (d) => {
+    if (!d || d.from === State.playerName) return;
+    _duelFloatReaction(d.emoji || '👏');
+  });
+}
+
+function duelRequestRematch() {
+  if (_duelRematchAsked) return;
+  Sound.click();
+  if (!State.ws || State.ws.readyState !== WebSocket.OPEN) {
+    Toast.error('Connection lost — rematch unavailable. Queue again from the Arena.');
+    return;
+  }
+  _duelRematchAsked = true;
+  WS.send({ action: 'duel_rematch' });
+  const btn = document.getElementById('duel-rematch-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳  WAITING FOR OPPONENT…'; }
+}
+
+function duelSendReaction(emoji) {
+  Sound.click();
+  _duelFloatReaction(emoji);
+  if (State.ws?.readyState === WebSocket.OPEN) {
+    WS.send({ action: 'duel_reaction', emoji });
+  }
+}
+
+function _duelFloatReaction(emoji) {
+  const el = document.createElement('div');
+  el.className = 'duel-reaction-float';
+  el.textContent = emoji;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+async function duelResultsHome() {
+  Sound.click();
+  ['DUEL_REMATCH_UPDATE','DUEL_TOPIC_PICK','DUEL_REACTION'].forEach(t => WS.off(t));
+  if (window.Capacitor?.isNativePlatform?.() && typeof Interstitial !== 'undefined') {
+    try { await Interstitial.show(); } catch (e) { console.warn('[Ad] Duel-exit interstitial skipped:', e); }
+  }
+  resultsGoHome();
 }
 
 function _escHtml(s) {

@@ -72,6 +72,19 @@ def is_quick_pick_topic(topic: str) -> bool:
     return canonical_quick_pick_topic(topic) is not None
 
 
+def bank_topics_with_questions(min_count: int = 13) -> list[str]:
+    """
+    Return canonical topics that actually have at least `min_count` usable
+    questions in the bank — the safe pool for modes (like Duels) that draw
+    exclusively from the bank and have no Gemini fallback.
+    """
+    bank = _load_bank()
+    return [
+        t for t in QUICK_PICK_TOPICS
+        if isinstance(bank.get(t), list) and len(bank[t]) >= min_count
+    ]
+
+
 def _load_bank() -> dict[str, list[dict[str, Any]]]:
     """
     Load and validate the Quick Picks bank once per process.

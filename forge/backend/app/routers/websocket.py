@@ -85,8 +85,32 @@ from app.services.profiles import (
     can_afford_entry,
     solo_rewards,
 )
+from app.services.powerups import (
+    DUEL_MAX_POWERUPS_PER_MATCH,
+    FREEZE_BONUS_SECONDS,
+    POWERUP_CATALOG,
+    STEAL_SECONDS,
+    allowed_in_mode,
+    consume as consume_powerup,
+)
 from app.services.tickets import TicketError, refund_generation, use_generation
-from app.services.quick_picks import is_quick_pick_topic, get_quick_pick_questions
+from app.services.quick_picks import (
+    QUICK_PICK_TOPICS,
+    is_quick_pick_topic,
+    get_quick_pick_questions,
+)
+from app.services.duels import (
+    DUEL_BOT_WIN_COINS,
+    DUEL_QUESTION_COUNT,
+    DUEL_RESERVE_QUESTIONS,
+    DUEL_SUDDEN_DEATH_MAX,
+    DUEL_TROPHY_LOSS,
+    DUEL_TROPHY_WIN,
+    bot_answer_choice,
+    bot_answer_delay_secs,
+    duel_winner_name,
+    record_h2h_win,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -189,6 +213,43 @@ def calculate_score(time_ms: int, time_limit_ms: int, streak: int) -> int:
     return int(base * multiplier)
 
 
+# Duel scoring (Milestone 64): the near-continuous 500–1000 speed curve made
+# exact score ties (and therefore sudden death) practically impossible in
+# head-to-head play. Duels instead use coarse tiers so equal-skill matches
+# genuinely land on equal scores. No streak multiplier — 10 questions is too
+# short for streak math to feel fair, and it multiplies away tie-ability.
+DUEL_BASE_CORRECT      = 100
+DUEL_FAST_BONUS        = 50   # answered within first 1/3 of the timer
+DUEL_MID_BONUS         = 25   # within first 2/3
+DUEL_FINAL_STRETCH_Q   = 3    # last N main questions are worth double
+DUEL_FINAL_STRETCH_MUL = 2
+
+
+def duel_speed_tier(time_ms: int, time_limit_ms: int) -> str:
+    clamped = max(0, min(time_ms, time_limit_ms))
+    if clamped <= time_limit_ms / 3:
+        return "fast"
+    if clamped <= time_limit_ms * 2 / 3:
+        return "mid"
+    return "slow"
+
+
+def calculate_duel_score(time_ms: int, time_limit_ms: int) -> tuple[int, str]:
+    """Return (points, speed_tier) for a correct duel answer."""
+    tier  = duel_speed_tier(time_ms, time_limit_ms)
+    bonus = {"fast": DUEL_FAST_BONUS, "mid": DUEL_MID_BONUS}.get(tier, 0)
+    return DUEL_BASE_CORRECT + bonus, tier
+
+
+def _duel_is_final_stretch(room) -> bool:
+    """Last 3 questions of the MAIN duel set (never sudden-death extras)."""
+    return (
+        room.play_mode == PlayMode.DUEL
+        and room.current_q_index >= DUEL_QUESTION_COUNT - DUEL_FINAL_STRETCH_Q
+        and room.current_q_index < DUEL_QUESTION_COUNT
+    )
+
+
 # ── Team helpers ──────────────────────────────────────────────────────────────
 
 def _team_scores(room) -> dict[str, int]:
@@ -212,6 +273,9 @@ def _round_payload(room) -> dict[str, Any]:
         "play_mode":     room.play_mode.value,
         "streaks":       {n: p.streak for n, p in room.players.items()},
     }
+    if room.play_mode == PlayMode.DUEL:
+        payload["speed_tiers"] = dict(room.round_speed_tiers)
+        payload["final_stretch"] = _duel_is_final_stretch(room)
     if room.play_mode == PlayMode.TEAM:
         payload["team_scores"] = _team_scores(room)
         payload["teams"]       = dict(room.teams)
@@ -320,6 +384,64 @@ def _finalize_economy(
                     "entry_fee":      fee,
                 }
 
+    elif room.play_mode == PlayMode.DUEL:
+        winner = duel_winner_name(room)
+        if room.duel_is_bot:
+            # Practice match: no fees, no trophies — small consolation coins
+            # for beating the bot so the fallback still feels worth playing.
+            human = next((p for p in room.players.values() if p.user_id), None)
+            if human:
+                won = winner == human.name
+                deltas_to_apply[human.user_id] = {
+                    "coins_delta":    DUEL_BOT_WIN_COINS if won else 0.0,
+                    "trophies_delta": 0,
+                    "player_name":    human.name,
+                    "is_winner":      won,
+                    "payout":         DUEL_BOT_WIN_COINS if won else 0.0,
+                    "entry_fee":      0.0,
+                }
+        else:
+            pool = float(sum(room.entry_fees.values()))
+            for name, player in room.players.items():
+                if not player.user_id:
+                    continue
+                fee = room.entry_fees.get(name, 0.0)
+                if winner is None:
+                    # Sudden death exhausted with scores still level → refund
+                    # both fees, no trophy movement. Nobody loses on a draw.
+                    deltas_to_apply[player.user_id] = {
+                        "coins_delta":    fee,
+                        "trophies_delta": 0,
+                        "player_name":    name,
+                        "is_winner":      False,
+                        "is_draw":        True,
+                        "payout":         fee,
+                        "entry_fee":      fee,
+                    }
+                elif name == winner:
+                    deltas_to_apply[player.user_id] = {
+                        "coins_delta":    pool,
+                        "trophies_delta": DUEL_TROPHY_WIN,
+                        "player_name":    name,
+                        "is_winner":      True,
+                        "payout":         pool,
+                        "entry_fee":      fee,
+                    }
+                else:
+                    deltas_to_apply[player.user_id] = {
+                        "coins_delta":    0.0,
+                        "trophies_delta": DUEL_TROPHY_LOSS,
+                        "player_name":    name,
+                        "is_winner":      False,
+                        "payout":         0.0,
+                        "entry_fee":      fee,
+                    }
+            if winner is not None:
+                ids = {n: p.user_id for n, p in room.players.items() if p.user_id}
+                loser = next((n for n in ids if n != winner), None)
+                if loser and winner in ids:
+                    record_h2h_win(ids[winner], ids[loser])
+
     if deltas_to_apply:
         from app.services.profiles import get_profile
         profiles_before  = {uid: get_profile(uid) for uid in deltas_to_apply}
@@ -335,6 +457,20 @@ def _finalize_economy(
                     "trophies_delta": profile_after["trophies"] - profile_before["trophies"],
                     "coins":          profile_after["coins"],
                     "trophies":       profile_after["trophies"],
+                }
+            elif room.play_mode == PlayMode.DUEL:
+                economy[name] = {
+                    # Net vs the pre-game balance: winner +25, loser -25,
+                    # draw 0 (fee refunded), bot win +consolation.
+                    "coins_delta":    info["payout"] - info["entry_fee"],
+                    "trophies_delta": profile_after["trophies"] - profile_before["trophies"],
+                    "coins":          profile_after["coins"],
+                    "trophies":       profile_after["trophies"],
+                    "entry_fee":      info["entry_fee"],
+                    "payout":         info["payout"],
+                    "is_winner":      info.get("is_winner", False),
+                    "is_draw":        info.get("is_draw", False),
+                    "is_bot_match":   room.duel_is_bot,
                 }
             else:
                 if info.get("is_winner"):
@@ -373,6 +509,15 @@ async def _expire_question(room_code: str, question_index: int) -> None:
         return
 
 
+async def _expire_question_in(room_code: str, question_index: int, delay_secs: float) -> None:
+    """Re-armed round timeout with an explicit delay (used by TIME_FREEZE)."""
+    try:
+        await asyncio.sleep(max(0.5, delay_secs))
+        await resolve_round(room_code, question_index)
+    except asyncio.CancelledError:
+        return
+
+
 async def broadcast_question(room_code: str) -> None:
     """Broadcast the current question and arm the server-side timeout."""
     room     = rooms[room_code]
@@ -381,6 +526,10 @@ async def broadcast_question(room_code: str) -> None:
     room.answers_this_round = {}
     room.points_gained = {name: 0 for name in room.players}
     room.question_started_at = time.time()
+    room.round_powerups_used = set()
+    room.double_points_active = set()
+    room.round_extra_secs = 0.0
+    room.round_speed_tiers = {}
     for player in room.players.values():
         player.answered    = False
         player.last_answer = None
@@ -394,6 +543,8 @@ async def broadcast_question(room_code: str) -> None:
         "phase":         room.phase.value,
         "time_limit_ms": room.time_limit_ms,
     }
+    if room.play_mode == PlayMode.DUEL:
+        msg_data["final_stretch"] = _duel_is_final_stretch(room)
     if room.play_mode == PlayMode.TEAM:
         msg_data["team_scores"] = _team_scores(room)
         msg_data["teams"]       = dict(room.teams)
@@ -532,10 +683,182 @@ async def resolve_round(room_code: str, question_index: int) -> None:
 
         room.current_q_index += 1
         await broadcast_question(room_code)
+        _maybe_schedule_bot_answer(room_code)
 
     finally:
         # Always release the lock so future rounds in the same room can proceed.
         _resolving_rounds.discard(room_code)
+
+
+def _reset_room_for_rematch(room) -> None:
+    """Return a finished duel room to the topic-pick phase for a rematch."""
+    room.status               = GameStatus.WAITING
+    room.phase                = RoundPhase.LOBBY
+    room.questions            = []
+    room.current_q_index      = 0
+    room.answers_this_round   = {}
+    room.points_gained        = {}
+    room.entry_fees           = {}
+    room.economy_finalized    = False
+    room.duel_reserves        = []
+    room.sudden_death_count   = 0
+    room.duel_forfeit_winner  = ""
+    room.duel_picks           = {}
+    room.duel_rematch_votes   = set()
+    from app.services.duels import _duel_topic_options
+    room.duel_topic_options   = _duel_topic_options()
+    for p in room.players.values():
+        p.score = 0; p.correct_answers = 0; p.streak = 0
+        p.answered = False; p.last_answer = None
+
+
+async def _start_duel_game(room_code: str, delay: float) -> None:
+    """Charge fees, draw bank questions, and launch a duel after the confirm pause.
+
+    Runs as a detached task so the pick handler returns immediately; every
+    failure path unwinds cleanly back to WAITING with fees refunded.
+    """
+    await asyncio.sleep(delay)
+    room = rooms.get(room_code)
+    if not room or room.status != GameStatus.WAITING or room.play_mode != PlayMode.DUEL:
+        return
+
+    if not room.duel_is_bot:
+        broke = _insufficient_coin_names(room)
+        if broke:
+            await broadcast(room_code, {
+                "type": "ERROR",
+                "data": {"message": f"Not enough coins: {', '.join(broke)}"},
+            })
+            room.duel_picks = {}
+            return
+        _charge_room_entry_fees(room)
+
+    room.status = GameStatus.STARTING
+    try:
+        # Main set + sudden-death reserves in one draw, so a tiebreaker can
+        # never fail mid-duel on a thin bank. Duels are bank-only by design:
+        # zero Gemini cost, and both players provably get identical questions.
+        combined = get_quick_pick_questions(
+            room.topic, DUEL_QUESTION_COUNT + DUEL_RESERVE_QUESTIONS
+        )
+        room.questions     = combined[:DUEL_QUESTION_COUNT]
+        room.duel_reserves = combined[DUEL_QUESTION_COUNT:]
+    except ValueError as exc:
+        logger.error("Duel question draw failed for room '%s': %s", room_code, exc)
+        if room.entry_fees:
+            _refund_room_entry_fees(room)
+        room.status = GameStatus.WAITING
+        room.duel_picks = {}
+        await broadcast(room_code, {
+            "type": "ERROR",
+            "data": {"message": "Could not load questions for that topic. Pick again."},
+        })
+        return
+
+    await broadcast(room_code, {
+        "type": "GAME_STARTING",
+        "data": {
+            "topic":           room.topic,
+            "mode":            room.mode.value,
+            "play_mode":       room.play_mode.value,
+            "time_limit_ms":   room.time_limit_ms,
+            "total_questions": len(room.questions),
+        },
+    })
+
+    for p in room.players.values():
+        p.score = 0; p.correct_answers = 0; p.streak = 0
+    room.status          = GameStatus.ACTIVE
+    room.current_q_index = 0
+    await broadcast_question(room_code)
+    _maybe_schedule_bot_answer(room_code)
+
+
+def _required_answer_count(room) -> int:
+    """How many answers must arrive before a round can resolve early.
+
+    The practice bot has no WebSocket, so _connected_players() never counts
+    it — without this, a lone human answering would instantly resolve the
+    round before the bot's scheduled answer lands.
+    """
+    count = len(_connected_players(room))
+    if room.play_mode == PlayMode.DUEL and room.duel_is_bot:
+        count += 1
+    return count
+
+
+def _maybe_schedule_bot_answer(room_code: str) -> None:
+    """Arm the practice bot's answer task for the just-broadcast question."""
+    room = rooms.get(room_code)
+    if not room or room.play_mode != PlayMode.DUEL or not room.duel_is_bot:
+        return
+    asyncio.create_task(_bot_answer_task(room_code, room.current_q_index))
+
+
+async def _bot_answer_task(room_code: str, question_index: int) -> None:
+    """Have the bot answer after a human-feeling delay, then maybe resolve."""
+    delay = bot_answer_delay_secs()
+    await asyncio.sleep(delay)
+    room = rooms.get(room_code)
+    if (
+        not room
+        or room.status != GameStatus.ACTIVE
+        or room.phase != RoundPhase.QUESTION
+        or room.current_q_index != question_index
+    ):
+        return
+    bot = room.players.get(room.duel_bot_name)
+    if not bot or bot.name in room.answers_this_round:
+        return
+
+    question = room.questions[question_index]
+    choice = bot_answer_choice(room, question.correct_index)
+    if choice == question.correct_index:
+        bot.streak += 1
+        points, tier = calculate_duel_score(int(delay * 1000), room.time_limit_ms)
+        if _duel_is_final_stretch(room):
+            points *= DUEL_FINAL_STRETCH_MUL
+        room.round_speed_tiers[bot.name] = tier
+        bot.correct_answers += 1
+    else:
+        bot.streak = 0
+        points = 0
+    bot.score += points
+    bot.answered = True
+    bot.last_answer = choice
+    room.answers_this_round[bot.name] = choice
+    room.points_gained[bot.name] = points
+
+    await broadcast(room_code, {
+        "type": "DUEL_PLAYER_ANSWERED",
+        "data": {"name": bot.name},
+    })
+
+    if len(room.answers_this_round) >= _required_answer_count(room):
+        _cancel_round_timeout(room_code)
+        await resolve_round(room_code, question_index)
+
+
+async def _duel_forfeit_check(room_code: str, leaver_name: str, grace_secs: float = 25.0) -> None:
+    """End an active duel by forfeit if the leaver never reconnects."""
+    await asyncio.sleep(grace_secs)
+    room = rooms.get(room_code)
+    if not room or room.status != GameStatus.ACTIVE or room.play_mode != PlayMode.DUEL:
+        return
+    leaver = room.players.get(leaver_name)
+    if not leaver or leaver.websocket is not None:
+        return  # they made it back — play on
+    stayer = next(
+        (n for n, p in room.players.items() if n != leaver_name and p.websocket is not None),
+        None,
+    )
+    if not stayer:
+        return  # both gone — normal cleanup will collect the room
+    room.duel_forfeit_winner = stayer
+    _cancel_round_timeout(room_code)
+    logger.info("Duel room '%s': '%s' wins by forfeit ('%s' left)", room_code, stayer, leaver_name)
+    await _finish_game(room_code)
 
 
 async def _finish_game(room_code: str) -> None:
@@ -543,6 +866,38 @@ async def _finish_game(room_code: str) -> None:
     room = rooms.get(room_code)
     if not room:
         return
+
+    # ── Duel sudden death ─────────────────────────────────────────────────────
+    # A duel that ends level gets one extra bank question at a time (drawn
+    # from the reserve set fetched at start) until someone leads or the
+    # reserve/attempt cap runs out — a mode about "who's better" shouldn't
+    # end in a shrug. Forfeits skip this: the remaining player already won.
+    if (
+        room.play_mode == PlayMode.DUEL
+        and not room.duel_forfeit_winner
+        and duel_winner_name(room) is None
+        and room.duel_reserves
+        and room.sudden_death_count < DUEL_SUDDEN_DEATH_MAX
+    ):
+        room.sudden_death_count += 1
+        extra = room.duel_reserves.pop(0)
+        room.questions.append(extra)
+        room.current_q_index = len(room.questions) - 1
+        await broadcast(room_code, {
+            "type": "SUDDEN_DEATH",
+            "data": {
+                "round":  room.sudden_death_count,
+                "scores": {n: p.score for n, p in room.players.items()},
+            },
+        })
+        await asyncio.sleep(2.5)  # let the banner land before the question
+        room = rooms.get(room_code)
+        if not room or room.status != GameStatus.ACTIVE:
+            return
+        await broadcast_question(room_code)
+        _maybe_schedule_bot_answer(room_code)
+        return
+
     room.status = GameStatus.FINISHED
     room.phase  = RoundPhase.COMPLETE
     total           = len(room.questions)
@@ -572,6 +927,12 @@ async def _finish_game(room_code: str) -> None:
         game_over["mode"]          = room.mode.value
         game_over["time_limit_ms"] = room.time_limit_ms
         game_over["questions"]     = [q.model_dump() for q in room.questions]
+    if room.play_mode == PlayMode.DUEL:
+        game_over["topic"]              = room.topic
+        game_over["duel_winner"]        = duel_winner_name(room)
+        game_over["is_forfeit"]         = bool(room.duel_forfeit_winner)
+        game_over["sudden_death_count"] = room.sudden_death_count
+        game_over["is_bot_match"]       = room.duel_is_bot
     if room.play_mode == PlayMode.TEAM:
         game_over["team_scores"] = _team_scores(room)
         game_over["teams"]       = dict(room.teams)
@@ -670,6 +1031,21 @@ async def websocket_endpoint(
         joined_data["team_names"]  = dict(room.team_names)
         joined_data["team_topics"] = dict(room.team_topics)
     await broadcast(room_code, {"type": "PLAYER_JOINED", "data": joined_data})
+
+    # ── Duel: both players connected → open the topic-pick phase ──────────────
+    # Bot rooms only ever have one socket; matched rooms wait for both.
+    if room.play_mode == PlayMode.DUEL and room.status == GameStatus.WAITING:
+        humans_needed = 1 if room.duel_is_bot else 2
+        if len(_connected_players(room)) >= humans_needed and not room.duel_picks:
+            await broadcast(room_code, {
+                "type": "DUEL_TOPIC_PICK",
+                "data": {
+                    "options":       list(room.duel_topic_options),
+                    "players":       list(room.players.keys()),
+                    "bot_name":      room.duel_bot_name,
+                    "time_limit_ms": room.time_limit_ms,
+                },
+            })
 
     # If this is a reconnect into a game already underway, resync the
     # reconnecting socket with the current round state instead of leaving
@@ -852,6 +1228,199 @@ async def websocket_endpoint(
                         "teams":       dict(room.teams),
                         "team_names":  dict(room.team_names),
                         "team_topics": dict(room.team_topics),
+                    },
+                })
+
+            # ── pick_topic (duel) ─────────────────────────────────────────────
+            elif action == "pick_topic":
+                if room.play_mode != PlayMode.DUEL or room.status != GameStatus.WAITING:
+                    continue
+                picked = sanitize_string(msg.get("topic"), MAX_TOPIC_LEN)
+                if picked not in room.duel_topic_options:
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "Pick one of the offered topics."},
+                    })
+                    continue
+                if player_name in room.duel_picks:
+                    continue
+                room.duel_picks[player_name] = picked
+
+                # The practice bot picks the moment the human does.
+                if room.duel_is_bot and room.duel_bot_name not in room.duel_picks:
+                    room.duel_picks[room.duel_bot_name] = random.choice(
+                        room.duel_topic_options
+                    )
+
+                await broadcast(room_code, {
+                    "type": "DUEL_PICKS_UPDATE",
+                    "data": {"picks": dict(room.duel_picks)},
+                })
+
+                if len(room.duel_picks) >= 2:
+                    picks = list(room.duel_picks.values())
+                    if picks[0] == picks[1]:
+                        room.topic = picks[0]
+                        spin = False
+                    else:
+                        room.topic = random.choice(picks)
+                        spin = True  # client reuses the Team randomizer spin UI
+                    await broadcast(room_code, {
+                        "type": "DUEL_TOPIC_RESOLVED",
+                        "data": {
+                            "topic":      room.topic,
+                            "picks":      dict(room.duel_picks),
+                            "spin":       spin,
+                            "confirm_ms": 3500,
+                        },
+                    })
+                    asyncio.create_task(_start_duel_game(room_code, delay=4.0 if spin else 3.5))
+
+            # ── duel_rematch ──────────────────────────────────────────────────
+            elif action == "duel_rematch":
+                if room.play_mode != PlayMode.DUEL or room.status != GameStatus.FINISHED:
+                    continue
+                room.duel_rematch_votes.add(player_name)
+                if room.duel_is_bot:
+                    room.duel_rematch_votes.add(room.duel_bot_name)
+                await broadcast(room_code, {
+                    "type": "DUEL_REMATCH_UPDATE",
+                    "data": {"votes": sorted(room.duel_rematch_votes)},
+                })
+                if len(room.duel_rematch_votes) >= 2:
+                    # Same two players, fresh room state — skip matchmaking.
+                    if not room.duel_is_bot:
+                        broke = _insufficient_coin_names(room)
+                        if broke:
+                            await broadcast(room_code, {
+                                "type": "ERROR",
+                                "data": {"message": f"Not enough coins for a rematch: {', '.join(broke)}"},
+                            })
+                            room.duel_rematch_votes.clear()
+                            continue
+                    _reset_room_for_rematch(room)
+                    await broadcast(room_code, {
+                        "type": "DUEL_TOPIC_PICK",
+                        "data": {
+                            "options":       list(room.duel_topic_options),
+                            "players":       list(room.players.keys()),
+                            "bot_name":      room.duel_bot_name,
+                            "time_limit_ms": room.time_limit_ms,
+                        },
+                    })
+
+            # ── duel_reaction ─────────────────────────────────────────────────
+            elif action == "duel_reaction":
+                if room.play_mode != PlayMode.DUEL:
+                    continue
+                emoji = msg.get("emoji")
+                # Preset-only reactions — deliberately not free text, so there
+                # is nothing to moderate between strangers.
+                if emoji not in ("👏", "😤", "🔥", "😂", "🤯"):
+                    continue
+                await broadcast(room_code, {
+                    "type": "DUEL_REACTION",
+                    "data": {"from": player_name, "emoji": emoji},
+                })
+
+            # ── use_powerup ───────────────────────────────────────────────────
+            elif action == "use_powerup":
+                # Only mid-question, and only before this player has answered —
+                # power-ups modify the CURRENT answer, never a settled one.
+                if room.status != GameStatus.ACTIVE or room.phase != RoundPhase.QUESTION:
+                    continue
+                pid = msg.get("powerup_id")
+                if not isinstance(pid, str) or pid not in POWERUP_CATALOG:
+                    continue
+                if not allowed_in_mode(pid, room.play_mode.value):
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "That power-up can't be used in this mode."},
+                    })
+                    continue
+                if player_name in room.answers_this_round:
+                    continue
+                round_key = f"{player_name}:{pid}"
+                if round_key in room.round_powerups_used:
+                    continue
+
+                # Duel fairness caps: max 2 power-ups per match, no repeats.
+                if room.play_mode == PlayMode.DUEL:
+                    used = room.duel_powerups_used.setdefault(player_name, [])
+                    if len(used) >= DUEL_MAX_POWERUPS_PER_MATCH:
+                        await send_to(websocket, {
+                            "type": "ERROR",
+                            "data": {"message": f"Max {DUEL_MAX_POWERUPS_PER_MATCH} power-ups per duel."},
+                        })
+                        continue
+                    if pid in used:
+                        await send_to(websocket, {
+                            "type": "ERROR",
+                            "data": {"message": "You already used that power-up this duel."},
+                        })
+                        continue
+
+                # Server-authoritative inventory spend (same trust model as the
+                # rest of the user_id-keyed API surface).
+                uid = room.players[player_name].user_id
+                if not uid:
+                    raw_uid = msg.get("user_id")
+                    uid = raw_uid if isinstance(raw_uid, str) and raw_uid else None
+                if not uid or not consume_powerup(uid, pid):
+                    await send_to(websocket, {
+                        "type": "ERROR",
+                        "data": {"message": "You don't own that power-up — grab it in the Shop!"},
+                    })
+                    continue
+
+                room.round_powerups_used.add(round_key)
+                if room.play_mode == PlayMode.DUEL:
+                    room.duel_powerups_used.setdefault(player_name, []).append(pid)
+
+                question = room.questions[room.current_q_index]
+                if pid == "fifty_fifty":
+                    wrong = [i for i in range(len(question.options)) if i != question.correct_index]
+                    remove = random.sample(wrong, min(2, len(wrong)))
+                    await send_to(websocket, {"type": "POWERUP_5050", "data": {"remove": remove}})
+                elif pid == "time_freeze":
+                    # Extend the server-side round timeout so the bonus seconds
+                    # aren't eaten by the expiry task's fixed schedule.
+                    room.round_extra_secs += FREEZE_BONUS_SECONDS
+                    deadline = (
+                        room.question_started_at
+                        + (room.time_limit_ms / 1000)
+                        + room.round_extra_secs
+                        + 3  # same grace as _expire_question
+                    )
+                    _cancel_round_timeout(room_code)
+                    _round_timeout_tasks[room_code] = asyncio.create_task(
+                        _expire_question_in(room_code, room.current_q_index, deadline - time.time())
+                    )
+                    await send_to(websocket, {
+                        "type": "POWERUP_FREEZE",
+                        "data": {"seconds": FREEZE_BONUS_SECONDS},
+                    })
+                elif pid == "double_points":
+                    room.double_points_active.add(player_name)
+                    await send_to(websocket, {"type": "POWERUP_DOUBLE", "data": {}})
+                elif pid == "time_steal":
+                    opp = next((p for n, p in room.players.items() if n != player_name), None)
+                    if opp is not None and opp.websocket is not None:
+                        await send_to(opp.websocket, {
+                            "type": "POWERUP_STEAL",
+                            "data": {"from": player_name, "seconds": STEAL_SECONDS},
+                        })
+
+                # Everyone sees WHO used WHAT (stakes/drama, esp. duels) — but
+                # never the effect internals (e.g. which options 50/50 removed).
+                entry = POWERUP_CATALOG[pid]
+                await broadcast(room_code, {
+                    "type": "POWERUP_USED",
+                    "data": {
+                        "name": player_name,
+                        "powerup_id": pid,
+                        "label": entry["name"],
+                        "icon": entry["icon"],
                     },
                 })
 
@@ -1067,11 +1636,25 @@ async def websocket_endpoint(
 
                 if is_correct:
                     player.streak += 1
-                    points = calculate_score(time_ms, room.time_limit_ms, player.streak)
+                    if room.play_mode == PlayMode.DUEL:
+                        points, tier = calculate_duel_score(time_ms, room.time_limit_ms)
+                        if _duel_is_final_stretch(room):
+                            points *= DUEL_FINAL_STRETCH_MUL
+                        room.round_speed_tiers[player_name] = tier
+                    else:
+                        points = calculate_score(time_ms, room.time_limit_ms, player.streak)
                     player.correct_answers += 1
                 else:
                     player.streak = 0
                     points = 0
+
+                # DOUBLE_POINTS power-up: one-shot 2x on this question's answer.
+                # Consumed whether the answer was right or wrong — it was armed
+                # for this answer, not banked until a correct one lands.
+                if player_name in room.double_points_active:
+                    room.double_points_active.discard(player_name)
+                    if is_correct:
+                        points *= 2
 
                 player.score      += points
                 player.answered    = True
@@ -1079,8 +1662,17 @@ async def websocket_endpoint(
                 room.answers_this_round[player_name] = choice
                 room.points_gained[player_name]      = points
 
+                # Live "opponent locked in" cue for duels — reveals only THAT a
+                # player answered, never the choice or correctness, so it can't
+                # leak the answer to the still-thinking opponent.
+                if room.play_mode == PlayMode.DUEL:
+                    await broadcast(room_code, {
+                        "type": "DUEL_PLAYER_ANSWERED",
+                        "data": {"name": player_name},
+                    })
+
                 connected = _connected_players(room)
-                if len(room.answers_this_round) >= len(connected):
+                if len(room.answers_this_round) >= _required_answer_count(room):
                     # Cancel the expire task BEFORE calling resolve_round so we
                     # don't race: expire fires at roughly the same instant the
                     # last answer arrives, and without this cancel both paths
@@ -1096,6 +1688,18 @@ async def websocket_endpoint(
 
         any_connected = any(p.websocket is not None for p in room.players.values())
         if any_connected:
+            # ── Duel forfeit ──────────────────────────────────────────────────
+            # Head-to-head has no "play on without them": if the leaver does
+            # not reconnect within the grace window, the player who stayed
+            # wins the pot outright. Grace matches the client's auto-reconnect
+            # ladder so a flaky network never insta-loses a duel.
+            if (
+                room.play_mode == PlayMode.DUEL
+                and not room.duel_is_bot
+                and room.status == GameStatus.ACTIVE
+            ):
+                asyncio.create_task(_duel_forfeit_check(room_code, player_name))
+
             dc_data: dict[str, Any] = {
                 "players":    list(room.players.keys()),
                 "lobby_mode": room.play_mode.value,

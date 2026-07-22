@@ -1,0 +1,227 @@
+<!--
+  PROFILE SCREEN — Forge App Track
+  Full player profile page, replacing the tiny sign-in bottom sheet as the
+  primary identity surface. Shows avatar, rank tier + progress to next tier,
+  economy balances, streak, solo win rate, and lifetime duel record
+  (localStorage, human matches only). Signed-out visitors are bounced to
+  home with the sign-in modal opened.
+  Future (per CLAUDE.md roadmap): owned emoji packs, level-unlock cosmetics.
+-->
+<style>
+  .pf-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 18px; padding: 24px 20px 40px; min-height: 100%;
+  }
+  .pf-title {
+    font-family: var(--font-pixel); font-size: 13px;
+    color: var(--yellow); letter-spacing: 1px;
+  }
+
+  /* ── IDENTITY CARD ─────────────────────────────────────── */
+  .pf-card {
+    width: 100%; max-width: 360px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--radius-lg);
+    padding: 24px 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .pf-avatar {
+    width: 84px; height: 84px; border-radius: 50%;
+    border: 3px solid rgba(255,217,61,0.6);
+    box-shadow: 0 0 22px rgba(255,217,61,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px; overflow: hidden; background: rgba(0,0,0,0.25);
+  }
+  .pf-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .pf-name {
+    font-family: var(--font-pixel); font-size: 11px;
+    color: var(--white); letter-spacing: 0.5px; text-align: center;
+    word-break: break-word;
+  }
+  .pf-email {
+    font-family: var(--font-body); font-size: 12px; font-weight: 700;
+    color: rgba(255,255,255,0.4); word-break: break-all; text-align: center;
+  }
+
+  /* ── RANK TIER + PROGRESS ──────────────────────────────── */
+  .pf-tier-badge {
+    font-family: var(--font-pixel); font-size: 8px;
+    color: var(--green); letter-spacing: 1px;
+    background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.4);
+    border-radius: var(--radius-pill); padding: 7px 14px;
+  }
+  .pf-tier-progress-wrap { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .pf-tier-track {
+    width: 100%; height: 8px; border-radius: 4px;
+    background: rgba(255,255,255,0.1); overflow: hidden;
+  }
+  .pf-tier-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--yellow), var(--green));
+    transition: width 0.6s ease;
+  }
+  .pf-tier-next {
+    font-family: var(--font-pixel); font-size: 5.5px;
+    color: rgba(255,255,255,0.45); letter-spacing: 0.5px; text-align: center;
+    line-height: 1.8;
+  }
+
+  /* ── STAT GRID ─────────────────────────────────────────── */
+  .pf-stats {
+    width: 100%; max-width: 360px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .pf-stat {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-md);
+    padding: 14px 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .pf-stat-icon  { font-size: 20px; }
+  .pf-stat-val   { font-family: var(--font-pixel); font-size: 11px; color: var(--white); }
+  .pf-stat-label { font-family: var(--font-pixel); font-size: 5px; color: rgba(255,255,255,0.35); letter-spacing: 1px; text-align: center; }
+
+  /* ── DUEL RECORD ───────────────────────────────────────── */
+  .pf-duel-card {
+    width: 100%; max-width: 360px;
+    background: rgba(230,57,70,0.08);
+    border: 1px solid rgba(230,57,70,0.3);
+    border-radius: var(--radius-md);
+    padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .pf-duel-title { font-family: var(--font-pixel); font-size: 7px; color: var(--red); letter-spacing: 1px; text-align: center; }
+  .pf-duel-row   { display: flex; justify-content: space-around; }
+  .pf-duel-cell  { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .pf-duel-num   { font-family: var(--font-pixel); font-size: 13px; color: var(--white); }
+  .pf-duel-num.w { color: var(--green); }
+  .pf-duel-num.l { color: var(--red); }
+  .pf-duel-lbl   { font-family: var(--font-pixel); font-size: 5px; color: rgba(255,255,255,0.4); letter-spacing: 1px; }
+
+  .pf-actions { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 12px; }
+  .pf-signout {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: var(--red); background: rgba(239,35,60,0.1);
+    border: 1px solid rgba(239,35,60,0.35); border-radius: var(--radius-md);
+    padding: 14px; cursor: pointer; letter-spacing: 1px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pf-signout:active { background: rgba(239,35,60,0.2); }
+  .pf-back {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,255,255,0.3); cursor: pointer; padding: 8px;
+    text-align: center; -webkit-tap-highlight-color: transparent;
+  }
+</style>
+
+<div class="pf-wrap">
+  <p class="pf-title">👤 PROFILE</p>
+
+  <div class="pf-card">
+    <div class="pf-avatar" id="pf-avatar">👾</div>
+    <p class="pf-name"  id="pf-name">—</p>
+    <p class="pf-email" id="pf-email"></p>
+    <span class="pf-tier-badge" id="pf-tier">ROOKIE</span>
+    <div class="pf-tier-progress-wrap">
+      <div class="pf-tier-track"><div class="pf-tier-fill" id="pf-tier-fill" style="width:0%"></div></div>
+      <p class="pf-tier-next" id="pf-tier-next"></p>
+    </div>
+  </div>
+
+  <div class="pf-stats">
+    <div class="pf-stat"><span class="pf-stat-icon">🪙</span><span class="pf-stat-val" id="pf-coins">—</span><span class="pf-stat-label">COINS</span></div>
+    <div class="pf-stat"><span class="pf-stat-icon">🏆</span><span class="pf-stat-val" id="pf-trophies">—</span><span class="pf-stat-label">TROPHIES</span></div>
+    <div class="pf-stat"><span class="pf-stat-icon">🎟️</span><span class="pf-stat-val" id="pf-tickets">—</span><span class="pf-stat-label">TICKETS</span></div>
+    <div class="pf-stat"><span class="pf-stat-icon">🔥</span><span class="pf-stat-val" id="pf-streak">—</span><span class="pf-stat-label">DAY STREAK</span></div>
+    <div class="pf-stat"><span class="pf-stat-icon">🎯</span><span class="pf-stat-val" id="pf-winrate">—</span><span class="pf-stat-label">SOLO WIN RATE</span></div>
+    <div class="pf-stat"><span class="pf-stat-icon">🎮</span><span class="pf-stat-val" id="pf-played">—</span><span class="pf-stat-label">GAMES PLAYED</span></div>
+  </div>
+
+  <div class="pf-duel-card">
+    <p class="pf-duel-title">⚔️ DUEL RECORD</p>
+    <div class="pf-duel-row">
+      <div class="pf-duel-cell"><span class="pf-duel-num w" id="pf-duel-w">0</span><span class="pf-duel-lbl">WINS</span></div>
+      <div class="pf-duel-cell"><span class="pf-duel-num l" id="pf-duel-l">0</span><span class="pf-duel-lbl">LOSSES</span></div>
+      <div class="pf-duel-cell"><span class="pf-duel-num"   id="pf-duel-t">0</span><span class="pf-duel-lbl">TIES</span></div>
+    </div>
+  </div>
+
+  <div class="pf-actions">
+    <button class="pf-signout" onclick="pfSignOut()">🚪 &nbsp;SIGN OUT</button>
+  </div>
+
+  <div class="pf-back" onclick="Sound.click(); goTo('home')">← BACK TO HOME</div>
+</div>
+
+<script>
+// Trophy thresholds mirror _hRankLabel() in home.html — kept local so this
+// screen never depends on home's script block being loaded first.
+const PF_TIERS = [
+  { at: 0,   label: 'ROOKIE' },
+  { at: 20,  label: 'APPRENTICE' },
+  { at: 50,  label: 'SKILLED' },
+  { at: 100, label: 'EXPERT' },
+  { at: 200, label: 'CHAMPION' },
+  { at: 500, label: 'GRANDMASTER' },
+];
+
+function onProfileShow() {
+  if (!State.user) {
+    goTo('home');
+    if (typeof hOpenSigninModal === 'function') setTimeout(hOpenSigninModal, 50);
+    return;
+  }
+  const u = State.user;
+
+  const avatarEl = document.getElementById('pf-avatar');
+  if (avatarEl) avatarEl.innerHTML = u.picture ? `<img src="${u.picture}" alt="avatar" />` : '👾';
+  document.getElementById('pf-name').textContent  = (u.name || 'PLAYER').toUpperCase();
+  document.getElementById('pf-email').textContent = u.email || '';
+
+  // Rank tier + progress toward the next one
+  const trophies = Number(u.trophies || 0);
+  let tier = PF_TIERS[0], next = null;
+  for (const t of PF_TIERS) { if (trophies >= t.at) tier = t; else { next = t; break; } }
+  document.getElementById('pf-tier').textContent = tier.label;
+  const fillEl = document.getElementById('pf-tier-fill');
+  const nextEl = document.getElementById('pf-tier-next');
+  if (next) {
+    const pct = Math.min(100, Math.round(((trophies - tier.at) / (next.at - tier.at)) * 100));
+    fillEl.style.width = pct + '%';
+    nextEl.textContent = `${next.at - trophies} 🏆 TO ${next.label} — WIN DUELS TO CLIMB!`;
+  } else {
+    fillEl.style.width = '100%';
+    nextEl.textContent = 'MAX TIER REACHED — LEGENDARY!';
+  }
+
+  document.getElementById('pf-coins').textContent    = u.coins    != null ? Number(u.coins).toLocaleString()    : '—';
+  document.getElementById('pf-trophies').textContent = u.trophies != null ? Number(u.trophies).toLocaleString() : '—';
+  document.getElementById('pf-tickets').textContent  = u.tickets_today != null ? String(u.tickets_today) : '—';
+  document.getElementById('pf-streak').textContent   = State._homeStreak != null ? String(State._homeStreak) : '0';
+
+  // Solo record (same localStorage counters home's stat row uses)
+  try {
+    const wins   = Number(localStorage.getItem('forge_stat_wins')   || 0);
+    const played = Number(localStorage.getItem('forge_stat_played') || 0);
+    document.getElementById('pf-winrate').textContent = played > 0 ? Math.round((wins / played) * 100) + '%' : '—';
+    document.getElementById('pf-played').textContent  = String(played);
+  } catch (_) {}
+
+  // Lifetime duel record (human matches only, tracked by results.html)
+  try {
+    document.getElementById('pf-duel-w').textContent = localStorage.getItem('forge_duel_wins')   || '0';
+    document.getElementById('pf-duel-l').textContent = localStorage.getItem('forge_duel_losses') || '0';
+    document.getElementById('pf-duel-t').textContent = localStorage.getItem('forge_duel_ties')   || '0';
+  } catch (_) {}
+}
+
+function pfSignOut() {
+  if (typeof hSignOut === 'function') { hSignOut(); goTo('home'); return; }
+  // Fallback if home's script isn't loaded (shouldn't happen — home boots first)
+  Sound.click();
+  State.user = null;
+  Session.save();
+  goTo('home');
+}
+</script>

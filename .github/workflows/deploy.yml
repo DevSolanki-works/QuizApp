@@ -2,7 +2,7 @@ name: Deploy Forge Backend
 
 on:
   push:
-    branches: [main, Challengetest]
+    branches: [main]
     paths:
       # Only trigger when backend files actually change
       # Frontend changes deploy via Vercel automatically — no need to rebuild Docker

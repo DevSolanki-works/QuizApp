@@ -1,0 +1,279 @@
+<!--
+  DAILY LUCKY DRAW — Forge App Track
+  One free spin per day + one optional rewarded-ad respin per day.
+  The SERVER rolls the prize (/lucky-draw/spin) and returns segment_index;
+  the client only animates the wheel landing on that segment. Prize is
+  already applied server-side before the animation even starts, so a
+  mid-spin app kill can never lose a granted prize.
+  Ad respin is tap-driven only (no timers) per CLAUDE.md ad rules.
+-->
+<style>
+  .ld-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 20px; padding: 24px 20px 40px; min-height: 100%;
+  }
+  .ld-title {
+    font-family: var(--font-pixel); font-size: 13px;
+    color: var(--yellow); letter-spacing: 1px; text-align: center;
+  }
+  .ld-sub {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,255,255,0.4); letter-spacing: 0.5px;
+    line-height: 2; text-align: center;
+  }
+
+  /* ── WHEEL ─────────────────────────────────────────────── */
+  .ld-wheel-box { position: relative; width: 280px; height: 280px; margin: 8px 0; }
+  .ld-pointer {
+    position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    font-size: 30px; z-index: 3; line-height: 1;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+  }
+  .ld-wheel {
+    width: 100%; height: 100%; border-radius: 50%;
+    border: 5px solid rgba(255,217,61,0.55);
+    box-shadow: 0 0 30px rgba(255,217,61,0.18), inset 0 0 24px rgba(0,0,0,0.35);
+    position: relative; overflow: hidden;
+    transition: transform 4.2s cubic-bezier(0.12, 0.65, 0.08, 1);
+  }
+  .ld-seg-label {
+    position: absolute; top: 50%; left: 50%;
+    width: 50%; transform-origin: 0% 50%;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 16px; box-sizing: border-box;
+    font-family: var(--font-pixel); font-size: 6px;
+    color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    letter-spacing: 0.3px; pointer-events: none;
+  }
+  .ld-hub {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 58px; height: 58px; border-radius: 50%;
+    background: var(--bg-mid); border: 3px solid rgba(255,217,61,0.6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; z-index: 2;
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+
+  /* ── RESULT ────────────────────────────────────────────── */
+  .ld-result {
+    min-height: 54px; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; text-align: center;
+  }
+  .ld-result-amount {
+    font-family: var(--font-pixel); font-size: 20px;
+    color: var(--yellow); line-height: 1;
+    text-shadow: 0 0 18px rgba(255,217,61,0.4);
+    animation: ld-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes ld-pop {
+    from { transform: scale(0.4); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .ld-result-note {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,255,255,0.45); letter-spacing: 0.4px; line-height: 2;
+  }
+
+  .ld-actions { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
+  .ld-back {
+    font-family: var(--font-pixel); font-size: 6px;
+    color: rgba(255,255,255,0.3); cursor: pointer; padding: 8px;
+    text-align: center; -webkit-tap-highlight-color: transparent;
+  }
+</style>
+
+<div class="ld-wrap">
+  <p class="ld-title">🎡 LUCKY DRAW</p>
+  <p class="ld-sub" id="ld-sub">ONE FREE SPIN EVERY DAY!</p>
+
+  <div class="ld-wheel-box">
+    <div class="ld-pointer">🔻</div>
+    <div class="ld-wheel" id="ld-wheel"></div>
+    <div class="ld-hub">🎁</div>
+  </div>
+
+  <div class="ld-result" id="ld-result"></div>
+
+  <div class="ld-actions">
+    <button class="btn btn-primary" id="ld-spin-btn" onclick="ldSpin()">🎡 &nbsp;SPIN</button>
+    <button class="btn btn-secondary" id="ld-respin-btn" style="display:none;" onclick="ldAdRespin()">📺 &nbsp;WATCH AD TO SPIN AGAIN</button>
+  </div>
+
+  <div class="ld-back" onclick="Sound.click(); goTo('home')">← BACK TO HOME</div>
+</div>
+
+<script>
+const LD_SEG_COLORS = [
+  '#3a3f8f', '#7a2e4b', '#2e6b5a', '#3a3f8f',
+  '#7a2e4b', '#2e6b5a', '#8f6b2e', '#6b2e8f',
+];
+
+let _ldState = null;
+let _ldSpinning = false;
+let _ldRotation = 0;
+
+function onLuckyDrawShow() {
+  _ldSpinning = false;
+  _ldRotation = 0;
+  const wheel = document.getElementById('ld-wheel');
+  if (wheel) { wheel.style.transition = 'none'; wheel.style.transform = 'rotate(0deg)'; }
+  document.getElementById('ld-result').innerHTML = '';
+  _ldSetButtons(false, false);
+  document.getElementById('ld-sub').textContent = 'LOADING...';
+
+  API.luckyDrawState(State.user.id).then(s => {
+    _ldState = s;
+    _ldRenderWheel(s.segments);
+    _ldApplyAvailability();
+  }).catch(e => {
+    console.error('[LuckyDraw] state failed:', e);
+    if (typeof _isAuthError === 'function' && _isAuthError(e)) { _promptReauth(); return; }
+    document.getElementById('ld-sub').textContent = 'COULD NOT LOAD — TRY AGAIN LATER';
+  });
+}
+
+function _ldRenderWheel(segments) {
+  const wheel = document.getElementById('ld-wheel');
+  if (!wheel) return;
+  const n = segments.length;
+  const segAngle = 360 / n;
+  const stops = segments.map((_, i) =>
+    `${LD_SEG_COLORS[i % LD_SEG_COLORS.length]} ${i * segAngle}deg ${(i + 1) * segAngle}deg`
+  ).join(', ');
+  // Segment 0's CENTER at the top (pointer position) when rotation = 0.
+  wheel.style.background = `conic-gradient(from ${-segAngle / 2}deg, ${stops})`;
+  wheel.innerHTML = segments.map((s, i) => {
+    const angle = i * segAngle - 90; // label along each segment's center ray
+    const icon = s.kind === 'tickets' ? '🎟️' : (s.amount >= 200 ? '💎' : '🪙');
+    return `<div class="ld-seg-label" style="transform: rotate(${angle}deg);">${icon} ${s.amount}</div>`;
+  }).join('');
+}
+
+function _ldApplyAvailability() {
+  const s = _ldState;
+  const sub = document.getElementById('ld-sub');
+  if (s.free_spin_available) {
+    sub.textContent = 'ONE FREE SPIN EVERY DAY!';
+    _ldSetButtons(true, false);
+  } else if (s.respin_available) {
+    sub.textContent = 'FREE SPIN USED — WATCH AN AD TO SPIN AGAIN!';
+    _ldSetButtons(false, true);
+  } else if (s.respin_cooldown_seconds > 0) {
+    const mins = Math.ceil(s.respin_cooldown_seconds / 60);
+    sub.textContent = `NEXT AD RESPIN IN ~${mins} MIN`;
+    _ldSetButtons(false, false);
+  } else {
+    sub.textContent = 'ALL SPINS USED — COME BACK TOMORROW!';
+    _ldSetButtons(false, false);
+  }
+}
+
+function _ldSetButtons(spin, respin) {
+  const spinBtn = document.getElementById('ld-spin-btn');
+  const respinBtn = document.getElementById('ld-respin-btn');
+  spinBtn.style.display = spin ? '' : 'none';
+  spinBtn.disabled = false;
+  spinBtn.innerHTML = '🎡 &nbsp;SPIN';
+  respinBtn.style.display = respin ? '' : 'none';
+  respinBtn.disabled = false;
+}
+
+async function ldSpin() {
+  if (_ldSpinning || !_ldState) return;
+  Sound.click();
+  await _ldDoSpin(false);
+}
+
+async function ldAdRespin() {
+  if (_ldSpinning || !_ldState) return;
+  Sound.click();
+  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
+    _promptReauth();
+    return;
+  }
+  const btn = document.getElementById('ld-respin-btn');
+  btn.disabled = true;
+  const watched = await RewardedAd.show();
+  if (!watched) {
+    Toast.error('Ad was not completed — no respin granted.');
+    btn.disabled = false;
+    return;
+  }
+  if (typeof Analytics !== 'undefined') {
+    Analytics.logEvent('ad_reward_granted', { trigger: 'lucky_draw_respin', amount: 1 }).catch?.(() => {});
+  }
+  await _ldDoSpin(true);
+}
+
+async function _ldDoSpin(isRespin) {
+  _ldSpinning = true;
+  const spinBtn = document.getElementById('ld-spin-btn');
+  const respinBtn = document.getElementById('ld-respin-btn');
+  spinBtn.disabled = true;
+  respinBtn.disabled = true;
+  spinBtn.innerHTML = '⏳ &nbsp;SPINNING...';
+
+  let res;
+  try {
+    res = await API.luckyDrawSpin(State.user.id, isRespin);
+  } catch (e) {
+    console.error('[LuckyDraw] spin failed:', e);
+    _ldSpinning = false;
+    if (typeof _isAuthError === 'function' && _isAuthError(e)) { _promptReauth(); return; }
+    Toast.error(isRespin
+      ? 'Respin failed on the server — the ad reward could not be applied. Try again.'
+      : 'Spin failed. Check your connection and try again.');
+    _ldApplyAvailability();
+    return;
+  }
+
+  // Prize is already applied server-side; animate the wheel to the result.
+  const n = _ldState.segments.length;
+  const segAngle = 360 / n;
+  // Rotate so segment_index's center lands under the top pointer.
+  const target = 360 * 5 - res.segment_index * segAngle;
+  _ldRotation += target + (360 - (_ldRotation % 360));
+  const wheel = document.getElementById('ld-wheel');
+  wheel.style.transition = 'transform 4.2s cubic-bezier(0.12, 0.65, 0.08, 1)';
+  wheel.style.transform = `rotate(${_ldRotation}deg)`;
+
+  setTimeout(() => {
+    _ldSpinning = false;
+    Sound.correct();
+
+    const isJackpot = res.kind === 'coins' && res.amount >= 200;
+    const resultEl = document.getElementById('ld-result');
+    resultEl.innerHTML = `
+      <p class="ld-result-amount">${isJackpot ? '💎 JACKPOT! ' : ''}+${res.amount} ${res.kind === 'tickets' ? '🎟️' : '🪙'}</p>
+      <p class="ld-result-note">${res.kind === 'tickets' ? 'ADDED TO YOUR TICKET BALANCE' : 'ADDED TO YOUR COINS'}</p>`;
+
+    if (res.kind === 'coins') {
+      State.user.coins = res.coins;
+    } else {
+      State.user.tickets_today = res.tickets_today;
+    }
+    if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
+    Session.save();
+    if (typeof lbUpsertPlayer === 'function') {
+      const ticketFields = res.kind === 'tickets' ? {
+        tickets_today: res.tickets_today,
+        ad_tickets_used_today: State.user.ad_tickets_used_today,
+        last_ticket_date: State.user.last_ticket_date,
+      } : null;
+      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, ticketFields).catch(() => {});
+    }
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('lucky_draw_spin', {
+        is_respin: isRespin, kind: res.kind, amount: res.amount,
+      }).catch?.(() => {});
+    }
+    Toast.success(`You won ${res.amount} ${res.kind === 'tickets' ? 'ticket(s)' : 'coins'}!`);
+
+    _ldState.free_spin_available = res.free_spin_available;
+    _ldState.respin_available = res.respin_available;
+    _ldState.respin_cooldown_seconds = res.respin_cooldown_seconds || 0;
+    _ldApplyAvailability();
+  }, 4400);
+}
+</script>

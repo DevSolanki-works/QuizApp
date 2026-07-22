@@ -50,6 +50,10 @@ VALID_ACTIONS: frozenset[str] = frozenset({
     "set_lobby_mode",
     "lock_room",
     "unlock_room",
+    "pick_topic",
+    "duel_rematch",
+    "duel_reaction",
+    "use_powerup",
 })
 
 

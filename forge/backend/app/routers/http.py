@@ -69,6 +69,16 @@ class SyncTicketsRequest(BaseModel):
 class DeleteAccountRequest(BaseModel):
     user_id: str
 
+
+class LuckySpinRequest(BaseModel):
+    user_id: str
+    is_respin: bool = False
+
+
+class BuyPowerupRequest(BaseModel):
+    user_id: str
+    powerup_id: str
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _generate_room_code() -> str:
@@ -286,6 +296,114 @@ async def grant_daily_reward_tickets_endpoint(
     except Exception as e:
         logger.error("Daily reward ticket grant failed: %s", e)
         raise HTTPException(status_code=500, detail="Daily reward ticket grant failed")
+
+
+@router.post("/lucky-draw/state")
+async def lucky_draw_state(
+    body: TicketUserRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Return today's spin availability + wheel layout."""
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    try:
+        from app.services.lucky_draw import get_state
+        return get_state(body.user_id)
+    except Exception as e:
+        logger.error("Lucky draw state failed: %s", e)
+        raise HTTPException(status_code=500, detail="Lucky draw state failed")
+
+
+@router.post("/lucky-draw/spin")
+async def lucky_draw_spin(
+    body: LuckySpinRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Roll the daily lucky draw server-side and apply the prize."""
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    try:
+        from app.services.lucky_draw import LuckyDrawError, spin
+        return spin(body.user_id, is_respin=bool(body.is_respin))
+    except LuckyDrawError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Lucky draw spin failed: %s", e)
+        raise HTTPException(status_code=500, detail="Lucky draw spin failed")
+
+
+@router.post("/powerups/state")
+async def powerups_state(
+    body: TicketUserRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Return the power-up catalog plus this user's owned counts."""
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    try:
+        from app.services.powerups import get_state
+        return get_state(body.user_id)
+    except Exception as e:
+        logger.error("Power-up state failed: %s", e)
+        raise HTTPException(status_code=500, detail="Power-up state failed")
+
+
+@router.post("/powerups/buy")
+async def powerups_buy(
+    body: BuyPowerupRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Buy one power-up with coins (server-authoritative balance check)."""
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not match the requested user account.",
+        )
+
+    try:
+        from app.services.powerups import PowerupError, buy
+        return buy(body.user_id, body.powerup_id)
+    except PowerupError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Power-up purchase failed: %s", e)
+        raise HTTPException(status_code=500, detail="Power-up purchase failed")
 
 
 @router.post("/tickets/sync")

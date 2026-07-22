@@ -492,6 +492,9 @@
   <section id="screen-shop"         class="screen"></section>
   <section id="screen-how-to-play"  class="screen"></section>
   <section id="screen-challenge"    class="screen"></section>
+  <section id="screen-duel"         class="screen"></section>
+  <section id="screen-lucky-draw"   class="screen"></section>
+  <section id="screen-profile"      class="screen"></section>
 
   <!-- COOKIE CONSENT BANNER -->
   <div id="cookie-banner" role="dialog" aria-modal="false" aria-label="Cookie consent">
@@ -765,33 +768,40 @@ async function refreshUserProfile() {
 async function applyUserEconomy(economy) {
   if (!State.user || !economy) return;
 
-  const fresh = await refreshUserProfile();
-  if (!fresh || !_hasTrustedEconomy()) {
-    Toast.error('Could not fetch your saved balance from Supabase. Rewards were not synced.');
-    return;
+  // The backend already applied this game's deltas to its own profile
+  // store — the GAME_OVER economy payload carries the resulting absolute
+  // balances. Trust those directly instead of re-deriving them from a
+  // Supabase read + client-side delta math (the old client-authoritative
+  // flow), which broke the results/leaderboard whenever that extra fetch
+  // failed, raced the mirror write, or hit an expired auth token.
+  const serverCoins    = _safeEconomyNumber(economy.coins);
+  const serverTrophies = _safeEconomyNumber(economy.trophies);
+
+  if (serverCoins !== null && serverTrophies !== null) {
+    State.user.coins    = serverCoins;
+    State.user.trophies = serverTrophies;
+  } else {
+    // Older backend payload without absolute balances — fall back to
+    // applying deltas on top of whatever we currently hold locally.
+    const coinDelta   = _safeEconomyNumber(economy.coins_delta);
+    const trophyDelta = _safeEconomyNumber(economy.trophies_delta);
+    const baseCoins    = _safeEconomyNumber(State.user.coins);
+    const baseTrophies = _safeEconomyNumber(State.user.trophies);
+    if (coinDelta !== null && baseCoins !== null) {
+      State.user.coins = Math.max(0, baseCoins + coinDelta);
+    }
+    if (trophyDelta !== null && baseTrophies !== null) {
+      State.user.trophies = Math.max(0, Math.round(baseTrophies + trophyDelta));
+    }
   }
-  let baseCoins    = _safeEconomyNumber(State.user.coins);
-  let baseTrophies = _safeEconomyNumber(State.user.trophies);
-
-  const coinDelta       = _safeEconomyNumber(economy.coins_delta);
-  const trophyDelta     = _safeEconomyNumber(economy.trophies_delta);
-
-  if (coinDelta !== null) {
-    State.user.coins = Math.max(0, baseCoins + coinDelta);
-  }
-
-  if (trophyDelta !== null) {
-    State.user.trophies = Math.max(0, Math.round(baseTrophies + trophyDelta));
-  }
-
-  if (economy.coins !== undefined)   economy.coins    = State.user.coins;
-  if (economy.trophies !== undefined) economy.trophies = State.user.trophies;
 
   Session.save();
   if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
 
-  const syncTasks = [API.syncProfile(State.user.id, State.user.coins, State.user.trophies)];
-  if (typeof lbUpsertPlayer === 'function') {
+  // Mirror the new balances to the Supabase leaderboard in the background.
+  // Nothing here blocks the results screen, and a failure only delays the
+  // mirror — the backend store already holds the truth.
+  (async () => {
     let tickets = null;
     try {
       tickets = await API.getTickets(State.user.id);
@@ -804,20 +814,14 @@ async function applyUserEconomy(economy) {
     } catch (e) {
       console.warn('[Tickets] Mirror fetch failed:', e);
     }
-    syncTasks.push(
-      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, tickets)
-        .catch(e => console.warn('[LB] Upsert failed silently:', e))
-    );
-  }
-  const syncResults = await Promise.allSettled(syncTasks);
-  const failure = syncResults.find(r => r.status === 'rejected');
-  if (failure) {
-    if (typeof _isAuthError === 'function' && _isAuthError(failure.reason)) {
-      _promptReauth();
-    } else {
-      Toast.error('Saved balance loaded, but backend sync failed. Please retry before starting another game.');
+    if (typeof lbUpsertPlayer === 'function') {
+      try {
+        await lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies, tickets);
+      } catch (e) {
+        console.warn('[LB] Post-game mirror sync failed (will self-heal on next sync):', e);
+      }
     }
-  }
+  })();
 }
 
 async function syncBackendFromTrustedProfile(profile = null) {
@@ -869,6 +873,9 @@ const Screens = {
   shop         : { id: 'screen-shop',         file: 'screens/shop.html'         },
   'how-to-play': { id: 'screen-how-to-play',  file: 'screens/how-to-play.html'  },
   challenge    : { id: 'screen-challenge',    file: 'screens/challenge.html'    },
+  duel         : { id: 'screen-duel',         file: 'screens/duel.html'         },
+  'lucky-draw' : { id: 'screen-lucky-draw',   file: 'screens/lucky-draw.html'   },
+  profile      : { id: 'screen-profile',      file: 'screens/profile.html'      },
 };
 
 const SCREEN_GUARDS = {
@@ -876,7 +883,9 @@ const SCREEN_GUARDS = {
   game         : () => !!(State.roomCode && State.playerName && State.ws),
   results      : () => !!(State.scores && Object.keys(State.scores).length > 0),
   'daily-reward': () => !!(State.user),
+  'lucky-draw'  : () => !!(State.user),
   challenge     : () => !!State._challengeCode,
+  profile       : () => !!(State.user),
 };
 
 async function goTo(name, skipHash = false) {
@@ -1021,6 +1030,66 @@ const API = {
         'Authorization': `Bearer ${credential}`,
       },
       body: JSON.stringify({ user_id: userId, num_tickets: numTickets }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async powerupsState(userId) {
+    const credential = State.user?._credential;
+    if (!credential) throw new Error('Not signed in');
+    const r = await fetch(`${API_BASE}/powerups/state`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async powerupsBuy(userId, powerupId) {
+    const credential = State.user?._credential;
+    if (!credential) throw new Error('Not signed in');
+    const r = await fetch(`${API_BASE}/powerups/buy`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: userId, powerup_id: powerupId }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async luckyDrawState(userId) {
+    const credential = State.user?._credential;
+    if (!credential) throw new Error('Not signed in');
+    const r = await fetch(`${API_BASE}/lucky-draw/state`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async luckyDrawSpin(userId, isRespin) {
+    const credential = State.user?._credential;
+    if (!credential) throw new Error('Not signed in');
+    const r = await fetch(`${API_BASE}/lucky-draw/spin`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: userId, is_respin: !!isRespin }),
     });
     if (!r.ok) throw new Error(await r.text());
     return r.json();

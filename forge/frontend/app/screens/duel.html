@@ -1,0 +1,517 @@
+<!--
+  DUEL SCREEN — Sync 1v1 Duel Queue (Duel Phase 2)
+  States driven by _duelSetState():
+    1. INTRO   — mode explainer + FIND OPPONENT button (entry fee warning)
+    2. QUEUE   — live "N in queue" count, cancel, bot-fallback offer
+    3. VS      — matched! opponent name/trophies/head-to-head, auto-advances
+    4. PICK    — 3 bank topics, both players pick; same → confirm, diff → spin
+  Gameplay itself happens in game.html (shared loop), results in results.html
+  (duel branch there owns rematch + reactions). This screen owns the two
+  WebSockets' lifecycle up to GAME_STARTING:
+    - a matchmaking socket (/ws/duel/queue) that dies once matched
+    - the room socket (State.ws via WS.connect) for pick phase onward
+-->
+<style>
+  .duel-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; padding: 0 20px 40px;
+  }
+  .duel-state { width: 100%; display: none; flex-direction: column; align-items: center; }
+  .duel-state.active { display: flex; }
+
+  /* ── INTRO ── */
+  .duel-hero {
+    margin-top: 36px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  .duel-hero-icon { font-size: 54px; animation: duel-pulse 2s infinite ease-in-out; }
+  @keyframes duel-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+  .duel-hero-title { font-family: var(--font-pixel); font-size: 16px; color: var(--white); letter-spacing: 1px; }
+  .duel-hero-sub { font-family: var(--font-body); font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.55); line-height: 1.6; max-width: 300px; }
+  .duel-rules-card {
+    width: 100%; margin-top: 24px; padding: 18px;
+    border-radius: var(--radius-lg);
+    background: rgba(239,35,60,0.07); border: 1.5px solid rgba(239,35,60,0.25);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .duel-rule { display: flex; align-items: center; gap: 10px; font-family: var(--font-body); font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.75); }
+  .duel-rule-icon { font-size: 18px; flex-shrink: 0; }
+  .duel-fee-note {
+    margin-top: 14px; font-family: var(--font-pixel); font-size: 7px;
+    color: var(--yellow); letter-spacing: 0.5px; text-align: center; line-height: 1.9;
+  }
+
+  /* ── QUEUE ── */
+  .duel-radar {
+    margin-top: 60px; width: 120px; height: 120px; border-radius: 50%;
+    border: 2px solid rgba(239,35,60,0.3); position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .duel-radar::before, .duel-radar::after {
+    content: ''; position: absolute; inset: -2px; border-radius: 50%;
+    border: 2px solid rgba(239,35,60,0.5);
+    animation: duel-radar-ring 2s infinite ease-out;
+  }
+  .duel-radar::after { animation-delay: 1s; }
+  @keyframes duel-radar-ring {
+    from { transform: scale(1);   opacity: 0.8; }
+    to   { transform: scale(1.8); opacity: 0;   }
+  }
+  .duel-radar-icon { font-size: 40px; }
+  .duel-queue-status { margin-top: 28px; font-family: var(--font-pixel); font-size: 10px; color: var(--white); letter-spacing: 0.5px; text-align: center; line-height: 2; }
+  .duel-queue-count { color: var(--yellow); }
+  .duel-bot-offer {
+    width: 100%; margin-top: 30px; padding: 18px;
+    border-radius: var(--radius-lg);
+    background: rgba(79,195,247,0.08); border: 1.5px solid rgba(79,195,247,0.25);
+    display: none; flex-direction: column; gap: 12px; align-items: center; text-align: center;
+  }
+  .duel-bot-offer.visible { display: flex; }
+  .duel-bot-offer-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.7); line-height: 1.6; }
+
+  /* ── VS ── */
+  .duel-vs-stage { margin-top: 60px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  .duel-vs-cards { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+  .duel-vs-fighter {
+    padding: 20px 10px; border-radius: var(--radius-lg); text-align: center;
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+    animation: duel-slide-in 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  .duel-vs-fighter.you  { background: rgba(255,217,61,0.10); border: 1.5px solid rgba(255,217,61,0.35); animation-name: duel-slide-in-left; }
+  .duel-vs-fighter.them { background: rgba(239,35,60,0.10);  border: 1.5px solid rgba(239,35,60,0.35);  animation-name: duel-slide-in-right; }
+  @keyframes duel-slide-in-left  { from { transform: translateX(-80px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes duel-slide-in-right { from { transform: translateX(80px);  opacity: 0; } to { transform: none; opacity: 1; } }
+  .duel-vs-avatar { font-size: 34px; }
+  .duel-vs-fname { font-family: var(--font-pixel); font-size: 8px; color: var(--white); word-break: break-word; }
+  .duel-vs-ftrophies { font-family: var(--font-pixel); font-size: 9px; color: var(--yellow); }
+  .duel-vs-tier {
+    font-family: var(--font-pixel); font-size: 6px; letter-spacing: 1px;
+    color: var(--white); opacity: 0.85; margin-top: 2px;
+    padding: 2px 7px; border-radius: var(--radius-pill);
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+  }
+  .duel-vs-burst {
+    font-family: var(--font-pixel); font-size: 22px; color: var(--red);
+    animation: duel-vs-pop 0.6s 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes duel-vs-pop { from { transform: scale(0) rotate(-20deg); } to { transform: scale(1) rotate(0); } }
+  .duel-h2h { font-family: var(--font-pixel); font-size: 7px; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; }
+
+  /* ── PICK ── */
+  .duel-pick-title { margin-top: 40px; font-family: var(--font-pixel); font-size: 11px; color: var(--white); text-align: center; line-height: 2; }
+  .duel-topic-list { width: 100%; margin-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .duel-topic-btn {
+    width: 100%; min-height: 60px; padding: 14px 18px;
+    border-radius: var(--radius-md); border: 1.5px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.07); cursor: pointer;
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--font-body); font-size: 15px; font-weight: 800; color: var(--white);
+    transition: transform 0.1s, border-color 0.2s, background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .duel-topic-btn:active:not([disabled]) { transform: scale(0.97); }
+  .duel-topic-btn.picked { border-color: var(--yellow); background: rgba(255,217,61,0.14); }
+  .duel-topic-btn[disabled] { opacity: 0.55; cursor: default; }
+  .duel-pick-status { margin-top: 20px; font-family: var(--font-pixel); font-size: 7px; color: rgba(255,255,255,0.5); text-align: center; line-height: 2; }
+  .duel-spin-stage { margin-top: 30px; width: 100%; display: none; flex-direction: column; align-items: center; gap: 16px; }
+  .duel-spin-stage.visible { display: flex; }
+  .duel-spin-box {
+    width: 100%; padding: 26px 18px; border-radius: var(--radius-lg);
+    background: rgba(155,93,229,0.10); border: 1.5px solid rgba(155,93,229,0.35);
+    text-align: center; font-family: var(--font-pixel); font-size: 13px; color: var(--white);
+    overflow: hidden;
+  }
+  .duel-spin-label { font-size: 7px; color: rgba(255,255,255,0.5); margin-bottom: 12px; letter-spacing: 0.5px; }
+  #duel-spin-topic { transition: opacity 0.08s; }
+  .duel-final-topic { color: var(--yellow); animation: duel-vs-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both; }
+</style>
+
+<div class="duel-wrap" id="duel-wrap">
+
+  <!-- 1 · INTRO -->
+  <div class="duel-state" id="duel-state-intro">
+    <div class="duel-hero">
+      <span class="duel-hero-icon">⚔️</span>
+      <span class="duel-hero-title">DUEL ARENA</span>
+      <span class="duel-hero-sub">Real-time 1v1. Same questions, same clock — highest score takes the pot.</span>
+    </div>
+    <div class="duel-rules-card">
+      <div class="duel-rule"><span class="duel-rule-icon">💰</span> 25 coin entry · winner takes all 50</div>
+      <div class="duel-rule"><span class="duel-rule-icon">🏆</span> Win +8 trophies · lose −5</div>
+      <div class="duel-rule"><span class="duel-rule-icon">⏱️</span> 10 questions · 15 seconds each</div>
+      <div class="duel-rule"><span class="duel-rule-icon">☠️</span> Tie? Sudden death decides it</div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:26px;" onclick="duelFindOpponent()">⚔️ &nbsp;FIND OPPONENT</button>
+    <button class="btn btn-secondary" style="margin-top:12px;" onclick="duelExit()">◀ &nbsp;BACK</button>
+    <p class="duel-fee-note">TROPHIES ARE EARNED IN DUELS ONLY — THIS IS THE RANKED ARENA</p>
+  </div>
+
+  <!-- 2 · QUEUE -->
+  <div class="duel-state" id="duel-state-queue">
+    <div class="duel-radar"><span class="duel-radar-icon">📡</span></div>
+    <p class="duel-queue-status">SEARCHING FOR OPPONENT<br>
+      <span class="duel-queue-count" id="duel-queue-count">— IN QUEUE</span>
+    </p>
+    <div class="duel-bot-offer" id="duel-bot-offer">
+      <span style="font-size:30px;">🤖</span>
+      <p class="duel-bot-offer-text" id="duel-bot-offer-text">Nobody's in the arena right now. Warm up against the Duel Bot — free entry, +5 coins if you win. No trophies at stake.</p>
+      <button class="btn btn-primary" style="height:48px;" onclick="duelRequestBot()">🤖 &nbsp;PRACTICE VS BOT</button>
+    </div>
+    <button class="btn btn-secondary" style="margin-top:26px;" onclick="duelCancelQueue()">✕ &nbsp;CANCEL</button>
+  </div>
+
+  <!-- 3 · VS -->
+  <div class="duel-state" id="duel-state-vs">
+    <div class="duel-vs-stage">
+      <div class="duel-vs-cards">
+        <div class="duel-vs-fighter you">
+          <span class="duel-vs-avatar">🫵</span>
+          <span class="duel-vs-fname" id="duel-vs-you-name">YOU</span>
+          <span class="duel-vs-ftrophies" id="duel-vs-you-trophies">🏆 —</span>
+          <span class="duel-vs-tier" id="duel-vs-you-tier">—</span>
+        </div>
+        <span class="duel-vs-burst">VS</span>
+        <div class="duel-vs-fighter them">
+          <span class="duel-vs-avatar" id="duel-vs-them-avatar">😈</span>
+          <span class="duel-vs-fname" id="duel-vs-them-name">???</span>
+          <span class="duel-vs-ftrophies" id="duel-vs-them-trophies">🏆 —</span>
+          <span class="duel-vs-tier" id="duel-vs-them-tier">—</span>
+        </div>
+      </div>
+      <span class="duel-h2h" id="duel-h2h"></span>
+    </div>
+  </div>
+
+  <!-- 4 · PICK -->
+  <div class="duel-state" id="duel-state-pick">
+    <p class="duel-pick-title">PICK YOUR BATTLEGROUND</p>
+    <div class="duel-topic-list" id="duel-topic-list"></div>
+    <p class="duel-pick-status" id="duel-pick-status">BOTH PLAYERS PICK · SAME PICK = INSTANT START · DIFFERENT = SPIN DECIDES</p>
+    <div class="duel-spin-stage" id="duel-spin-stage">
+      <div class="duel-spin-box">
+        <div class="duel-spin-label" id="duel-spin-label">DECIDING TOPIC…</div>
+        <span id="duel-spin-topic">—</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   DUEL SCREEN — queue → match → topic pick → hand off to game
+   ══════════════════════════════════════════════════════════ */
+
+let _duelQueueWs   = null;   // matchmaking socket — NOT State.ws
+let _duelBotTimer  = null;   // shows the bot offer after a short empty wait
+let _duelRetryTimer= null;   // periodic retry_match poke while queued
+let _duelSpinTimer = null;
+let _duelMatch     = null;   // MATCH_FOUND payload
+let _duelPicked    = false;
+
+function onDuelShow() {
+  if (Sound.bgmEnabled) Sound.startBgMusic();
+  // Rematch path: results.html routes back here with the room socket alive
+  // and a DUEL_TOPIC_PICK already queued/handled — jump straight to pick.
+  if (State._duelRematchPick) {
+    State._duelRematchPick = false;
+    _duelRegisterRoomHandlers();   // re-install pick/QUESTION handlers (game.html owned QUESTION)
+    _duelRenderPick(State._duelPickOptions || []);
+    return;
+  }
+  _duelSetState('intro');
+}
+
+function _duelSetState(name) {
+  document.querySelectorAll('.duel-state').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById(`duel-state-${name}`);
+  if (el) el.classList.add('active');
+}
+
+/* ── 1 · INTRO → QUEUE ───────────────────────────────────── */
+
+function duelFindOpponent() {
+  Sound.click();
+  if (!State.user?.id) {
+    Toast.error('Sign in with Google to enter the Duel Arena.');
+    return;
+  }
+  const coins = Number(State.user.coins || 0);
+  if (Number.isFinite(coins) && coins < 25) {
+    Toast.error('You need 25 coins to duel. Win some in Solo first!');
+    return;
+  }
+  _duelConnectQueue();
+}
+
+function _duelConnectQueue() {
+  _duelCleanupQueue();
+  _duelSetState('queue');
+  const name = State.user?.name || State.playerName || 'Player';
+  State.playerName = name;
+  const url = `${WS_BASE}/ws/duel/queue`
+    + `?user_id=${encodeURIComponent(State.user.id)}`
+    + `&name=${encodeURIComponent(name)}`;
+  _duelQueueWs = new WebSocket(url);
+
+  _duelQueueWs.onmessage = (e) => {
+    let msg; try { msg = JSON.parse(e.data); } catch { return; }
+    const d = msg.data || {};
+    if (msg.type === 'QUEUE_STATUS') {
+      const el = document.getElementById('duel-queue-count');
+      const others = Math.max(0, (d.waiting || 1) - 1);
+      if (el) el.textContent = others > 0
+        ? `${others} OTHER PLAYER${others === 1 ? '' : 'S'} WAITING`
+        : 'ARENA EMPTY RIGHT NOW';
+      // Empty queue → surface the bot offer fast instead of a fake wait.
+      if (others === 0) _duelShowBotOfferSoon(2500);
+      else _duelHideBotOffer();
+    } else if (msg.type === 'MATCH_FOUND') {
+      _duelOnMatchFound(d);
+    } else if (msg.type === 'ERROR') {
+      Toast.error(d.message || 'Duel queue error.');
+      _duelCleanupQueue();
+      _duelSetState('intro');
+    } else if (msg.type === 'QUEUE_CANCELLED') {
+      _duelCleanupQueue();
+      _duelSetState('intro');
+    }
+  };
+  _duelQueueWs.onerror = () => { Toast.error('Connection error.'); };
+  _duelQueueWs.onclose = () => {
+    // Unexpected close while still on the queue screen → back to intro.
+    if (State.currentScreen === 'duel' && !_duelMatch) {
+      _duelCleanupQueue();
+      _duelSetState('intro');
+    }
+  };
+
+  // Fallback: even with waiters visible, offer the bot after 30s of no match.
+  _duelShowBotOfferSoon(30000, true);
+
+  // Nudge the server to re-check for a match every few seconds — catches
+  // pairs whose trophy windows widen over time.
+  _duelRetryTimer = setInterval(() => {
+    if (_duelQueueWs?.readyState === WebSocket.OPEN) {
+      _duelQueueWs.send(JSON.stringify({ action: 'retry_match' }));
+    }
+  }, 4000);
+}
+
+function _duelShowBotOfferSoon(ms, longWait = false) {
+  if (_duelBotTimer) clearTimeout(_duelBotTimer);
+  _duelBotTimer = setTimeout(() => {
+    const offer = document.getElementById('duel-bot-offer');
+    const text  = document.getElementById('duel-bot-offer-text');
+    if (offer) offer.classList.add('visible');
+    if (text && longWait) text.textContent =
+      'Still searching… fancy a warm-up against the Duel Bot while you wait? Free entry, +5 coins if you win.';
+  }, ms);
+}
+
+function _duelHideBotOffer() {
+  if (_duelBotTimer) { clearTimeout(_duelBotTimer); _duelBotTimer = null; }
+  document.getElementById('duel-bot-offer')?.classList.remove('visible');
+}
+
+function duelRequestBot() {
+  Sound.click();
+  if (_duelQueueWs?.readyState === WebSocket.OPEN) {
+    _duelQueueWs.send(JSON.stringify({ action: 'request_bot' }));
+  }
+}
+
+function duelCancelQueue() {
+  Sound.click();
+  if (_duelQueueWs?.readyState === WebSocket.OPEN) {
+    _duelQueueWs.send(JSON.stringify({ action: 'cancel' }));
+  }
+  _duelCleanupQueue();
+  _duelSetState('intro');
+}
+
+function _duelCleanupQueue() {
+  if (_duelBotTimer)   { clearTimeout(_duelBotTimer);    _duelBotTimer = null; }
+  if (_duelRetryTimer) { clearInterval(_duelRetryTimer); _duelRetryTimer = null; }
+  if (_duelQueueWs) {
+    try { _duelQueueWs.onclose = null; _duelQueueWs.close(); } catch {}
+    _duelQueueWs = null;
+  }
+}
+
+/* ── 2 · MATCH FOUND → VS → room socket ──────────────────── */
+
+// Trophy tier label — mirrors PF_TIERS in profile.html / _hRankLabel in home.html.
+const _DUEL_TIERS = [
+  { at: 0, label: 'ROOKIE' }, { at: 20, label: 'APPRENTICE' },
+  { at: 50, label: 'SKILLED' }, { at: 100, label: 'EXPERT' },
+  { at: 200, label: 'CHAMPION' }, { at: 500, label: 'GRANDMASTER' },
+];
+function _duelTierLabel(trophies) {
+  const t = Number(trophies);
+  if (!Number.isFinite(t)) return '—';
+  let label = _DUEL_TIERS[0].label;
+  for (const tier of _DUEL_TIERS) { if (t >= tier.at) label = tier.label; else break; }
+  return label;
+}
+
+function _duelOnMatchFound(d) {
+  _duelMatch = d;
+  _duelCleanupQueue();
+  Sound.gameStart();
+
+  document.getElementById('duel-vs-you-name').textContent     = (State.playerName || 'YOU').toUpperCase();
+  document.getElementById('duel-vs-you-trophies').textContent = `🏆 ${d.your_trophies ?? '—'}`;
+  document.getElementById('duel-vs-them-name').textContent    = (d.opponent_name || '???').toUpperCase();
+  document.getElementById('duel-vs-them-trophies').textContent= `🏆 ${d.opponent_trophies ?? '—'}`;
+  document.getElementById('duel-vs-them-avatar').textContent  = d.is_bot ? '🤖' : '😈';
+
+  // Rank tier badges — stakes-building. Bot has no trophy rank.
+  const youTierEl  = document.getElementById('duel-vs-you-tier');
+  const themTierEl = document.getElementById('duel-vs-them-tier');
+  if (youTierEl)  youTierEl.textContent  = _duelTierLabel(d.your_trophies);
+  if (themTierEl) themTierEl.textContent = d.is_bot ? 'PRACTICE BOT' : _duelTierLabel(d.opponent_trophies);
+
+  const h2hEl = document.getElementById('duel-h2h');
+  if (h2hEl) {
+    const you = d.h2h_you || 0, them = d.h2h_them || 0;
+    h2hEl.textContent = (you + them) > 0
+      ? `HEAD-TO-HEAD: YOU ${you} — ${them} THEM`
+      : (d.is_bot ? 'PRACTICE MATCH — NO ENTRY FEE, NO TROPHIES' : 'FIRST MEETING — MAKE IT COUNT');
+  }
+  _duelSetState('vs');
+
+  // Join the duel room over the normal room socket; the server opens the
+  // topic-pick phase once everyone expected is connected.
+  State.roomCode  = d.room_code;
+  State.playMode  = 'duel';
+  State.isHost    = false;
+  State.duelOpponent = d.opponent_name || '';
+  _duelRegisterRoomHandlers();
+  WS.connect(d.room_code, State.playerName);
+}
+
+function _duelRegisterRoomHandlers() {
+  WS.on('DUEL_TOPIC_PICK', (d) => {
+    State._duelPickOptions = d.options || [];
+    _duelRenderPick(d.options || []);
+  });
+  WS.on('DUEL_PICKS_UPDATE', (d) => {
+    const picks = d.picks || {};
+    const mine  = picks[State.playerName];
+    const theirsDone = Object.keys(picks).some(n => n !== State.playerName);
+    const status = document.getElementById('duel-pick-status');
+    if (status) {
+      if (mine && !theirsDone)      status.textContent = 'WAITING FOR OPPONENT TO PICK…';
+      else if (!mine && theirsDone) status.textContent = 'OPPONENT HAS PICKED — YOUR TURN!';
+    }
+  });
+  WS.on('DUEL_TOPIC_RESOLVED', (d) => _duelResolveTopic(d));
+  WS.on('GAME_STARTING', (d) => {
+    State.topic  = d.topic;
+    State.mode   = d.mode;
+    State.totalQ = d.total_questions || 10;
+    if (typeof Analytics !== 'undefined') {
+      Analytics.track('game_started', { play_mode: 'duel', is_quick_pick: true, difficulty: 'duel' });
+    }
+  });
+  WS.on('QUESTION', (d) => {
+    // First question can arrive while we're still on this screen —
+    // game.html re-registers QUESTION and replays it via WS._pending.
+    if (State.currentScreen !== 'game') {
+      WS.off('QUESTION');
+      WS._dispatch({ type: 'QUESTION', data: d }); // requeue for game.html
+      goTo('game');
+    }
+  });
+  WS.on('ERROR', (d) => {
+    Toast.error(d?.message || 'Duel error.');
+    if (State.currentScreen === 'duel') duelExit();
+  });
+}
+
+/* ── 3 · TOPIC PICK ──────────────────────────────────────── */
+
+function _duelRenderPick(options) {
+  _duelPicked = false;
+  _duelSetState('pick');
+  document.getElementById('duel-spin-stage')?.classList.remove('visible');
+  const status = document.getElementById('duel-pick-status');
+  if (status) status.textContent = 'BOTH PLAYERS PICK · SAME PICK = INSTANT START · DIFFERENT = SPIN DECIDES';
+  const icons = { 'Movies':'🎬','Space & Astronomy':'🚀','Video Games':'🎮','World Geography':'🌍','Science':'🔬','Biology':'🧬','AI & Tech':'🤖','Football':'⚽','Cricket':'🏏','General Knowledge':'🧠' };
+  const list = document.getElementById('duel-topic-list');
+  if (!list) return;
+  list.innerHTML = options.map(t => `
+    <button class="duel-topic-btn" data-topic="${_duelEsc(t)}" onclick="duelPickTopic(this)">
+      <span style="font-size:22px;">${icons[t] || '📚'}</span> ${_duelEsc(t)}
+    </button>`).join('');
+}
+
+function duelPickTopic(btn) {
+  if (_duelPicked) return;
+  _duelPicked = true;
+  Sound.click();
+  const topic = btn.getAttribute('data-topic');
+  document.querySelectorAll('.duel-topic-btn').forEach(b => {
+    b.setAttribute('disabled', 'true');
+    if (b === btn) b.classList.add('picked');
+  });
+  WS.send({ action: 'pick_topic', topic });
+}
+
+function _duelResolveTopic(d) {
+  const stage   = document.getElementById('duel-spin-stage');
+  const topicEl = document.getElementById('duel-spin-topic');
+  const labelEl = document.getElementById('duel-spin-label');
+  if (!stage || !topicEl) return;
+  stage.classList.add('visible');
+
+  const land = () => {
+    topicEl.textContent = d.topic;
+    topicEl.classList.add('duel-final-topic');
+    if (labelEl) labelEl.textContent = 'BATTLEGROUND LOCKED';
+    Sound.correct();
+  };
+
+  if (!d.spin) { land(); return; }
+
+  // Both picks differ — quick randomizer spin between the two choices
+  // (same feel as the Team Mode topic spinner, minimal footprint here).
+  const pool = Object.values(d.picks || {});
+  let ticks = 0;
+  const total = 14;
+  _duelSpinTimer = setInterval(() => {
+    ticks++;
+    if (ticks >= total) {
+      clearInterval(_duelSpinTimer); _duelSpinTimer = null;
+      topicEl.style.opacity = '1';
+      land();
+      return;
+    }
+    topicEl.style.opacity = '0.35';
+    setTimeout(() => {
+      if (!_duelSpinTimer) return; // spin already landed — never overwrite the final topic
+      topicEl.textContent = pool[ticks % pool.length] || d.topic;
+      topicEl.style.opacity = '1';
+    }, 40);
+  }, 130);
+}
+
+/* ── EXIT / CLEANUP ──────────────────────────────────────── */
+
+function duelExit() {
+  Sound.click();
+  _duelCleanupQueue();
+  if (_duelSpinTimer) { clearInterval(_duelSpinTimer); _duelSpinTimer = null; }
+  ['DUEL_TOPIC_PICK','DUEL_PICKS_UPDATE','DUEL_TOPIC_RESOLVED','GAME_STARTING','QUESTION','ERROR']
+    .forEach(t => WS.off(t));
+  if (State.ws) { WS._manualClose = true; State.ws.close(); State.ws = null; }
+  _duelMatch = null;
+  State.roomCode = null;
+  goTo('home');
+}
+
+function _duelEsc(s) {
+  return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+}
+</script>
