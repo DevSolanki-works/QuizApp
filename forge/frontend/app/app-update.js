@@ -48,8 +48,21 @@ const AppUpdate = {
     if (isCritical && info.immediateUpdateAllowed) {
       try {
         await plugin.performImmediateUpdate();
+        // Completing an immediate update restarts the app automatically —
+        // if we're still executing past this line, treat it as cancelled.
       } catch (e) {
-        console.warn('[AppUpdate] Immediate update failed/cancelled:', e);
+        console.warn('[AppUpdate] Immediate update cancelled or failed:', e);
+      }
+      // Re-check: if the update still isn't installed, block the app
+      // instead of silently letting the player continue on the old build.
+      let recheck;
+      try {
+        recheck = await plugin.getAppUpdateInfo();
+      } catch (_) {
+        recheck = null;
+      }
+      if (recheck?.updateAvailability === 2) {
+        this._showBlockingOverlay();
       }
       return;
     }
@@ -72,6 +85,33 @@ const AppUpdate = {
     }
   },
 
+  /**
+   * Full-screen, non-dismissible block shown when a priority 4/5 update
+   * was cancelled by the player (back button) instead of completed.
+   * Genuinely blocks play — no close button, no background-click dismiss.
+   */
+  _showBlockingOverlay() {
+    const el = document.getElementById('force-update-overlay');
+    if (el) el.style.display = 'flex';
+  },
+
+  /** Retry button inside the blocking overlay. */
+  async retryImmediateUpdate() {
+    const plugin = this._plugin;
+    if (!plugin) return;
+    try {
+      await plugin.performImmediateUpdate();
+      const info = await plugin.getAppUpdateInfo();
+      if (info.updateAvailability !== 2) {
+        const el = document.getElementById('force-update-overlay');
+        if (el) el.style.display = 'none';
+      }
+    } catch (e) {
+      console.warn('[AppUpdate] Retry cancelled/failed:', e);
+      // Overlay stays visible — player must complete the update to proceed.
+    }
+  },
+
   /** Call this from wherever the "restart to apply" prompt is tapped. */
   async completeFlexibleUpdate() {
     const plugin = this._plugin;
@@ -85,3 +125,4 @@ const AppUpdate = {
 };
 
 window.AppUpdate = AppUpdate;
+window.appUpdateRetry = () => AppUpdate.retryImmediateUpdate();

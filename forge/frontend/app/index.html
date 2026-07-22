@@ -513,6 +513,30 @@
     </div>
   </div>
 
+  <!-- FORCE-UPDATE BLOCKING OVERLAY — priority 4/5 releases only.
+       Deliberately has NO close button and NO background-click dismiss. -->
+  <div id="force-update-overlay" style="
+    display:none; position:fixed; inset:0; z-index:9999;
+    background:rgba(9,15,80,0.98); backdrop-filter:blur(10px);
+    align-items:center; justify-content:center; padding:28px;
+  ">
+    <div style="
+      width:100%; max-width:340px; text-align:center;
+      display:flex; flex-direction:column; align-items:center; gap:18px;
+    ">
+      <div style="font-size:48px;">⬆️</div>
+      <p style="font-family:var(--font-pixel);font-size:12px;color:var(--yellow);line-height:1.8;">
+        UPDATE REQUIRED
+      </p>
+      <p style="font-family:var(--font-body);font-size:14px;font-weight:700;color:rgba(255,255,255,0.7);line-height:1.6;">
+        This version can no longer be used. Please update to keep playing Forge.
+      </p>
+      <button class="btn btn-primary" onclick="appUpdateRetry()">
+        ⬇️ &nbsp;UPDATE NOW
+      </button>
+    </div>
+  </div>
+
   <!-- NOTIFICATION PERMISSION BOTTOM SHEET
        Shown on first native app open, before home screen.
        Explains why, then triggers the real OS permission dialog. -->
@@ -1852,6 +1876,7 @@ async function checkAndShowDailyReward() {
     }
     StreakNotif.schedule();
     checkPendingChallenges().catch(() => {});
+    if (typeof AppUpdate !== 'undefined') AppUpdate.checkAndPrompt().catch(() => {});
   }, false);
 }());
 
