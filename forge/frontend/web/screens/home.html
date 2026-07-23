@@ -402,6 +402,7 @@ function onHomeShow() {
   if (starsEl)    { starsEl.innerHTML    = ''; spawnStars(starsEl); }
   _homeUpdateStatus();
   _initGoogleSignIn();
+  _renderWebGateBanner();
 
   const nameInput = document.getElementById('input-name');
   if (nameInput && State.playerName) nameInput.value = State.playerName;
@@ -550,8 +551,59 @@ function _setLoading(id, on) {
   if (b) { b.classList.toggle('btn-loading', on); b.disabled = on; }
 }
 
+/**
+ * Web build (forgetrivia.online) has no ad/economy gating at all, unlike
+ * the native app — this closes the loophole where any visitor could play
+ * unlimited full games here for free. Uses the same isWebsite flag
+ * platform.js already computes; native app builds are entirely
+ * unaffected since ForgePlatform.config.isWebsite is false there.
+ */
+const FORGE_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.devsolanki.forge';
+
+function _isWebGated() {
+  return !!(window.ForgePlatform && window.ForgePlatform.config && window.ForgePlatform.config.isWebsite);
+}
+
+function _renderWebGateBanner() {
+  if (!_isWebGated() || document.getElementById('web-gate-banner')) return;
+  const card = document.querySelector('.home-card');
+  if (!card) return;
+  const banner = document.createElement('div');
+  banner.id = 'web-gate-banner';
+  banner.style.cssText = `
+    width:100%; padding:16px; border-radius:var(--radius-md);
+    background:rgba(255,217,61,0.1); border:1px solid rgba(255,217,61,0.3);
+    text-align:center; display:flex; flex-direction:column; gap:10px;
+  `;
+  banner.innerHTML = `
+    <p style="font-family:var(--font-pixel);font-size:8px;color:var(--yellow);line-height:1.8;">
+      🌐 WEB PREVIEW ONLY
+    </p>
+    <p style="font-family:var(--font-body);font-size:13px;font-weight:700;color:rgba(255,255,255,0.75);line-height:1.6;">
+      Playing live is available on the Forge Android app — free, with your saved coins, trophies, and progress.
+    </p>
+    <button class="btn btn-primary" onclick="_webGateOpenStore()">📲 &nbsp;GET THE APP</button>
+  `;
+  card.insertBefore(banner, card.firstChild.nextSibling); // just under "✦ LET'S PLAY ✦"
+}
+
+function _webGateOpenStore() {
+  Sound.click();
+  window.open(FORGE_PLAY_STORE_URL, '_blank', 'noopener');
+}
+
+/** Single choke point — every mode-start function below calls this first. */
+function _blockIfWebGated() {
+  if (!_isWebGated()) return false;
+  Toast.info('Playing is available on the Forge Android app — tap "GET THE APP" below!');
+  const banner = document.getElementById('web-gate-banner');
+  if (banner) banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return true;
+}
+
 /* ── CREATE ROOM ── */
 async function homeCreateRoom() {
+  if (_blockIfWebGated()) return;
   Sound.click();
   const name = _validateName(); if (!name) return;
   _setLoading('btn-create', true);
@@ -580,6 +632,7 @@ async function homeCreateRoom() {
 
 /* ── SOLO ── */
 async function homeStartSolo() {
+  if (_blockIfWebGated()) return;
   Sound.click();
   const name = _validateName(); if (!name) return;
   _setLoading('btn-solo', true);
@@ -608,6 +661,7 @@ async function homeStartSolo() {
 
 /* ── JOIN ROOM ── */
 async function homeJoinRoom() {
+  if (_blockIfWebGated()) return;
   Sound.click();
   const name   = _validateName(); if (!name) return;
   const codeEl = document.getElementById('input-code');
