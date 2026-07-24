@@ -1322,15 +1322,26 @@ async function _silentRefreshSession() {
   if (!State.user?.id) return false;
   try {
     if (IS_NATIVE_APP) {
-      // ⚠️ DISABLED (July 2026): @capawesome/capacitor-google-sign-in@0.1.2
-      // has no confirmed silent-refresh method. The previous fallback to
-      // plugin.signIn() shows a REAL interactive account picker on Android
-      // Credential Manager — not silent at all — which caused a
-      // repeating sign-in popup loop that made the app unplayable in
-      // production. Do not call plugin.signIn() from a background
-      // timer/resume hook again until a genuinely silent method is
-      // confirmed against the installed plugin's actual type defs.
-      return false;
+      // @capawesome/capacitor-google-sign-in@0.1.2 has no dedicated
+      // refresh method — signIn() is the only option. Once a Google
+      // account was already chosen on this device, Android's Credential
+      // Manager USUALLY resolves this near-instantly with no visible UI
+      // (it remembers the prior choice) — but this is NOT guaranteed
+      // silent on every device/OS version. This is why this function is
+      // ONLY ever called reactively (from _promptReauth, i.e. right
+      // before an action that genuinely needs a fresh token) — NEVER
+      // from a background timer or app-resume hook. Calling it
+      // proactively/unprompted is what caused the July 2026 popup-loop
+      // incident that made the app briefly unplayable in production.
+      const plugin = window.Capacitor?.Plugins?.GoogleSignIn;
+      if (!plugin) return false;
+      const result = await plugin.signIn();
+      const idToken = result?.idToken;
+      if (!idToken) return false;
+      State.user._credential = idToken;
+      State.user._signedInAt = Date.now();
+      Session.save();
+      return true;
     } else {
       if (!window.google?.accounts?.id) return false;
       return await new Promise((resolve) => {
@@ -2083,10 +2094,26 @@ async function nativeGoogleSignIn() {
   }
   try {
     if (!_googleNativeInitialized) {
-      await plugin.initialize({ clientId: GOOGLE_CLIENT_ID });
+      // scopes triggers the OAuth "authorization" flow on top of plain
+      // sign-in — per the plugin's own docs, this is what unlocks
+      // serverAuthCode in the result below. Without scopes, that field
+      // is always null. Using the minimal 'email' scope — we don't need
+      // any actual Google API access, just enough to trigger issuance
+      // of an authorization code our backend can exchange for a
+      // refresh token (verification step — backend exchange endpoint
+      // comes next).
+      await plugin.initialize({
+        clientId: GOOGLE_CLIENT_ID,
+        scopes: ['https://www.googleapis.com/auth/userinfo.email'],
+      });
       _googleNativeInitialized = true;
     }
     const result = await plugin.signIn();
+
+    // ── TEMPORARY VERIFICATION LOGGING — remove once confirmed ──
+    console.log('[GoogleSignIn] serverAuthCode present:', !!result.serverAuthCode);
+    console.log('[GoogleSignIn] serverAuthCode value:', result.serverAuthCode);
+
     await handleGoogleLogin({ credential: result.idToken });
   } catch (e) {
     console.error('[GoogleSignIn] native sign-in failed:', e);
