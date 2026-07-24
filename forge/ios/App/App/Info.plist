@@ -47,5 +47,77 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+
+	<!-- AdMob — required App ID for the iOS SDK to initialize -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-4922314688440658~9734257469</string>
+
+	<!-- Google Sign-In — URL scheme so Safari/Google's auth flow can hand
+	     control back to the app after login (reversed iOS client ID). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.878124462453-0sl2g1ikoanbgihhb9cirv4fg3fjddht</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Apple requires apps showing ads to declare SKAdNetwork identifiers
+	     for ad-attribution measurement. This is Google's own AdMob-required
+	     baseline list (their mediation partners each need their own entries
+	     too — Unity Ads' and AppLovin's SKAdNetwork IDs still need adding
+	     once each mediation partner's iOS docs are checked, flagged as a
+	     follow-up, not blocking this initial setup). -->
+	<key>SKAdNetworkItems</key>
+	<array>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>cstr6suwn9.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>4fzdc2evr5.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>4pfyvq9l8r.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>2fnua5tdw4.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>ydx93a7ass.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>5a6flpkh64.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>p78axxw29g.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>v72qych5uu.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>c6k4g5qg8m.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>s39g8k73mm.skadnetwork</string>
+		</dict>
+	</array>
+
+	<!-- Push notifications — required usage/background mode declarations -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>
