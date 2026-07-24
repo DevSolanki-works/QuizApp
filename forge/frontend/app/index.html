@@ -1322,17 +1322,15 @@ async function _silentRefreshSession() {
   if (!State.user?.id) return false;
   try {
     if (IS_NATIVE_APP) {
-      const plugin = window.Capacitor?.Plugins?.GoogleSignIn;
-      if (!plugin) return false;
-      const result = typeof plugin.refresh === 'function'
-        ? await plugin.refresh()
-        : await plugin.signIn();
-      const idToken = result?.idToken || result?.authentication?.idToken;
-      if (!idToken) return false;
-      State.user._credential = idToken;
-      State.user._signedInAt = Date.now();
-      Session.save();
-      return true;
+      // ⚠️ DISABLED (July 2026): @capawesome/capacitor-google-sign-in@0.1.2
+      // has no confirmed silent-refresh method. The previous fallback to
+      // plugin.signIn() shows a REAL interactive account picker on Android
+      // Credential Manager — not silent at all — which caused a
+      // repeating sign-in popup loop that made the app unplayable in
+      // production. Do not call plugin.signIn() from a background
+      // timer/resume hook again until a genuinely silent method is
+      // confirmed against the installed plugin's actual type defs.
+      return false;
     } else {
       if (!window.google?.accounts?.id) return false;
       return await new Promise((resolve) => {
@@ -1951,18 +1949,10 @@ async function checkAndShowDailyReward() {
     StreakNotif.schedule();
     checkPendingChallenges().catch(() => {});
     if (typeof AppUpdate !== 'undefined') AppUpdate.checkAndPrompt().catch(() => {});
-    // Coming back from background is exactly when a token is most likely
-    // to have gone stale — refresh proactively rather than waiting for
-    // the next Bearer-gated action to discover it's expired.
-    if (State.user?.id) _silentRefreshSession().catch(() => {});
+    // NOTE: proactive native refresh disabled for now — see
+    // _silentRefreshSession() comment above. Re-enable once a verified
+    // silent method exists for the installed Google Sign-In plugin.
   }, false);
-
-  /* Proactive background refresh — keeps the token comfortably inside
-     its ~1hr validity window so _isSessionLikelyStale() rarely trips
-     during normal play, and players are almost never interrupted. */
-  setInterval(() => {
-    if (State.user?.id) _silentRefreshSession().catch(() => {});
-  }, 40 * 60 * 1000); // every 40 min — safely inside the 50-min staleness threshold
 }());
 
 /* ══════════════════════════════════════════════════════════
