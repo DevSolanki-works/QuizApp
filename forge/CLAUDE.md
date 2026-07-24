@@ -285,7 +285,16 @@ forge/
 
 ## 📱 iOS — Planned, No Mac Required (via Codemagic)
 
-**Status: Planning stage, not started.** Dev has no Mac; will use Codemagic (cloud macOS CI) instead of a local/GitHub Actions build, and a borrowed iPhone (parent's) for Apple ID 2FA + TestFlight testing only — never for building.
+**Status: In progress, blocked on Apple Developer Program approval.** Dev has no Mac; using Codemagic (cloud macOS CI) instead of a local/GitHub Actions build, and a borrowed iPhone (parent's) for Apple ID 2FA + TestFlight testing only — never for building.
+
+**Completed so far (on branch `IOS_Setup`, not yet merged):**
+- iOS platform added via `npx cap add ios` + `npx cap sync ios` — all 7 existing Capacitor plugins detected and synced for iOS
+- Firebase iOS app registered, `GoogleService-Info.plist` placed at `ios/App/App/GoogleService-Info.plist` (not yet registered into the Xcode `.pbxproj` build target — deferred to a Codemagic pre-build script, since that step needs real Xcode/Mac tooling)
+- Google Sign-In iOS OAuth client created (separate from the Android client), wired into `capacitor.config.json` (`GoogleSignIn.iosClientId`) and `Info.plist` (`CFBundleURLTypes` reversed-client-ID scheme)
+- AdMob iOS App ID created and added to `Info.plist` (`GADApplicationIdentifier`), plus Google's baseline `SKAdNetworkItems` list added (⚠️ not yet cross-checked against Apple's current live requirements before real App Store submission — see Known Issues)
+- Codemagic account created, GitHub repo linked
+
+**Blocked on:** Apple Developer Program enrollment ($99/yr) approval — required before the App Store Connect API key (Issuer ID + Key ID + `.p8` file) can be generated, which Codemagic needs to auto-manage signing certs/provisioning profiles. Nothing further can proceed until this clears.
 
 ### Real requirements (cost + hardware honesty)
 - **Apple Developer Program: $99/year, mandatory.** No workaround exists.
@@ -308,6 +317,10 @@ forge/
 ### Explicitly not decided yet
 - Whether iOS ships with full feature parity on day one, or a reduced scope (e.g., AdMob mediation partners may have separate iOS SDK integration work not yet scoped) — decide once Phase 3-4 above are underway and the real plugin-by-plugin iOS gap list is known.
 - Pricing/monetization parity — Apple's 30% IAP cut (if ever adding IAP) vs Android's Play Billing terms differ; not relevant yet since Forge has no IAP, only AdMob, but worth remembering if that changes.
+
+### Known gaps to close before real App Store submission (not blocking TestFlight/internal testing)
+- `SKAdNetworkItems` in `Info.plist` currently only lists AdMob's own baseline set — Unity Ads and (once approved) AppLovin MAX each publish their own SKAdNetwork IDs for iOS attribution that haven't been added yet. Ads will still serve without these; this only affects Apple's ad-attribution measurement accuracy. Cross-check Google's live AdMob iOS docs for the current authoritative baseline list too, since Apple/Google update these periodically and the set added here is from a point-in-time reference, not guaranteed current at submission time.
+- `GoogleService-Info.plist` is placed in the correct folder but not yet registered into the Xcode project's build target (`.pbxproj`) — this requires either manual Xcode drag-and-drop (no Mac available) or a Codemagic pre-build script step, planned but not yet written into `codemagic.yaml`.
 
 ---
 

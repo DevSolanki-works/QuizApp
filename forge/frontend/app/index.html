@@ -1300,13 +1300,87 @@ function _isSessionLikelyStale() {
   return (Date.now() - State.user._signedInAt) > 50 * 60 * 1000;
 }
 
+/**
+ * Silently renews the Google ID token without a full manual sign-in,
+ * using the native Credential Manager (Android) or Google Identity
+ * Services' cached One Tap session (web). Run proactively on a timer
+ * so most sessions never actually go stale — _promptReauth() below is
+ * only a fallback for when this was missed (e.g. phone asleep through
+ * several refresh windows).
+ *
+ * ⚠️ VERIFY BEFORE RELYING ON THIS: confirm the exact method name
+ * (`refresh`, `signInSilently`, or similar) against
+ * node_modules/@capawesome/capacitor-google-sign-in/dist/esm/definitions.d.ts
+ * after `npm install` — the installed plugin version may not expose a
+ * dedicated silent-refresh method, in which case this falls back to
+ * signIn(), which on native Credential Manager is usually a fast
+ * one-tap re-confirmation rather than a full sign-in flow, but is not
+ * guaranteed 100% silent depending on plugin/OS version. Same caution
+ * already noted in admob.js and push.js for this exact plugin family.
+ */
+async function _silentRefreshSession() {
+  if (!State.user?.id) return false;
+  try {
+    if (IS_NATIVE_APP) {
+      const plugin = window.Capacitor?.Plugins?.GoogleSignIn;
+      if (!plugin) return false;
+      const result = typeof plugin.refresh === 'function'
+        ? await plugin.refresh()
+        : await plugin.signIn();
+      const idToken = result?.idToken || result?.authentication?.idToken;
+      if (!idToken) return false;
+      State.user._credential = idToken;
+      State.user._signedInAt = Date.now();
+      Session.save();
+      return true;
+    } else {
+      if (!window.google?.accounts?.id) return false;
+      return await new Promise((resolve) => {
+        let settled = false;
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          auto_select: true,
+          callback: (response) => {
+            if (settled) return;
+            settled = true;
+            if (response?.credential) {
+              State.user._credential = response.credential;
+              State.user._signedInAt = Date.now();
+              Session.save();
+              resolve(true);
+            } else {
+              resolve(false);
+            }
+          },
+        });
+        google.accounts.id.prompt((notification) => {
+          if (settled) return;
+          if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+            settled = true;
+            resolve(false);
+          }
+        });
+        setTimeout(() => { if (!settled) { settled = true; resolve(false); } }, 4000);
+      });
+    }
+  } catch (e) {
+    console.warn('[Auth] Silent refresh failed:', e);
+    return false;
+  }
+}
+
 async function _promptReauth() {
+  // Last-resort attempt before interrupting the player — if this
+  // succeeds, they never see anything at all.
+  const refreshed = await _silentRefreshSession();
+  if (refreshed) return;
   Toast.info('Your session expired — please sign in again to continue.');
   await goTo('home');
   if (typeof hOpenSigninModal === 'function') hOpenSigninModal();
 }
 window._isAuthError = _isAuthError;
 window._isSessionLikelyStale = _isSessionLikelyStale;
+window._silentRefreshSession = _silentRefreshSession;
 window._promptReauth = _promptReauth;
 
 /* ══════════════════════════════════════════════════════════
@@ -1877,7 +1951,18 @@ async function checkAndShowDailyReward() {
     StreakNotif.schedule();
     checkPendingChallenges().catch(() => {});
     if (typeof AppUpdate !== 'undefined') AppUpdate.checkAndPrompt().catch(() => {});
+    // Coming back from background is exactly when a token is most likely
+    // to have gone stale — refresh proactively rather than waiting for
+    // the next Bearer-gated action to discover it's expired.
+    if (State.user?.id) _silentRefreshSession().catch(() => {});
   }, false);
+
+  /* Proactive background refresh — keeps the token comfortably inside
+     its ~1hr validity window so _isSessionLikelyStale() rarely trips
+     during normal play, and players are almost never interrupted. */
+  setInterval(() => {
+    if (State.user?.id) _silentRefreshSession().catch(() => {});
+  }, 40 * 60 * 1000); // every 40 min — safely inside the 50-min staleness threshold
 }());
 
 /* ══════════════════════════════════════════════════════════
