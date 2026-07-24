@@ -29,6 +29,11 @@ const AppUpdate = {
    *     with a small toast prompting restart once it's downloaded.
    */
   async checkAndPrompt() {
+    // Play Core (and this plugin) is Android/Play-Store-only — there is no
+    // iOS equivalent API. App Store's own update prompting is entirely
+    // OS-level and outside app control, so this must no-op cleanly on iOS
+    // rather than attempt a call the native plugin can't fulfill there.
+    if (window.Capacitor?.getPlatform?.() === 'ios') return;
     const plugin = this._plugin;
     if (!plugin || !window.Capacitor?.isNativePlatform?.()) return;
 
