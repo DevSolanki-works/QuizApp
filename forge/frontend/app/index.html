@@ -2110,9 +2110,26 @@ async function nativeGoogleSignIn() {
     }
     const result = await plugin.signIn();
 
-    // ── TEMPORARY VERIFICATION LOGGING — remove once confirmed ──
-    console.log('[GoogleSignIn] serverAuthCode present:', !!result.serverAuthCode);
-    console.log('[GoogleSignIn] serverAuthCode value:', result.serverAuthCode);
+    // ── TEMPORARY ON-DEVICE VERIFICATION — remove once confirmed ──
+    // chrome://inspect isn't available on this build (WebView debugging
+    // disabled), so surface the result directly via alert() + clipboard
+    // instead of console.log so it can actually be seen/retrieved on a
+    // real device without a debugger attached.
+    const hasCode = !!result.serverAuthCode;
+    const preview = hasCode
+      ? result.serverAuthCode.slice(0, 12) + '…' + result.serverAuthCode.slice(-6)
+      : '(null / missing)';
+    try {
+      if (hasCode && navigator.clipboard) {
+        await navigator.clipboard.writeText(result.serverAuthCode);
+      }
+    } catch (_) {}
+    alert(
+      'serverAuthCode present: ' + hasCode + '\n' +
+      'preview: ' + preview + '\n' +
+      (hasCode ? '(full value copied to clipboard)' : '(nothing to copy)')
+    );
+    // ── END TEMPORARY VERIFICATION ──
 
     await handleGoogleLogin({ credential: result.idToken });
   } catch (e) {
