@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     # Milestone 17: Google Auth
     GOOGLE_CLIENT_ID: str = ""
 
+    # Server-side refresh-token exchange (silent re-auth fix, July 2026).
+    # Injected from the GOOGLE_CLIENT_SECRET GitHub secret via GCP Secret
+    # Manager at deploy time — never committed.
+    GOOGLE_CLIENT_SECRET: str = ""
+
     # Duel Phase 1: Supabase REST access for Challenge storage. This is the
     # SAME public anon key already embedded client-side in
     # frontend/app/supabase-client.js — safe to default here since it's

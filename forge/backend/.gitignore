@@ -44,3 +44,5 @@ Thumbs.db
 *.sln
 *.swp
 profiles.json
+challenges.json
+refresh_tokens.json
