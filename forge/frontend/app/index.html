@@ -1369,15 +1369,25 @@ async function _silentRefreshSession() {
   try {
     if (IS_NATIVE_APP) {
       // Fallback only — reached when no server-side refresh token is on
-      // file yet. @capawesome/capacitor-google-sign-in@0.1.2 has no
-      // dedicated silent-refresh method; signIn() is the only option,
-      // and it CAN show a real account picker. This is why this
-      // fallback branch must stay reactive-only (called from
-      // _promptReauth, right when an action needs a token) — calling it
-      // from a background timer caused the July 2026 popup-loop
-      // incident that made the app briefly unplayable in production.
+      // file yet (existing users from before this system existed fall
+      // into this path on their first reauth after updating). signIn()
+      // CAN show a real account picker. This is why this fallback
+      // branch must stay reactive-only (called from _promptReauth,
+      // right when an action needs a token) — calling it from a
+      // background timer caused the July 2026 popup-loop incident.
       const plugin = window.Capacitor?.Plugins?.GoogleSignIn;
       if (!plugin) return false;
+      // Ensure scopes were requested before this signIn() call too —
+      // not just the explicit "tap Sign In" button path — otherwise
+      // existing users never get a serverAuthCode on this fallback and
+      // stay stuck on manual reauth forever, even after updating.
+      if (!_googleNativeInitialized) {
+        await plugin.initialize({
+          clientId: GOOGLE_CLIENT_ID,
+          scopes: ['https://www.googleapis.com/auth/userinfo.email'],
+        });
+        _googleNativeInitialized = true;
+      }
       const result = await plugin.signIn();
       const idToken = result?.idToken;
       if (!idToken) return false;
@@ -2145,9 +2155,14 @@ async function handleGoogleLogin(response) {
   // Failure here is non-fatal — the client just falls back to the
   // existing reactive signIn()-based refresh for this session.
   if (serverAuthCode && State.user?.id) {
-    API.exchangeAuthCode(State.user.id, serverAuthCode).catch((e) => {
-      console.warn('[Auth] Server-side refresh token exchange failed (non-fatal):', e);
-    });
+    API.exchangeAuthCode(State.user.id, serverAuthCode)
+      .then((r) => alert('Exchange result: ' + JSON.stringify(r)))
+      .catch((e) => {
+        alert('Exchange FAILED: ' + e.message);
+        console.warn('[Auth] Server-side refresh token exchange failed (non-fatal):', e);
+      });
+  } else {
+    alert('Exchange SKIPPED — serverAuthCode: ' + serverAuthCode + ', user.id: ' + State.user?.id);
   }
 }
 
@@ -2179,6 +2194,7 @@ async function nativeGoogleSignIn() {
       _googleNativeInitialized = true;
     }
     const result = await plugin.signIn();
+    alert('serverAuthCode present: ' + !!result.serverAuthCode);
     await handleGoogleLogin({ credential: result.idToken, serverAuthCode: result.serverAuthCode });
   } catch (e) {
     console.error('[GoogleSignIn] native sign-in failed:', e);
