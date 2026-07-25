@@ -1159,6 +1159,31 @@ const API = {
     return r.json();
   },
 
+  async exchangeAuthCode(userId, authCode) {
+    const credential = State.user?._credential;
+    if (!credential) return null;
+    const r = await fetch(`${API_BASE}/auth/exchange-code`, {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${credential}`,
+      },
+      body: JSON.stringify({ user_id: userId, auth_code: authCode }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async refreshIdToken(userId) {
+    const r = await fetch(`${API_BASE}/auth/refresh`, {
+      method  : 'POST',
+      headers : { 'Content-Type': 'application/json' },
+      body    : JSON.stringify({ user_id: userId }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
   async syncTickets(userId, ticketsToday, adTicketsUsedToday = 0, lastTicketDate = '') {
     const credential = State.user?._credential;
     if (!credential) return;
@@ -1320,18 +1345,36 @@ function _isSessionLikelyStale() {
  */
 async function _silentRefreshSession() {
   if (!State.user?.id) return false;
+
+  // Preferred path: server-side refresh via the stored Google refresh
+  // token — pure network call, zero native UI, works identically
+  // whether the app was closed for 5 minutes or 5 hours. Safe to call
+  // proactively (timers, resume hooks) since there is no popup risk.
+  try {
+    const result = await API.refreshIdToken(State.user.id);
+    if (result?.id_token) {
+      State.user._credential = result.id_token;
+      State.user._signedInAt = Date.now();
+      Session.save();
+      return true;
+    }
+  } catch (e) {
+    // 404 = no refresh token on file for this user yet (e.g. signed in
+    // on a build before this system existed, or on web where there's no
+    // serverAuthCode at all) — fall through to the native/manual path
+    // below rather than treating this as fatal.
+    console.warn('[Auth] Server-side refresh unavailable, falling back:', e);
+  }
+
   try {
     if (IS_NATIVE_APP) {
-      // @capawesome/capacitor-google-sign-in@0.1.2 has no dedicated
-      // refresh method — signIn() is the only option. Once a Google
-      // account was already chosen on this device, Android's Credential
-      // Manager USUALLY resolves this near-instantly with no visible UI
-      // (it remembers the prior choice) — but this is NOT guaranteed
-      // silent on every device/OS version. This is why this function is
-      // ONLY ever called reactively (from _promptReauth, i.e. right
-      // before an action that genuinely needs a fresh token) — NEVER
-      // from a background timer or app-resume hook. Calling it
-      // proactively/unprompted is what caused the July 2026 popup-loop
+      // Fallback only — reached when no server-side refresh token is on
+      // file yet. @capawesome/capacitor-google-sign-in@0.1.2 has no
+      // dedicated silent-refresh method; signIn() is the only option,
+      // and it CAN show a real account picker. This is why this
+      // fallback branch must stay reactive-only (called from
+      // _promptReauth, right when an action needs a token) — calling it
+      // from a background timer caused the July 2026 popup-loop
       // incident that made the app briefly unplayable in production.
       const plugin = window.Capacitor?.Plugins?.GoogleSignIn;
       if (!plugin) return false;
@@ -1341,6 +1384,12 @@ async function _silentRefreshSession() {
       State.user._credential = idToken;
       State.user._signedInAt = Date.now();
       Session.save();
+      // Opportunistically pick up a refresh token now too, in case this
+      // sign-in grants a fresh serverAuthCode (e.g. first time on a
+      // build that has this system).
+      if (result.serverAuthCode) {
+        API.exchangeAuthCode(State.user.id, result.serverAuthCode).catch(() => {});
+      }
       return true;
     } else {
       if (!window.google?.accounts?.id) return false;
@@ -1960,10 +2009,19 @@ async function checkAndShowDailyReward() {
     StreakNotif.schedule();
     checkPendingChallenges().catch(() => {});
     if (typeof AppUpdate !== 'undefined') AppUpdate.checkAndPrompt().catch(() => {});
-    // NOTE: proactive native refresh disabled for now — see
-    // _silentRefreshSession() comment above. Re-enable once a verified
-    // silent method exists for the installed Google Sign-In plugin.
+    // Safe to call proactively now: _silentRefreshSession() tries the
+    // server-side refresh-token exchange FIRST (pure network call, no
+    // native UI at all), only falling back to the native plugin's
+    // signIn() if no server-side refresh token is on file yet.
+    if (State.user?.id) _silentRefreshSession().catch(() => {});
   }, false);
+
+  // Proactive background refresh — keeps the token comfortably inside
+  // its ~1hr validity window so most sessions never hit staleness at
+  // all, regardless of how long the app sits open or backgrounded.
+  setInterval(() => {
+    if (State.user?.id) _silentRefreshSession().catch(() => {});
+  }, 40 * 60 * 1000); // every 40 min — safely inside the 50-min threshold
 }());
 
 /* ══════════════════════════════════════════════════════════
@@ -2003,6 +2061,7 @@ if (document.readyState === 'loading') {
    GOOGLE LOGIN HANDLER
    ══════════════════════════════════════════════════════════ */
 async function handleGoogleLogin(response) {
+  const serverAuthCode = response.serverAuthCode || null;
   let freshProfile = null;
   try {
     const user = await API.verifyGoogleToken(response.credential);
@@ -2079,6 +2138,17 @@ async function handleGoogleLogin(response) {
   }
   if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
   if (typeof Push !== 'undefined') Push.initAndRegister().catch(() => {});
+
+  // One-time: exchange the fresh serverAuthCode (native app only — web
+  // sign-in never has one) for a server-side refresh token, so future
+  // token refreshes never need to touch the native picker again.
+  // Failure here is non-fatal — the client just falls back to the
+  // existing reactive signIn()-based refresh for this session.
+  if (serverAuthCode && State.user?.id) {
+    API.exchangeAuthCode(State.user.id, serverAuthCode).catch((e) => {
+      console.warn('[Auth] Server-side refresh token exchange failed (non-fatal):', e);
+    });
+  }
 }
 
 let _googleNativeInitialized = false;
@@ -2109,29 +2179,7 @@ async function nativeGoogleSignIn() {
       _googleNativeInitialized = true;
     }
     const result = await plugin.signIn();
-
-    // ── TEMPORARY ON-DEVICE VERIFICATION — remove once confirmed ──
-    // chrome://inspect isn't available on this build (WebView debugging
-    // disabled), so surface the result directly via alert() + clipboard
-    // instead of console.log so it can actually be seen/retrieved on a
-    // real device without a debugger attached.
-    const hasCode = !!result.serverAuthCode;
-    const preview = hasCode
-      ? result.serverAuthCode.slice(0, 12) + '…' + result.serverAuthCode.slice(-6)
-      : '(null / missing)';
-    try {
-      if (hasCode && navigator.clipboard) {
-        await navigator.clipboard.writeText(result.serverAuthCode);
-      }
-    } catch (_) {}
-    alert(
-      'serverAuthCode present: ' + hasCode + '\n' +
-      'preview: ' + preview + '\n' +
-      (hasCode ? '(full value copied to clipboard)' : '(nothing to copy)')
-    );
-    // ── END TEMPORARY VERIFICATION ──
-
-    await handleGoogleLogin({ credential: result.idToken });
+    await handleGoogleLogin({ credential: result.idToken, serverAuthCode: result.serverAuthCode });
   } catch (e) {
     console.error('[GoogleSignIn] native sign-in failed:', e);
     Toast.error('Google Sign-In failed.');
