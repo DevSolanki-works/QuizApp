@@ -8,8 +8,7 @@ from fastapi import APIRouter, HTTPException, Request, Header
 from pydantic import BaseModel
 from typing import Optional
 
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
+import jwt as pyjwt
 
 from app.core import state
 from app.core.config import settings
@@ -70,15 +69,6 @@ class DeleteAccountRequest(BaseModel):
     user_id: str
 
 
-class ExchangeCodeRequest(BaseModel):
-    user_id: str
-    auth_code: str
-
-
-class RefreshTokenRequest(BaseModel):
-    user_id: str
-
-
 class LuckySpinRequest(BaseModel):
     user_id: str
     is_respin: bool = False
@@ -100,23 +90,52 @@ def _generate_room_code() -> str:
 
 def _verify_google_token(credential: str) -> str:
     """
-    Verify a Google ID token and return the Google user ID (sub).
+    Verify a Supabase-issued access token and return the original Google
+    user ID (sub) — NOT Supabase's own internal user UUID.
+
+    WHY THIS SHAPE (July 2026 — replaces raw Google ID token verification):
+      Native Google Sign-In ID tokens are short-lived (~1hr) with no
+      reliable silent-refresh path on the installed Capacitor plugin
+      version, which caused repeated forced-reauth interruptions in
+      production. Supabase Auth's own session model (signInWithIdToken)
+      solves this: supabase-js manages long-lived refresh entirely
+      client-side, silently, forever — the backend just needs to verify
+      whatever access token that session currently holds.
+
+      Supabase's JWT `sub` claim is Supabase's OWN user UUID, not
+      Google's — but the original Google sub survives, unchanged, inside
+      user_metadata.sub (confirmed against a real decoded token). Every
+      existing profiles.json / leaderboard.google_id / challenge record
+      is keyed on the Google sub, so THIS function must keep returning
+      that exact same value — not Supabase's UUID — to avoid treating
+      every existing user as a brand-new account.
 
     Raises HTTPException 401 if the token is missing, expired, or tampered.
-    This is used to prove that the caller owns the account they're modifying —
-    preventing one user from manipulating another user's economy balance.
     """
     if not credential:
         raise HTTPException(status_code=401, detail="Authentication required.")
+    if not settings.SUPABASE_JWT_SECRET:
+        logger.error("SUPABASE_JWT_SECRET not configured — cannot verify any session.")
+        raise HTTPException(status_code=500, detail="Server auth configuration error.")
     try:
-        idinfo = id_token.verify_oauth2_token(
+        payload = pyjwt.decode(
             credential,
-            google_requests.Request(),
-            settings.GOOGLE_CLIENT_ID if settings.GOOGLE_CLIENT_ID else None,
+            settings.SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            audience="authenticated",
         )
-        return idinfo["sub"]
-    except ValueError as e:
-        logger.warning("Invalid Google token on economy endpoint: %s", e)
+        google_sub = (
+            payload.get("user_metadata", {}).get("sub")
+            or payload.get("user_metadata", {}).get("provider_id")
+        )
+        if not google_sub:
+            logger.warning("Supabase token verified but no Google sub found in user_metadata.")
+            raise HTTPException(status_code=401, detail="Token missing account identity.")
+        return google_sub
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Invalid or expired authentication token.")
+    except pyjwt.InvalidTokenError as e:
+        logger.warning("Invalid Supabase token on economy endpoint: %s", e)
         raise HTTPException(status_code=401, detail="Invalid or expired authentication token.")
 
 
@@ -518,81 +537,6 @@ async def sync_profile_endpoint(
     except Exception as e:
         logger.error("Economy sync failed: %s", e)
         raise HTTPException(status_code=500, detail="Sync failed")
-
-@router.post("/auth/exchange-code")
-async def exchange_code_endpoint(
-    body: ExchangeCodeRequest,
-    authorization: Optional[str] = Header(default=None),
-):
-    """
-    One-time exchange: trade a fresh serverAuthCode for a refresh token,
-    stored server-side. Called once, right after native sign-in.
-
-    Ownership check: the caller must ALSO present a valid ID token for
-    the same user_id in the Authorization header — proves this request
-    genuinely came from that Google account's own sign-in flow, not an
-    arbitrary caller trying to plant a refresh token under someone
-    else's user_id.
-    """
-    credential = ""
-    if authorization and authorization.startswith("Bearer "):
-        credential = authorization[len("Bearer "):]
-
-    verified_uid = _verify_google_token(credential)
-    if verified_uid != body.user_id:
-        raise HTTPException(
-            status_code=403,
-            detail="Token does not match the requested user account.",
-        )
-
-    try:
-        from app.services.google_auth import exchange_code_for_tokens, store_refresh_token
-
-        tokens = await exchange_code_for_tokens(body.auth_code)
-        refresh_token = tokens.get("refresh_token")
-        if not refresh_token:
-            # Google only returns a refresh_token on the FIRST grant for a
-            # given client+user combo. If the user already granted access
-            # before (e.g. reinstalled the app), this can legitimately be
-            # absent — not an error, just nothing new to store.
-            return {"ok": True, "stored": False}
-
-        store_refresh_token(body.user_id, refresh_token)
-        return {"ok": True, "stored": True}
-    except ValueError as e:
-        logger.warning("Auth code exchange failed for %s: %s", body.user_id, e)
-        raise HTTPException(status_code=400, detail="Could not exchange authorization code.")
-    except Exception as e:
-        logger.error("Auth code exchange error: %s", e)
-        raise HTTPException(status_code=500, detail="Authorization exchange failed")
-
-
-@router.post("/auth/refresh")
-async def refresh_token_endpoint(body: RefreshTokenRequest):
-    """
-    Silently mint a fresh ID token using a previously stored refresh
-    token — no native Google UI involved at all. This is the endpoint
-    the client polls instead of calling the native plugin's signIn().
-
-    Deliberately NOT ownership-gated by a Bearer token, since the whole
-    point is this gets called when the CLIENT'S existing token has
-    already expired — that's precisely the situation with no valid
-    Bearer token available. Safe because: this only returns a token for
-    whatever user_id has a stored refresh token, which only exists if
-    that exact account already completed a real Google sign-in +
-    ownership-verified exchange once before.
-    """
-    from app.services.google_auth import refresh_id_token
-
-    tokens = await refresh_id_token(body.user_id)
-    if not tokens or not tokens.get("id_token"):
-        raise HTTPException(
-            status_code=404,
-            detail="No valid refresh token on file — please sign in again.",
-        )
-
-    return {"id_token": tokens["id_token"]}
-
 
 @router.post("/account/delete")
 async def delete_account(

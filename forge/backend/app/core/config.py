@@ -25,10 +25,10 @@ class Settings(BaseSettings):
     # Milestone 17: Google Auth
     GOOGLE_CLIENT_ID: str = ""
 
-    # Server-side refresh-token exchange (silent re-auth fix, July 2026).
-    # Injected from the GOOGLE_CLIENT_SECRET GitHub secret via GCP Secret
-    # Manager at deploy time — never committed.
-    GOOGLE_CLIENT_SECRET: str = ""
+    # Supabase Auth JWT verification (July 2026 — replaces the
+    # short-lived-Google-ID-token model entirely). Legacy HS256 shared
+    # secret from Supabase Dashboard → Settings → API → JWT Settings.
+    SUPABASE_JWT_SECRET: str = ""
 
     # Duel Phase 1: Supabase REST access for Challenge storage. This is the
     # SAME public anon key already embedded client-side in
