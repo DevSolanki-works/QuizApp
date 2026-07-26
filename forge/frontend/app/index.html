@@ -608,6 +608,7 @@ const Session = {
         picture:          State.user.picture,
         _credential:      State.user._credential,
         _signedInAt:      State.user._signedInAt,
+        _reauthEpoch:     State.user._reauthEpoch,
         last_reward_date: State.user.last_reward_date,
         reward_day:       State.user.reward_day,
         // intentionally omit coins/trophies — always fetched fresh from Supabase
@@ -880,6 +881,22 @@ if (_savedSession) {
     if (State.user.trophies         === undefined) State.user.trophies         = null;
     if (State.user.last_reward_date === undefined) State.user.last_reward_date = '';
     if (State.user.reward_day       === undefined) State.user.reward_day       = 0;
+
+    // One-time forced re-auth for accounts that signed in BEFORE the
+    // server-side refresh-token system existed (July 2026). Their
+    // Google OAuth grant predates the 'scopes' request, so Google will
+    // never silently issue them a refresh_token on the old grant —
+    // they need exactly one fresh, real sign-in to establish it. This
+    // does NOT touch user_id/coins/trophies/tickets — only the stale
+    // native credential is cleared, forcing one mandatory reauth on
+    // next Bearer-gated action. Bump REAUTH_EPOCH again only if a
+    // future breaking auth change needs another forced pass.
+    const REAUTH_EPOCH = 1;
+    if ((State.user._reauthEpoch || 0) < REAUTH_EPOCH) {
+      State.user._credential   = null;
+      State.user._signedInAt   = 0;
+      State.user._reauthEpoch  = REAUTH_EPOCH;
+    }
   }
 }
 
@@ -2155,14 +2172,9 @@ async function handleGoogleLogin(response) {
   // Failure here is non-fatal — the client just falls back to the
   // existing reactive signIn()-based refresh for this session.
   if (serverAuthCode && State.user?.id) {
-    API.exchangeAuthCode(State.user.id, serverAuthCode)
-      .then((r) => alert('Exchange result: ' + JSON.stringify(r)))
-      .catch((e) => {
-        alert('Exchange FAILED: ' + e.message);
-        console.warn('[Auth] Server-side refresh token exchange failed (non-fatal):', e);
-      });
-  } else {
-    alert('Exchange SKIPPED — serverAuthCode: ' + serverAuthCode + ', user.id: ' + State.user?.id);
+    API.exchangeAuthCode(State.user.id, serverAuthCode).catch((e) => {
+      console.warn('[Auth] Server-side refresh token exchange failed (non-fatal):', e);
+    });
   }
 }
 
@@ -2194,7 +2206,6 @@ async function nativeGoogleSignIn() {
       _googleNativeInitialized = true;
     }
     const result = await plugin.signIn();
-    alert('serverAuthCode present: ' + !!result.serverAuthCode);
     await handleGoogleLogin({ credential: result.idToken, serverAuthCode: result.serverAuthCode });
   } catch (e) {
     console.error('[GoogleSignIn] native sign-in failed:', e);
