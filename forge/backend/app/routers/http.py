@@ -9,6 +9,17 @@ from pydantic import BaseModel
 from typing import Optional
 
 import jwt as pyjwt
+from jwt import PyJWKClient
+
+_jwks_client: PyJWKClient | None = None
+
+
+def _get_jwks_client() -> PyJWKClient:
+    """Lazily fetch + cache Supabase's public signing-key set."""
+    global _jwks_client
+    if _jwks_client is None:
+        _jwks_client = PyJWKClient(f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json")
+    return _jwks_client
 
 from app.core import state
 from app.core.config import settings
@@ -114,14 +125,19 @@ def _verify_google_token(credential: str) -> str:
     """
     if not credential:
         raise HTTPException(status_code=401, detail="Authentication required.")
-    if not settings.SUPABASE_JWT_SECRET:
-        logger.error("SUPABASE_JWT_SECRET not configured — cannot verify any session.")
-        raise HTTPException(status_code=500, detail="Server auth configuration error.")
+
     try:
+        # Supabase's actual token header (confirmed against a real decoded
+        # token, July 2026) uses ES256 with a rotating asymmetric signing
+        # key, identified by 'kid' — NOT the legacy HS256 shared secret
+        # the dashboard's "JWT Secret" field suggests. Fetch the matching
+        # public key from Supabase's JWKS endpoint (cached by PyJWKClient
+        # after the first call) and verify against that.
+        signing_key = _get_jwks_client().get_signing_key_from_jwt(credential)
         payload = pyjwt.decode(
             credential,
-            settings.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
+            signing_key.key,
+            algorithms=["ES256"],
             audience="authenticated",
         )
         google_sub = (
