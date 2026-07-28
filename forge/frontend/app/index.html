@@ -482,7 +482,8 @@
     z-index:1000;display:none;
   "></header>
 
-  <section id="screen-home"         class="screen active"></section>
+  <section id="screen-home"         class="screen"></section>
+  <section id="screen-tutorial-intro" class="screen active"></section>
   <section id="screen-lobby"        class="screen"></section>
   <section id="screen-game"         class="screen"></section>
   <section id="screen-results"      class="screen"></section>
@@ -889,6 +890,7 @@ if (_savedSession) {
    ══════════════════════════════════════════════════════════ */
 const Screens = {
   home         : { id: 'screen-home',         file: 'screens/home.html'         },
+  'tutorial-intro': { id: 'screen-tutorial-intro', file: 'screens/tutorial-intro.html' },
   lobby        : { id: 'screen-lobby',        file: 'screens/lobby.html'        },
   game         : { id: 'screen-game',         file: 'screens/game.html'         },
   results      : { id: 'screen-results',      file: 'screens/results.html'      },
@@ -2162,6 +2164,11 @@ function waitForSupabase(timeoutMs = 3000) {
     //    now unconditional and the permission prompt is asked afterward,
     //    on top of the now-visible home screen where it can actually be
     //    tapped.) ──
+    const _tutorialDone = (() => {
+      try { return localStorage.getItem('forge_tutorial_completed') === '1'; }
+      catch (_) { return true; } // if localStorage is unavailable, don't block boot on it
+    })();
+
     if (_savedSession?.roomCode && hash !== 'home') {
       try {
         await API.getRoom(_savedSession.roomCode);
@@ -2174,6 +2181,11 @@ function waitForSupabase(timeoutMs = 3000) {
         Session.clear();
         await goTo('home', true);
       }
+    } else if (!_tutorialDone && hash === 'home') {
+      // First-ever open (or tutorial was never completed) — only takes
+      // over the default landing hash, never interrupts a deep link or
+      // a resumed session.
+      await goTo('tutorial-intro', true);
     } else {
       await goTo('home', true);
     }

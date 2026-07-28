@@ -441,6 +441,11 @@ function onLeaderboardShow() {
   _lbCache.trophies  = null;
   _lbCache.streak    = null;
 
+  // Immediately show a loading state so the screen is never blank while
+  // Supabase's client finishes initializing — this matters most right
+  // after a game ends, when other async work (streak update, profile
+  // refresh) may still be settling from the previous screen.
+  _lbShowLoading();
   _lbApplyTabStyles('coins');
   _lbRenderMyCard('coins');
   _lbLoad('coins');
@@ -476,9 +481,14 @@ async function _lbLoad(tab) {
   _lbLoaded[tab] = true;
   _lbShowLoading();
 
-  const db = _initSupabase ? _initSupabase() : null;
+  // Give Supabase's SDK a brief window to finish initializing if the
+  // screen was opened in rapid succession right after another screen's
+  // own async work (e.g. straight from Results after a game) — avoids
+  // a false "not available" on a client that's simply not ready yet.
+  const ready = typeof waitForSupabase === 'function' ? await waitForSupabase(2000) : true;
+  const db = ready && _initSupabase ? _initSupabase() : null;
   if (!db) {
-    _lbShowEmpty('SUPABASE NOT AVAILABLE');
+    _lbShowEmpty('COULD NOT CONNECT\nTAP REFRESH TO TRY AGAIN');
     return;
   }
 

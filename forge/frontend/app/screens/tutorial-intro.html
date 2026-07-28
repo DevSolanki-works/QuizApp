@@ -1,0 +1,163 @@
+<!--
+  TUTORIAL INTRO — sign-in-or-guest choice screen.
+  First-ever screen shown on a brand-new install, before the tutorial's
+  single guided game (Stage 3, not yet built) and mode-summary cards
+  (Stage 2, not yet built). This stage only handles the choice + routing.
+
+  Signing in here unlocks a completion reward later; continuing as guest
+  skips straight into the tutorial with no reward at the end (can still
+  sign in anytime afterward from Home, same as any guest).
+-->
+<style>
+  .tut-wrap {
+    width: 100%; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px 24px; gap: 26px; text-align: center;
+  }
+  .tut-icon { font-size: 56px; animation: home-trophy-bob 3s ease-in-out infinite; }
+  @keyframes home-trophy-bob {
+    0%,100% { transform: translateY(0) rotate(-2deg); }
+    50%      { transform: translateY(-8px) rotate(2deg); }
+  }
+  .tut-title {
+    font-family: var(--font-pixel); font-size: 16px;
+    color: var(--white); letter-spacing: 1px; line-height: 1.6;
+  }
+  .tut-sub {
+    font-family: var(--font-body); font-size: 14px; font-weight: 700;
+    color: rgba(255,255,255,0.65); line-height: 1.7; max-width: 320px;
+  }
+  .tut-choice-card {
+    width: 100%; max-width: 360px; padding: 22px 20px;
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.15);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .tut-perk-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: var(--radius-md);
+    background: rgba(255,217,61,0.08); border: 1px solid rgba(255,217,61,0.22);
+    text-align: left;
+  }
+  .tut-perk-icon { font-size: 18px; flex-shrink: 0; }
+  .tut-perk-text {
+    font-family: var(--font-body); font-size: 13px; font-weight: 700;
+    color: rgba(255,255,255,0.8); line-height: 1.4;
+  }
+  .tut-google-btn-wrap { display: flex; justify-content: center; margin-top: 4px; }
+  .tut-native-google-btn {
+    width: 100%; height: 52px; border-radius: var(--radius-pill);
+    background: #FFFFFF; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-family: var(--font-body); font-size: 15px; font-weight: 800; color: #1A1A2E;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.25);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .tut-native-google-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.25); }
+  .tut-guest-btn {
+    font-family: var(--font-pixel); font-size: 7px;
+    color: rgba(255,255,255,0.4); background: none; border: none;
+    cursor: pointer; padding: 10px; letter-spacing: 0.5px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tut-guest-btn:active { color: rgba(255,255,255,0.7); }
+</style>
+
+<div class="tut-wrap">
+  <span class="tut-icon">🏆</span>
+  <p class="tut-title">WELCOME TO<br>FORGE</p>
+  <p class="tut-sub">Let's play a quick round together so you know exactly how it works — takes about a minute.</p>
+
+  <div class="tut-choice-card">
+    <div class="tut-perk-row">
+      <span class="tut-perk-icon">🎁</span>
+      <span class="tut-perk-text">Sign in now and earn a reward when you finish the tutorial</span>
+    </div>
+
+    <div class="tut-google-btn-wrap" id="tut-google-btn-container">
+      <!-- Populated by _tutRenderSigninButton() -->
+    </div>
+
+    <button class="tut-guest-btn" onclick="tutContinueAsGuest()">
+      CONTINUE AS GUEST — NO REWARD, PLAY ANYWAY
+    </button>
+  </div>
+</div>
+
+<script>
+function onTutorialIntroShow() {
+  if (Sound.bgmEnabled) Sound.startBgMusic();
+  _tutRenderSigninButton();
+}
+
+function _tutRenderSigninButton() {
+  const container = document.getElementById('tut-google-btn-container');
+  if (!container) return;
+
+  if (IS_FIRE_OS) {
+    container.innerHTML = `
+      <p style="font-family:var(--font-pixel);font-size:6px;color:rgba(255,255,255,0.4);line-height:2;">
+        GOOGLE SIGN-IN ISN'T AVAILABLE ON THIS DEVICE
+      </p>`;
+    return;
+  }
+
+  if (IS_NATIVE_APP) {
+    container.innerHTML = `
+      <button class="tut-native-google-btn" onclick="_tutNativeSignIn()">
+        <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width:22px;height:22px;" />
+        Continue with Google
+      </button>`;
+  } else {
+    container.innerHTML = `<div id="tut-gsi-btn"></div>`;
+    if (window.google?.accounts?.id) {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (response) => {
+          await handleGoogleLogin(response);
+          _tutProceed();
+        },
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('tut-gsi-btn'),
+        { theme: 'outline', size: 'large', width: 280 }
+      );
+    } else {
+      container.innerHTML = `
+        <p style="font-family:var(--font-pixel);font-size:6px;color:rgba(255,255,255,0.3);text-align:center;line-height:2;">
+          GOOGLE SIGN-IN UNAVAILABLE — CHECK YOUR CONNECTION
+        </p>`;
+    }
+  }
+}
+
+async function _tutNativeSignIn() {
+  try {
+    await nativeGoogleSignIn();
+    if (State.user) _tutProceed();
+  } catch (e) {
+    console.error('[Tutorial] Native sign-in failed:', e);
+  }
+}
+
+function tutContinueAsGuest() {
+  Sound.click();
+  _tutProceed();
+}
+
+/**
+ * Stage 1 only — Stages 2/3 will replace this with the actual guided
+ * game + mode-summary flow. For now this just moves on to Home so the
+ * choice screen itself can be tested standalone. NOT marking the
+ * tutorial as completed yet — that only happens on the real completion
+ * screen once it exists, so re-opening the app during Stage 1 testing
+ * will correctly show this screen again rather than silently skipping
+ * the rest of the tutorial once it's built.
+ */
+function _tutProceed() {
+  Toast.info('Tutorial continues in the next update — heading to Home for now.');
+  goTo('home', true);
+}
+</script>

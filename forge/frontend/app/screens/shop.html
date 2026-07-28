@@ -230,7 +230,7 @@ function onShopShow() {
   _shopLoadPowerups();
 }
 
-async function _shopLoadPowerups() {
+async function _shopLoadPowerups(_isRetry = false) {
   if (!State.user?.id) return;
   try {
     _shopPowerups = await API.powerupsState(State.user.id);
@@ -239,9 +239,17 @@ async function _shopLoadPowerups() {
     _shopRenderPowerups();
   } catch (e) {
     console.warn('[Shop] Power-up state load failed:', e);
-    if (typeof _isAuthError === 'function' && _isAuthError(e)) { _promptReauth(); return; }
+    if (typeof _isAuthError === 'function' && _isAuthError(e) && !_isRetry) {
+      // Retry once after a successful silent reauth, instead of leaving
+      // the grid stuck on "LOADING…" forever with no recovery path.
+      await _promptReauth();
+      if (State.user?._credential) {
+        await _shopLoadPowerups(true);
+        return;
+      }
+    }
     const grid = document.getElementById('shop-pu-grid');
-    if (grid) grid.innerHTML = '<p class="shop-insufficient-note">COULD NOT LOAD POWER-UPS</p>';
+    if (grid) grid.innerHTML = '<p class="shop-insufficient-note">COULD NOT LOAD POWER-UPS — <span style="text-decoration:underline;cursor:pointer;" onclick="_shopLoadPowerups()">TAP TO RETRY</span></p>';
   }
 }
 
