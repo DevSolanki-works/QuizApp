@@ -148,16 +148,12 @@ function tutContinueAsGuest() {
 }
 
 /**
- * Stage 1 only — Stages 2/3 will replace this with the actual guided
- * game + mode-summary flow. For now this just moves on to Home so the
- * choice screen itself can be tested standalone. NOT marking the
- * tutorial as completed yet — that only happens on the real completion
- * screen once it exists, so re-opening the app during Stage 1 testing
- * will correctly show this screen again rather than silently skipping
- * the rest of the tutorial once it's built.
+ * Stage 3 will insert the guided Custom Topic game BEFORE this — for
+ * now (Stage 2), the intro screen leads straight into the mode-summary
+ * cards + completion/reward screen, so that piece can be tested
+ * standalone before the game-loop integration is built.
  */
 function _tutProceed() {
-  Toast.info('Tutorial continues in the next update — heading to Home for now.');
-  goTo('home', true);
+  goTo('tutorial-summary', true);
 }
 </script>
