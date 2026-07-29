@@ -497,113 +497,37 @@ async function resultsChallengeFriend() {
   }
 }
 
-/* ── QUICK PICK: PLAIN INTERSTITIAL ON EVERY EXIT ─────────────────────
-   Temporary aggressive monetization until the static Quick Picks
-   question bank ships — fires an interstitial on every single exit to
-   home, whether from the normal Back to Home button or the solo-double
-   variant's secondary button, EXCEPT when the player just watched the
-   2X Coins ad (that path calls resultsGoHome() directly, never this
-   function, so no double-dipping). No decline counter — every game,
-   every time, by design, since even guests/low-scorers who never see
-   the 2X Coins offer at all were previously leaving without triggering
-   any ad whatsoever.
-   TODO: once the Quick Picks question bank replaces live Gemini calls,
-   revert this to the original every-2nd-decline cadence to ease off. */
+/* ── SINGLE UNIFIED EXIT INTERSTITIAL ──────────────────────────────────
+   Simplified (July 2026) — replaces three separate, overlapping ad
+   systems (Quick-Pick-only interstitial, multiplayer 2nd-exit counter,
+   Custom Topic decline-counter rewarded interstitial) that could
+   independently fire and stack, including showing an interstitial right
+   after a rewarded ad was already watched on the same screen.
+
+   New rule, deliberately simple: exactly ONE plain interstitial, on
+   every "back to home" exit, for every mode and every topic type —
+   UNLESS a rewarded ad already played on this screen (2X Coins, Double
+   Winnings, Entry Fee Recovery), tracked by the existing
+   _soloDoubleUsed / _doubleWinAdUsed / _entryFeeAdUsed flags. */
 async function resultsBackToHome() {
-  const isSoloQuickPick = State.playMode === 'solo'
-    && typeof isQuickPickTopic === 'function'
-    && isQuickPickTopic(State.topic || '');
-
-  if (isSoloQuickPick && window.Capacitor?.isNativePlatform?.() && typeof Interstitial !== 'undefined') {
-    await Interstitial.show();
-  } else {
-    await _maybeShowMultiplayerInterstitial();
-  }
-  resultsGoHome();
-}
-
-/* Classic/Team results exit interstitial — tap-driven, mirrors the duel-exit
-   ad. Skipped when the player already watched a rewarded ad on this screen
-   (Double Winnings / Entry Fee Recovery) so we never stack two ads, and
-   frequency-capped to every 2nd multiplayer exit so it isn't oppressive. */
-async function _maybeShowMultiplayerInterstitial() {
-  const isMultiplayer = State.playMode === 'classic' || State.playMode === 'team';
-  if (!isMultiplayer) return;
-  if (_doubleWinAdUsed || _entryFeeAdUsed) return;   // already showed an ad here
-  if (!window.Capacitor?.isNativePlatform?.() || typeof Interstitial === 'undefined') return;
-
-  const key = 'forge_mp_exit_count';
-  const count = Number(localStorage.getItem(key) || 0) + 1;
-  if (count < 2) {
-    localStorage.setItem(key, String(count));
-    return;
-  }
-  localStorage.setItem(key, '0');
-  try {
-    await Interstitial.show();
-    if (typeof Analytics !== 'undefined') {
-      Analytics.logEvent('interstitial_shown', { trigger: 'multiplayer_results_exit', play_mode: State.playMode });
-    }
-  } catch (e) {
-    console.warn('[Ad] Multiplayer-exit interstitial skipped:', e);
-  }
-}
-
-/** Dispatches the solo-double variant's secondary button by topic type. */
-function soloSecondaryAction() {
-  const isQuickPick = typeof isQuickPickTopic === 'function' ? isQuickPickTopic(State.topic || '') : true;
-  if (isQuickPick) {
-    resultsBackToHome();
-  } else {
-    soloDeclineDouble();
-  }
-}
-
-/* ── CUSTOM TOPIC "NO THANKS" DECLINE TRACKING ────────────────────────
-   Unchanged from before — Custom Topic only now. On the 2nd consecutive
-   decline, shows the Rewarded Interstitial (+1 free generation) with its
-   disclosure toast. Quick Pick no longer goes through this path at all. */
-async function soloDeclineDouble() {
-  const key = 'forge_custom_declines';
-  const declines = Number(localStorage.getItem(key) || 0) + 1;
-
-  if (declines < 2 || !window.Capacitor?.isNativePlatform?.()) {
-    localStorage.setItem(key, String(declines));
-    resultsGoHome();
-    return;
-  }
-
-  localStorage.setItem(key, '0');
-
-  if (!State.user?.id || typeof RewardedInterstitial === 'undefined') {
-    resultsGoHome();
-    return;
-  }
-  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
-    _promptReauth();
-    return;
-  }
-
-  Toast.info('🎁 Watch this to get +1 free generation!', 3500);
-  await new Promise(r => setTimeout(r, 3500));
-
-  const rewarded = await RewardedInterstitial.show();
-  if (rewarded) {
+  const alreadyShowedRewardedAd = _soloDoubleUsed || _doubleWinAdUsed || _entryFeeAdUsed;
+  if (!alreadyShowedRewardedAd && window.Capacitor?.isNativePlatform?.() && typeof Interstitial !== 'undefined') {
     try {
-      const data = await API.grantBonusGeneration(State.user.id);
-      if (data) {
-        State.user.free_generations_used_today = data.free_generations_used_today;
-        Session.save();
-        if (typeof Analytics !== 'undefined') {
-          Analytics.track('ad_reward_granted', { trigger: 'custom_topic_rewarded_interstitial', amount: 1 });
-        }
-        Toast.success('+1 free generation granted!');
+      await Interstitial.show();
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('interstitial_shown', { trigger: 'results_exit', play_mode: State.playMode });
       }
     } catch (e) {
-      console.warn('[SoloDecline] Bonus generation grant failed:', e);
+      console.warn('[Ad] Exit interstitial skipped:', e);
     }
   }
   resultsGoHome();
+}
+
+/** Solo-double variant's secondary button — always just exits now (no
+    decline-counter rewarded-interstitial system anymore). */
+function soloSecondaryAction() {
+  resultsBackToHome();
 }
 
 function _renderEconomyResult() {
@@ -667,8 +591,7 @@ function _maybeShowSoloDoubleCoins(economy) {
   doubleWrap.style.display = canShow ? 'flex' : 'none';
   if (canShow) {
     doubleWrap._coinsDelta = Number(economy.coins_delta);
-    const isQuickPick = typeof isQuickPickTopic === 'function' ? isQuickPickTopic(State.topic || '') : true;
-    if (secondaryBtn) secondaryBtn.textContent = isQuickPick ? '🏠 BACK TO HOME' : 'NO THANKS';
+    if (secondaryBtn) secondaryBtn.textContent = '🏠 BACK TO HOME';
   }
 }
 
@@ -716,7 +639,6 @@ async function doubleSoloCoins() {
     if (data) {
             State.user.free_generations_used_today = data.free_generations_used_today;
             Session.save();
-            localStorage.setItem('forge_custom_declines', '0'); // no-op if this was a Quick Pick game — that path no longer uses a decline counter
             if (typeof Analytics !== 'undefined') {
               Analytics.track('ad_reward_granted', { trigger: 'solo_double_coins', amount: bonus });
             }
