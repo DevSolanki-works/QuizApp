@@ -900,6 +900,89 @@ function onHomeShow() {
   _hLoadStats();
   // Check and show daily reward if unclaimed
   checkAndShowDailyReward();
+  _hMaybeShowModeHighlight();
+}
+
+/* ── ONE-TIME MODE HIGHLIGHT (right after tutorial completion) ────────
+   Spotlights the real mode cards already on screen, in sequence, with
+   a short label each. Runs exactly once — set by tutorial-summary.html,
+   cleared here the moment it starts. */
+const HOME_HIGHLIGHT_STEPS = [
+  { sel: '.h-solo-card',                  label: 'Solo — play any topic, chase your best score' },
+  { sel: '.h-mode-card.h-mode-create',    label: 'Create — host a room and invite friends' },
+  { sel: '.h-mode-card.h-mode-team',      label: 'Team — split into two teams and battle' },
+  { sel: '.h-mode-card.h-mode-duel',      label: 'Duel — ranked 1v1, winner takes the pot' },
+  { sel: '#h-ticket-pill',                label: 'Tickets — spend these on custom AI topics' },
+];
+
+function _hMaybeShowModeHighlight() {
+  let shouldShow = false;
+  try { shouldShow = localStorage.getItem('forge_show_mode_highlight') === '1'; } catch (_) {}
+  if (!shouldShow) return;
+  try { localStorage.removeItem('forge_show_mode_highlight'); } catch (_) {}
+
+  // Give layout a moment to settle (currency pills etc. render async).
+  setTimeout(() => _hRunHighlightStep(0), 400);
+}
+
+function _hRunHighlightStep(index) {
+  _hClearHighlight();
+  if (index >= HOME_HIGHLIGHT_STEPS.length) return;
+
+  const step = HOME_HIGHLIGHT_STEPS[index];
+  const target = document.querySelector(step.sel);
+  if (!target) { _hRunHighlightStep(index + 1); return; } // skip missing targets gracefully
+
+  const rect = target.getBoundingClientRect();
+
+  const dim = document.createElement('div');
+  dim.id = 'h-highlight-dim';
+  dim.style.cssText = `
+    position:fixed; inset:0; z-index:850; background:rgba(9,15,80,0.72);
+  `;
+  dim.onclick = () => _hRunHighlightStep(index + 1);
+
+  const ring = document.createElement('div');
+  ring.id = 'h-highlight-ring';
+  ring.style.cssText = `
+    position:fixed; z-index:851; pointer-events:none;
+    top:${rect.top - 6}px; left:${rect.left - 6}px;
+    width:${rect.width + 12}px; height:${rect.height + 12}px;
+    border-radius:16px; box-shadow:0 0 0 4px var(--yellow), 0 0 24px rgba(255,217,61,0.5);
+    transition:all 0.25s ease;
+  `;
+
+  const tooltip = document.createElement('div');
+  tooltip.id = 'h-highlight-tooltip';
+  const tooltipTop = rect.bottom + 14 < window.innerHeight - 80 ? rect.bottom + 14 : rect.top - 70;
+  tooltip.style.cssText = `
+    position:fixed; z-index:852; left:16px; right:16px; top:${tooltipTop}px;
+    background:var(--bg-mid); border:1.5px solid rgba(255,217,61,0.4);
+    border-radius:var(--radius-md); padding:14px 16px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  `;
+  tooltip.innerHTML = `
+    <span style="font-family:var(--font-body);font-size:13px;font-weight:700;color:#fff;flex:1;">${step.label}</span>
+    <button style="
+      font-family:var(--font-pixel);font-size:7px;color:var(--text-dark);
+      background:var(--yellow);border:none;border-radius:var(--radius-pill);
+      padding:8px 12px;cursor:pointer;flex-shrink:0;
+    ">${index === HOME_HIGHLIGHT_STEPS.length - 1 ? 'DONE' : 'NEXT'}</button>
+  `;
+  tooltip.querySelector('button').onclick = (e) => {
+    e.stopPropagation();
+    _hRunHighlightStep(index + 1);
+  };
+
+  document.body.appendChild(dim);
+  document.body.appendChild(ring);
+  document.body.appendChild(tooltip);
+}
+
+function _hClearHighlight() {
+  document.getElementById('h-highlight-dim')?.remove();
+  document.getElementById('h-highlight-ring')?.remove();
+  document.getElementById('h-highlight-tooltip')?.remove();
 }
 
 /* ── PROFILE RENDERING ────────────────────────────────────── */

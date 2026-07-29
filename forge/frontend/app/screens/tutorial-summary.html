@@ -1,12 +1,10 @@
 <!--
-  TUTORIAL SUMMARY — mode-summary cards + completion/reward screen.
-  Reached after tutorial-intro.html (Stage 3 will insert a guided game
-  in between). Shows a short skippable-per-card carousel explaining each
-  mode, then a completion screen that grants a reward if signed in, or
-  just a congrats message for guests. Always sets
-  forge_tutorial_completed on completion — this is the ONLY place that
-  flag gets set, so re-opening the app before reaching this screen
-  correctly re-shows the tutorial from the start.
+  TUTORIAL COMPLETION — shown right after the guided Custom Topic game
+  (Stage 3) finishes. Grants a reward if signed in, just a congrats
+  message for guests. Always sets forge_tutorial_completed here — this
+  is the ONLY place that flag gets set, so re-opening the app before
+  reaching this screen correctly re-shows the tutorial from the start.
+  Routes to Home, where a one-time mode-highlight overlay takes over.
 -->
 <style>
   .tsum-wrap {
@@ -15,40 +13,16 @@
     align-items: center; justify-content: center;
     padding: 32px 24px; gap: 22px;
   }
-  .tsum-state { display: none; flex-direction: column; align-items: center; width: 100%; gap: 22px; }
-  .tsum-state.active { display: flex; }
-
-  /* ── CARDS ── */
-  .tsum-progress-dots { display: flex; gap: 6px; }
-  .tsum-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.15); }
-  .tsum-dot.active { background: var(--yellow); width: 18px; border-radius: 3px; }
-  .tsum-card {
-    width: 100%; max-width: 360px; padding: 30px 24px;
-    border-radius: var(--radius-lg);
-    background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.15);
-    display: flex; flex-direction: column; align-items: center; gap: 14px;
-    text-align: center; min-height: 220px; justify-content: center;
-  }
-  .tsum-card-icon { font-size: 44px; }
-  .tsum-card-title { font-family: var(--font-pixel); font-size: 12px; color: var(--yellow); letter-spacing: 0.5px; }
-  .tsum-card-desc {
-    font-family: var(--font-body); font-size: 14px; font-weight: 700;
-    color: rgba(255,255,255,0.7); line-height: 1.6;
-  }
-  .tsum-card-actions { width: 100%; max-width: 360px; display: flex; gap: 10px; }
-  .tsum-skip-all {
-    font-family: var(--font-pixel); font-size: 6px;
-    color: rgba(255,255,255,0.3); background: none; border: none;
-    cursor: pointer; padding: 8px; letter-spacing: 0.5px;
-  }
-
-  /* ── COMPLETION ── */
   .tsum-complete-icon { font-size: 60px; animation: winner-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both; }
   @keyframes winner-pop {
     from { transform: scale(0) rotate(-15deg); opacity: 0; }
     to   { transform: scale(1) rotate(0deg);   opacity: 1; }
   }
   .tsum-complete-title { font-family: var(--font-pixel); font-size: 16px; color: var(--white); letter-spacing: 1px; }
+  .tsum-complete-sub {
+    font-family: var(--font-body); font-size: 14px; font-weight: 700;
+    color: rgba(255,255,255,0.6); text-align: center; max-width: 300px; line-height: 1.6;
+  }
   .tsum-reward-box {
     width: 100%; max-width: 320px; padding: 18px;
     border-radius: var(--radius-md);
@@ -63,89 +37,25 @@
 </style>
 
 <div class="tsum-wrap">
+  <span class="tsum-complete-icon">🏆</span>
+  <p class="tsum-complete-title">YOU'RE ALL SET!</p>
+  <p class="tsum-complete-sub">That's the basics — jump in and start climbing the leaderboard.</p>
 
-  <!-- CARDS STATE -->
-  <div class="tsum-state active" id="tsum-state-cards">
-    <div class="tsum-progress-dots" id="tsum-dots"></div>
-    <div class="tsum-card" id="tsum-card-body"></div>
-    <div class="tsum-card-actions">
-      <button class="btn btn-secondary" style="flex:1;" onclick="tsumNextCard()">NEXT →</button>
-    </div>
-    <button class="tsum-skip-all" onclick="tsumFinishCards()">SKIP THE REST</button>
+  <div class="tsum-reward-box" id="tsum-reward-box" style="display:none;">
+    <span style="font-family:var(--font-pixel);font-size:7px;color:rgba(255,255,255,0.5);">TUTORIAL REWARD</span>
+    <span class="tsum-reward-amount">+20 🪙 &nbsp; +1 🎟️</span>
   </div>
+  <p class="tsum-guest-note" id="tsum-guest-note" style="display:none;">
+    Sign in anytime from Home to save your progress and start earning rewards.
+  </p>
 
-  <!-- COMPLETION STATE -->
-  <div class="tsum-state" id="tsum-state-complete">
-    <span class="tsum-complete-icon">🏆</span>
-    <p class="tsum-complete-title">YOU'RE ALL SET!</p>
-    <div class="tsum-reward-box" id="tsum-reward-box" style="display:none;">
-      <span style="font-family:var(--font-pixel);font-size:7px;color:rgba(255,255,255,0.5);">TUTORIAL REWARD</span>
-      <span class="tsum-reward-amount">+20 🪙 &nbsp; +1 🎟️</span>
-    </div>
-    <p class="tsum-guest-note" id="tsum-guest-note" style="display:none;">
-      Sign in anytime from Home to save your progress and start earning rewards.
-    </p>
-    <button class="btn btn-primary" style="width:100%;max-width:320px;" onclick="tsumGoHome()">
-      🏠 &nbsp;START PLAYING
-    </button>
-  </div>
-
+  <button class="btn btn-primary" style="width:100%;max-width:320px;" onclick="tsumGoHome()">
+    🏠 &nbsp;START PLAYING
+  </button>
 </div>
 
 <script>
-const TSUM_CARDS = [
-  { icon: '🎯', title: 'SOLO', desc: 'Play any topic on your own. Earn coins based on how many you get right.' },
-  { icon: '🚀', title: 'CLASSIC', desc: 'Create a room, share the code, everyone answers live — fastest correct answers win.' },
-  { icon: '⚔️', title: 'TEAM', desc: 'Lock the room, split into two teams, and battle for the highest combined score.' },
-  { icon: '🥊', title: 'DUEL', desc: 'Ranked 1v1 — winner takes the coin pot and climbs the trophy leaderboard.' },
-  { icon: '⚡', title: 'POWER-UPS & SHOP', desc: '50/50, Time Freeze, and more — buy them with coins and use them mid-game.' },
-];
-
-let _tsumCardIndex = 0;
-
 function onTutorialSummaryShow() {
-  _tsumCardIndex = 0;
-  _tsumSetState('cards');
-  _tsumRenderCard();
-}
-
-function _tsumSetState(name) {
-  document.querySelectorAll('.tsum-state').forEach(el => el.classList.remove('active'));
-  document.getElementById(`tsum-state-${name}`)?.classList.add('active');
-}
-
-function _tsumRenderCard() {
-  const card = TSUM_CARDS[_tsumCardIndex];
-  const body = document.getElementById('tsum-card-body');
-  if (body) {
-    body.innerHTML = `
-      <span class="tsum-card-icon">${card.icon}</span>
-      <span class="tsum-card-title">${card.title}</span>
-      <p class="tsum-card-desc">${card.desc}</p>`;
-  }
-  const dots = document.getElementById('tsum-dots');
-  if (dots) {
-    dots.innerHTML = TSUM_CARDS.map((_, i) =>
-      `<div class="tsum-dot ${i === _tsumCardIndex ? 'active' : ''}"></div>`
-    ).join('');
-  }
-  const nextBtn = document.querySelector('.tsum-card-actions .btn');
-  if (nextBtn) nextBtn.textContent = _tsumCardIndex === TSUM_CARDS.length - 1 ? "LET'S GO →" : 'NEXT →';
-}
-
-function tsumNextCard() {
-  Sound.click();
-  _tsumCardIndex++;
-  if (_tsumCardIndex >= TSUM_CARDS.length) {
-    tsumFinishCards();
-    return;
-  }
-  _tsumRenderCard();
-}
-
-function tsumFinishCards() {
-  Sound.click();
-  _tsumSetState('complete');
   _tsumGrantRewardIfSignedIn();
 }
 
@@ -172,11 +82,6 @@ async function _tsumGrantRewardIfSignedIn() {
       Session.save();
       if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
     }
-    // Ticket grant — reuses the existing daily-reward-style ticket grant
-    // path isn't a fit here (that's calendar-gated); simplest correct
-    // approach is a direct ticket sync bump via the existing buy-free
-    // mechanism isn't available either, so we credit it the same way
-    // ad-based ticket grants do, via the ticket sync endpoint.
     try {
       const ticketState = await API.getTickets(State.user.id);
       await API.syncTickets(
@@ -204,6 +109,9 @@ async function _tsumGrantRewardIfSignedIn() {
 
 function _tsumMarkCompleted() {
   try { localStorage.setItem('forge_tutorial_completed', '1'); } catch (_) {}
+  // Signal to home.html that the one-time mode-highlight overlay should
+  // run on this next Home landing — cleared immediately after it shows.
+  try { localStorage.setItem('forge_show_mode_highlight', '1'); } catch (_) {}
 }
 
 function tsumGoHome() {
