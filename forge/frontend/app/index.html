@@ -911,6 +911,7 @@ const SCREEN_GUARDS = {
   lobby        : () => !!(State.roomCode && State.playerName),
   game         : () => !!(State.roomCode && State.playerName && State.ws),
   results      : () => !!(State.scores && Object.keys(State.scores).length > 0),
+  'tutorial-summary': () => true,
   'daily-reward': () => !!(State.user),
   'lucky-draw'  : () => !!(State.user),
   challenge     : () => !!State._challengeCode,

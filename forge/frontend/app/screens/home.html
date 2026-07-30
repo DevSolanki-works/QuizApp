@@ -908,11 +908,16 @@ function onHomeShow() {
    a short label each. Runs exactly once — set by tutorial-summary.html,
    cleared here the moment it starts. */
 const HOME_HIGHLIGHT_STEPS = [
-  { sel: '.h-solo-card',                  label: 'Solo — play any topic, chase your best score' },
+  { sel: '#hnav-ranks',                   label: 'Leaderboards — see how you rank globally' },
+  { sel: '#hnav-shop',                    label: 'Shop — buy tickets and power-ups with coins' },
   { sel: '.h-mode-card.h-mode-create',    label: 'Create — host a room and invite friends' },
   { sel: '.h-mode-card.h-mode-team',      label: 'Team — split into two teams and battle' },
   { sel: '.h-mode-card.h-mode-duel',      label: 'Duel — ranked 1v1, winner takes the pot' },
-  { sel: '#h-ticket-pill',                label: 'Tickets — spend these on custom AI topics' },
+  {
+    sel: '.h-solo-card',
+    label: 'Solo — let\'s try it! Tap here to play a quick round.',
+    isFinal: true,
+  },
 ];
 
 function _hMaybeShowModeHighlight() {
@@ -940,7 +945,14 @@ function _hRunHighlightStep(index) {
   dim.style.cssText = `
     position:fixed; inset:0; z-index:850; background:rgba(9,15,80,0.72);
   `;
-  dim.onclick = () => _hRunHighlightStep(index + 1);
+  // Non-final steps: tapping anywhere dimmed advances. Final step
+  // (Solo) deliberately has NO dim-tap-to-advance — it should only
+  // advance via the real Solo card tap itself, underneath the ring.
+  if (!step.isFinal) {
+    dim.onclick = () => _hRunHighlightStep(index + 1);
+  } else {
+    dim.style.pointerEvents = 'none';
+  }
 
   const ring = document.createElement('div');
   ring.id = 'h-highlight-ring';
@@ -961,28 +973,64 @@ function _hRunHighlightStep(index) {
     border-radius:var(--radius-md); padding:14px 16px;
     display:flex; align-items:center; justify-content:space-between; gap:12px;
   `;
-  tooltip.innerHTML = `
-    <span style="font-family:var(--font-body);font-size:13px;font-weight:700;color:#fff;flex:1;">${step.label}</span>
-    <button style="
-      font-family:var(--font-pixel);font-size:7px;color:var(--text-dark);
-      background:var(--yellow);border:none;border-radius:var(--radius-pill);
-      padding:8px 12px;cursor:pointer;flex-shrink:0;
-    ">${index === HOME_HIGHLIGHT_STEPS.length - 1 ? 'DONE' : 'NEXT'}</button>
-  `;
-  tooltip.querySelector('button').onclick = (e) => {
-    e.stopPropagation();
-    _hRunHighlightStep(index + 1);
-  };
+  if (step.isFinal) {
+    // Final step: no Next/Done button at all — the real Solo card
+    // itself (left clickable via a cutout, see below) is the only way
+    // forward, keeping the tour feeling like "now go do it" rather than
+    // "keep clicking Next."
+    tooltip.innerHTML = `
+      <span style="font-family:var(--font-body);font-size:13px;font-weight:700;color:var(--yellow);flex:1;">👆 ${step.label}</span>
+    `;
+  } else {
+    tooltip.innerHTML = `
+      <span style="font-family:var(--font-body);font-size:13px;font-weight:700;color:#fff;flex:1;">${step.label}</span>
+      <button style="
+        font-family:var(--font-pixel);font-size:7px;color:var(--text-dark);
+        background:var(--yellow);border:none;border-radius:var(--radius-pill);
+        padding:8px 12px;cursor:pointer;flex-shrink:0;
+      ">NEXT</button>
+    `;
+    tooltip.querySelector('button').onclick = (e) => {
+      Sound.click();
+      e.stopPropagation();
+      _hRunHighlightStep(index + 1);
+    };
+  }
 
   document.body.appendChild(dim);
   document.body.appendChild(ring);
   document.body.appendChild(tooltip);
+
+  if (step.isFinal) {
+    // Elevate the real target above the dim overlay so it stays fully
+    // tappable — this is what makes "tap the actual Solo card" work
+    // instead of a fake highlighted duplicate.
+    target.style.position = 'relative';
+    target.style.zIndex = '852';
+    target._highlightCleanupZ = true;
+
+    // Wrap the target's own click so the highlight tears down cleanly
+    // the instant Solo is actually tapped, then lets the normal
+    // hStartSolo() flow continue as if the tour was never there.
+    const onSoloTap = () => {
+      State._inTutorial = true;
+      _hClearHighlight();
+      target.removeEventListener('click', onSoloTap, true);
+    };
+    target.addEventListener('click', onSoloTap, true);
+  }
 }
 
 function _hClearHighlight() {
   document.getElementById('h-highlight-dim')?.remove();
   document.getElementById('h-highlight-ring')?.remove();
   document.getElementById('h-highlight-tooltip')?.remove();
+  const solo = document.querySelector('.h-solo-card');
+  if (solo && solo._highlightCleanupZ) {
+    solo.style.position = '';
+    solo.style.zIndex = '';
+    delete solo._highlightCleanupZ;
+  }
 }
 
 /* ── PROFILE RENDERING ────────────────────────────────────── */

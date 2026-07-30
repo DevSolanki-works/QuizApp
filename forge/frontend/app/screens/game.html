@@ -757,6 +757,76 @@ let _myStreak       = 0;       // local streak mirror (updated from server broad
 let _streakTimeout  = null;    // used to time the shatter → hide transition
 let _finalStretchAnnounced = false; // duel: 2X banner shown once per match
 
+/* ── TUTORIAL MODE ────────────────────────────────────────────────────
+   When State._inTutorial is true, this game was launched from the Home
+   highlight tour's final "tap Solo" step. Adds a few lightweight
+   one-time tooltips over real UI as it naturally appears, grants two
+   demo-only power-ups (never touches the real inventory/backend), and
+   suppresses ALL ad calls for the duration. Ends by routing to the
+   tutorial completion screen instead of the normal results screen. */
+const TUTORIAL_DEMO_POWERUPS = { fifty_fifty: 1, time_freeze: 1 };
+let _tutTooltipsShown = { question: false, streak: false };
+
+function _tutIsActive() {
+  return !!State._inTutorial;
+}
+
+function _tutShowTooltip(key, targetSel, text, anchorBelow = true) {
+  if (_tutTooltipsShown[key]) return;
+  _tutTooltipsShown[key] = true;
+  const target = document.querySelector(targetSel);
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  const tip = document.createElement('div');
+  tip.className = 'tut-inline-tooltip';
+  const top = anchorBelow ? rect.bottom + 10 : Math.max(10, rect.top - 60);
+  tip.style.cssText = `
+    position:fixed; z-index:500; left:16px; right:16px; top:${top}px;
+    background:var(--bg-mid); border:1.5px solid rgba(255,217,61,0.45);
+    border-radius:var(--radius-md); padding:12px 14px;
+    font-family:var(--font-body); font-size:13px; font-weight:700; color:#fff;
+    text-align:center; animation:fade-up 0.25s ease both;
+  `;
+  tip.textContent = text;
+  document.body.appendChild(tip);
+  setTimeout(() => tip.remove(), 3200);
+}
+
+/** Grants the two demo power-ups into State.user.powerups WITHOUT
+    touching the backend — purely local, purely for this one tutorial
+    game, so there is nothing to claw back afterward. */
+function _tutGrantDemoPowerups() {
+  if (!State.user) State.user = {};
+  State.user.powerups = { ...(State.user.powerups || {}), ...TUTORIAL_DEMO_POWERUPS };
+  State._tutDemoPowerupsActive = true;
+}
+
+/** Strips the demo power-ups back out once the tutorial game ends, so
+    a guest/new signed-in user's real (empty) inventory is what actually
+    persists afterward — the demo grant never touches Session.save(). */
+function _tutRevokeDemoPowerups() {
+  if (!State._tutDemoPowerupsActive) return;
+  if (State.user?.powerups) {
+    delete State.user.powerups.fifty_fifty;
+    delete State.user.powerups.time_freeze;
+  }
+  State._tutDemoPowerupsActive = false;
+}
+
+/** Called instead of onGameOver's normal goTo('results') when the
+    tutorial game finishes. */
+function _tutFinishGame() {
+  _tutRevokeDemoPowerups();
+  State._inTutorial = false;
+  goTo('tutorial-summary');
+}
+
+/** Called by every ad-trigger site in this file — no-ops during the
+    tutorial so the guided game never shows an ad. */
+function _tutBlocksAds() {
+  return _tutIsActive();
+}
+
 /** Called by router when screen becomes active */
 function onGameShow() {
   // Stop any stale interval from a previous game session.
@@ -806,6 +876,11 @@ function onGameShow() {
   _myStreak = 0;
   _hideLB();
   _hideStreak(true);
+
+  if (_tutIsActive()) {
+    _tutTooltipsShown = { question: false, streak: false };
+    _tutGrantDemoPowerups();
+  }
 
   WS.on('QUESTION',                _onQuestion);
   WS.on('ANSWER_REVEAL',           _onAnswerReveal);
@@ -1006,6 +1081,13 @@ function _onQuestion(data) {
   const roundLimitMs = data.time_limit_ms || State.timeLimitMs || TIME_LIMIT_MS;
   State.timeLimitMs = roundLimitMs;
   _startTimer(roundLimitMs, data._receivedAt);
+
+  if (_tutIsActive() && data.index === 0) {
+    setTimeout(() => {
+      _tutShowTooltip('question', '.game-question-card', 'Answer before the timer runs out — faster answers score more!');
+    }, 500);
+    _puRenderBar(); // surface the demo power-up bar immediately on Q1
+  }
 }
 
 /* ── TIMER ───────────────────────────────────────────────── */
@@ -1114,6 +1196,11 @@ function _onAnswerReveal(data) {
   // Streak badge update
   if (isCorrect && _myStreak >= 1) {
     _showStreak(_myStreak);
+    if (_tutIsActive() && _myStreak === 1) {
+      setTimeout(() => {
+        _tutShowTooltip('streak', '#streak-badge', 'Nice! Answer streaks multiply your points the longer they last.', false);
+      }, 400);
+    }
   } else if (!isCorrect || !didAnswer) {
     // Wrong answer or timeout → shatter badge if it was showing
     if (document.getElementById('streak-badge')?.classList.contains('active')) {
@@ -1513,6 +1600,11 @@ async function _onGameOver(data) {
   if (data.team_scores)  State.teamScores  = data.team_scores;
   if (data.team_names)   State.teamNames   = data.team_names;
   if (data.teams)        State.teams       = data.teams;
+
+  if (_tutIsActive()) {
+    _tutFinishGame();
+    return;
+  }
   goTo('results');
 }
 
