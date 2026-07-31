@@ -11,7 +11,7 @@
 <style>
   .home-wrap {
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -103,9 +103,13 @@
 
   /* ── MAIN ──────────────────────────────────────────────── */
   .h-main {
-    flex: 1; overflow: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
     display: flex; flex-direction: column;
-    padding: 20px 16px 10px; gap: 14px;
+    padding: 20px 16px 12px; gap: 14px;
   }
 
   /* ── WORDMARK ──────────────────────────────────────────── */
@@ -316,7 +320,7 @@
   .h-bottom-nav {
     background: var(--bg-mid);
     border-top: 2px solid rgba(0,0,0,0.3);
-    padding: 9px 4px 14px;
+    padding: 9px 4px calc(14px + env(safe-area-inset-bottom));
     display: flex; align-items: center;
     justify-content: space-evenly; flex-shrink: 0;
   }
@@ -552,6 +556,64 @@
   .h-ticket-info-text {
     font-family: var(--font-body); font-size: 13px; font-weight: 700;
     color: rgba(255,255,255,0.75); line-height: 1.4;
+  }
+
+  @media (max-width: 390px), (max-height: 760px) {
+    .h-topbar { padding: 10px 12px 8px; }
+    .h-profile { gap: 8px; }
+    .h-avatar { width: 34px; height: 34px; }
+    .h-profile-name { font-size: 6px; }
+    .h-profile-level { font-size: 5px; }
+    .h-topbar-right { gap: 4px; }
+    .h-currency-pill { padding: 4px 6px; }
+    .h-currency-val { font-size: 6px; }
+
+    .h-main { padding: 14px 12px 10px; gap: 10px; }
+    .h-forge-title { font-size: 24px; letter-spacing: 5px; }
+    .h-forge-sub { font-size: 4.5px; letter-spacing: 2px; }
+
+    .h-stats { gap: 6px; }
+    .h-stat { padding: 8px 5px; }
+    .h-stat-icon { font-size: 13px; }
+    .h-stat-val { font-size: 9px; }
+    .h-stat-label { font-size: 4px; }
+
+    .h-section-row { gap: 8px; }
+    .h-htp-btn { padding: 5px 8px; }
+
+    .h-solo-card { padding: 12px; gap: 10px; }
+    .h-solo-icon { font-size: 24px; }
+    .h-solo-name { font-size: 9px; }
+    .h-solo-desc { font-size: 4.5px; line-height: 1.6; }
+    .h-solo-arrow { width: 30px; height: 30px; font-size: 12px; }
+
+    .h-modes-grid { gap: 7px; }
+    .h-mode-card { padding: 11px 9px; gap: 5px; }
+    .h-mode-icon { font-size: 18px; }
+    .h-mode-name { font-size: 7px; }
+    .h-mode-desc { font-size: 4px; line-height: 1.5; }
+
+    .h-lucky-card { padding: 11px 12px; gap: 10px; }
+    .h-lucky-icon { font-size: 22px; }
+    .h-lucky-name { font-size: 8px; }
+    .h-lucky-desc { font-size: 4px; line-height: 1.5; }
+
+    .h-page-dots { gap: 4px; }
+    .h-dot { width: 5px; height: 5px; }
+    .h-dot.active { width: 16px; }
+
+    .h-bottom-nav { padding: 7px 2px calc(10px + env(safe-area-inset-bottom)); }
+    .h-nav-item { gap: 3px; padding: 4px 5px; }
+    .h-nav-icon { width: 26px; height: 26px; font-size: 12px; }
+    .h-nav-item.h-nav-center .h-nav-icon { width: 32px; height: 32px; font-size: 14px; }
+    .h-nav-label { font-size: 4px; }
+  }
+
+  @media (max-width: 360px), (max-height: 700px) {
+    .h-forge-title { font-size: 22px; letter-spacing: 4px; }
+    .h-stats { gap: 5px; }
+    .h-stat { padding: 7px 4px; }
+    .h-solo-card, .h-lucky-card { padding-left: 10px; padding-right: 10px; }
   }
 </style>
 
