@@ -1647,10 +1647,10 @@ const Sound = {
 };
 
 /* ══════════════════════════════════════════════════════════
-   NOTIFICATION PERMISSION FLOW
-   Shown once on first native app open, before home screen.
-   The OS dialog only fires when user taps Allow in our sheet.
-   ══════════════════════════════════════════════════════════ */
+  NOTIFICATION PERMISSION FLOW
+  Shown once on first native app open.
+  Uses the native OS permission dialog directly (no custom pre-banner).
+  ══════════════════════════════════════════════════════════ */
 const NOTIF_ASKED_KEY = 'forge_notif_asked_v1';
 
 async function _maybeShowNotifPermission() {
@@ -1671,14 +1671,11 @@ async function _maybeShowNotifPermission() {
     }
   } catch (_) {}
 
-  // Show our explanation sheet, then user taps Allow → OS dialog fires
-  return new Promise((resolve) => {
-    const modal = document.getElementById('notif-permission-modal');
-    if (!modal) { resolve(); return; }
-    modal.style.display = 'flex';
-    // Store resolve so the button handlers can call it
-    window._notifPermissionResolve = resolve;
-  });
+  // Ask the OS permission dialog directly.
+  localStorage.setItem(NOTIF_ASKED_KEY, '1');
+  try {
+    await plugin.requestPermissions();
+  } catch (_) {}
 }
 
 async function _notifRequestPermission() {

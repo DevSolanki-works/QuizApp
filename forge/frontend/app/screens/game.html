@@ -766,6 +766,7 @@ let _finalStretchAnnounced = false; // duel: 2X banner shown once per match
    tutorial completion screen instead of the normal results screen. */
 const TUTORIAL_DEMO_POWERUPS = { fifty_fifty: 1, time_freeze: 1 };
 let _tutTooltipsShown = { question: false, streak: false };
+let _tutPowerupCoachTimers = { fifty_fifty: null, time_freeze: null };
 
 function _tutIsActive() {
   return !!State._inTutorial;
@@ -801,11 +802,36 @@ function _tutGrantDemoPowerups() {
   State._tutDemoPowerupsActive = true;
 }
 
+function _tutClearPowerupCoachTimers() {
+  Object.keys(_tutPowerupCoachTimers).forEach((key) => {
+    if (_tutPowerupCoachTimers[key]) {
+      clearTimeout(_tutPowerupCoachTimers[key]);
+      _tutPowerupCoachTimers[key] = null;
+    }
+  });
+}
+
+function _tutCoachPowerup(id, text, fallbackDelayMs) {
+  if (!_tutIsActive() || !_tutDemoPowerupsActive) return;
+  const bar = document.getElementById('powerup-bar');
+  if (!bar) return;
+
+  _tutClearPowerupCoachTimers();
+  _tutShowTooltip(`powerup-${id}`, '#powerup-bar', text, true);
+  _tutPowerupCoachTimers[id] = setTimeout(() => {
+    if (!_answered && !_puUsedThisQuestion[id] && State._tutDemoPowerupsActive) {
+      puUse(id);
+    }
+    _tutPowerupCoachTimers[id] = null;
+  }, fallbackDelayMs);
+}
+
 /** Strips the demo power-ups back out once the tutorial game ends, so
     a guest/new signed-in user's real (empty) inventory is what actually
     persists afterward — the demo grant never touches Session.save(). */
 function _tutRevokeDemoPowerups() {
   if (!State._tutDemoPowerupsActive) return;
+  _tutClearPowerupCoachTimers();
   if (State.user?.powerups) {
     delete State.user.powerups.fifty_fifty;
     delete State.user.powerups.time_freeze;
@@ -818,6 +844,7 @@ function _tutRevokeDemoPowerups() {
 function _tutFinishGame() {
   _tutRevokeDemoPowerups();
   State._inTutorial = false;
+  State._lobbyTutorialGuideDone = true;
   goTo('tutorial-summary');
 }
 
@@ -1087,6 +1114,9 @@ function _onQuestion(data) {
       _tutShowTooltip('question', '.game-question-card', 'Answer before the timer runs out — faster answers score more!');
     }, 500);
     _puRenderBar(); // surface the demo power-up bar immediately on Q1
+    _tutCoachPowerup('fifty_fifty', 'Tap 50/50 first. It removes two wrong answers and keeps the correct one.', 4500);
+  } else if (_tutIsActive() && data.index === 1) {
+    _tutCoachPowerup('time_freeze', 'Now tap Time Freeze to add extra seconds and slow the timer down.', 4500);
   }
 }
 
@@ -1447,6 +1477,10 @@ function puUse(id) {
   // through use_powerup, which the backend would correctly reject since
   // profiles.json genuinely has none on file for this account.
   if (State._tutDemoPowerupsActive) {
+    if (_tutPowerupCoachTimers[id]) {
+      clearTimeout(_tutPowerupCoachTimers[id]);
+      _tutPowerupCoachTimers[id] = null;
+    }
     if (State.user?.powerups) {
       State.user.powerups[id] = Math.max(0, Number(State.user.powerups[id] || 0) - 1);
     }
@@ -1478,8 +1512,17 @@ function puUse(id) {
 }
 
 function _onPowerup5050(d) {
-  // Hide the two server-chosen wrong options.
-  (d.remove || []).forEach(i => {
+  const correctIdx = Number(State.currentQ?.correct_index);
+  const candidates = (d.remove || [])
+    .map(i => Number(i))
+    .filter(i => Number.isInteger(i) && i >= 0 && i < 4 && i !== correctIdx);
+  const toHide = candidates.length >= 2
+    ? candidates.slice(0, 2)
+    : [...new Set(candidates.concat([0, 1, 2, 3].filter(i => i !== correctIdx)))].slice(0, 2);
+
+  // Hide only wrong options; never touch the correct answer even if a bad
+  // payload arrives from the server or a stale client-side demo event.
+  toHide.forEach(i => {
     const btn = document.querySelector(`#game-options-grid .option-btn[data-idx="${i}"]`);
     if (btn) { btn.style.opacity = '0.15'; btn.style.pointerEvents = 'none'; }
   });
@@ -1625,7 +1668,6 @@ async function _onGameOver(data) {
   if (data.teams)        State.teams       = data.teams;
 
   if (_tutIsActive()) {
-    alert('[DEBUG] _tutFinishGame fired — questions answered so far: ' + _qIndex);
     _tutFinishGame();
     return;
   }

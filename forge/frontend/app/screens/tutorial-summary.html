@@ -116,9 +116,6 @@ async function _tsumGrantRewardIfSignedIn() {
 
 function _tsumMarkCompleted() {
   try { localStorage.setItem('forge_tutorial_completed', '1'); } catch (_) {}
-  // Signal to home.html that the one-time mode-highlight overlay should
-  // run on this next Home landing — cleared immediately after it shows.
-  try { localStorage.setItem('forge_show_mode_highlight', '1'); } catch (_) {}
 }
 
 function tsumGoHome() {

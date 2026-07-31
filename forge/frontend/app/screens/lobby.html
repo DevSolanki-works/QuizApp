@@ -411,6 +411,42 @@
   .rng-team-winner.team-a { background:rgba(230,57,70,0.25); color:#ff8a90; border:1px solid rgba(230,57,70,0.6); }
   .rng-team-winner.team-b { background:rgba(33,150,243,0.25); color:#90caff; border:1px solid rgba(33,150,243,0.6); }
   .rng-countdown { font-family:var(--font-pixel); font-size:8px; color:rgba(255,255,255,0.4); letter-spacing:0.5px; }
+
+  /* ══════════════════════════════════════════════════════════
+     LOBBY TUTORIAL OVERLAY (solo tutorial flow)
+  ══════════════════════════════════════════════════════════ */
+  #lobby-tutorial-overlay {
+    position: fixed; inset: 0; z-index: 860;
+    background: rgba(9,15,80,0.72);
+    display: none;
+  }
+  #lobby-tutorial-ring {
+    position: fixed; z-index: 861; pointer-events: none;
+    border-radius: 16px;
+    box-shadow: 0 0 0 4px var(--yellow), 0 0 24px rgba(255,217,61,0.5);
+    display: none;
+  }
+  #lobby-tutorial-tip {
+    position: fixed; z-index: 862; left: 16px; right: 16px;
+    background: var(--bg-mid);
+    border: 1.5px solid rgba(255,217,61,0.42);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .lobby-tut-tip-text {
+    font-family: var(--font-body); font-size: 13px; font-weight: 700;
+    color: #fff; line-height: 1.45;
+    flex: 1;
+  }
+  .lobby-tut-tip-btn {
+    font-family: var(--font-pixel); font-size: 7px; color: var(--text-dark);
+    background: var(--yellow); border: none; border-radius: var(--radius-pill);
+    padding: 8px 12px; cursor: pointer; flex-shrink: 0;
+  }
 </style>
 
 <!-- RANDOMIZER OVERLAY (outside lobby-wrap so it covers full screen) -->
@@ -433,6 +469,10 @@
     <p class="rng-countdown"    id="rng-countdown">STARTING IN 3...</p>
   </div>
 </div>
+
+<div id="lobby-tutorial-overlay"></div>
+<div id="lobby-tutorial-ring"></div>
+<div id="lobby-tutorial-tip"></div>
 
 <!-- LOBBY WRAP -->
 <div class="lobby-wrap">
@@ -634,6 +674,27 @@ let _myTeamId   = (_teams[State.playerName]) || null;
 let _lobbyMode  = State.playMode || 'classic'; // 'classic' | 'team'
 let _isLocked   = false;  // Room lock state
 let _pushTimer  = null;   // Debounce for set_team_info
+let _lobbyTutFinalCleanup = null;
+
+const LOBBY_TUTORIAL_STEPS = [
+  {
+    sel: '#input-topic',
+    label: 'Type a custom topic here. Example: Marvel Movies, World Capitals, or Space Facts.',
+  },
+  {
+    sel: '#difficulty-selector',
+    label: 'Choose your time here. Use 30 sec (Easy) or 20 sec (Medium) per question.',
+  },
+  {
+    sel: '#topic-chips',
+    label: 'Quick Picks are ready-made free topics if you want to start instantly.',
+  },
+  {
+    sel: '#btn-start-classic',
+    label: 'When you are ready, tap START GAME to begin your tutorial match.',
+    isFinal: true,
+  },
+];
 
 /* ─────────────────────────────────────────────────────────── */
 function onLobbyShow() {
@@ -652,6 +713,10 @@ function onLobbyShow() {
   if (_pushTimer) { clearTimeout(_pushTimer); _pushTimer = null; }
 
   const isSolo = State.playMode === 'solo';
+
+  if (isSolo && State._inTutorial) {
+    State.mode = 'easy';
+  }
 
   const startHintEl = document.getElementById('start-hint-classic');
   if (startHintEl) {
@@ -758,6 +823,104 @@ function onLobbyShow() {
   });
 
   WS.on('ERROR', (data) => Toast.error(data.message || 'Something went wrong.'));
+
+  setTimeout(_maybeStartLobbyTutorialGuide, 350);
+}
+
+function _maybeStartLobbyTutorialGuide() {
+  if (!State._inTutorial) {
+    _clearLobbyTutorialGuide();
+    return;
+  }
+  if (State._lobbyTutorialGuideDone) return;
+  if (State.playMode !== 'solo') return;
+  if (_lobbyMode !== 'classic') return;
+  _runLobbyTutorialStep(0);
+}
+
+function _runLobbyTutorialStep(index) {
+  _clearLobbyTutorialGuide();
+  if (index >= LOBBY_TUTORIAL_STEPS.length) {
+    State._lobbyTutorialGuideDone = true;
+    return;
+  }
+
+  const step = LOBBY_TUTORIAL_STEPS[index];
+  const target = document.querySelector(step.sel);
+  if (!target) { _runLobbyTutorialStep(index + 1); return; }
+
+  const overlay = document.getElementById('lobby-tutorial-overlay');
+  const ring = document.getElementById('lobby-tutorial-ring');
+  const tip = document.getElementById('lobby-tutorial-tip');
+  if (!overlay || !ring || !tip) return;
+
+  const rect = target.getBoundingClientRect();
+  overlay.style.display = 'block';
+  overlay.style.pointerEvents = step.isFinal ? 'none' : 'auto';
+  if (!step.isFinal) overlay.onclick = () => _runLobbyTutorialStep(index + 1);
+
+  ring.style.display = 'block';
+  ring.style.top = `${rect.top - 6}px`;
+  ring.style.left = `${rect.left - 6}px`;
+  ring.style.width = `${rect.width + 12}px`;
+  ring.style.height = `${rect.height + 12}px`;
+
+  const tipTop = rect.bottom + 14 < window.innerHeight - 90 ? rect.bottom + 14 : Math.max(14, rect.top - 86);
+  tip.style.display = 'flex';
+  tip.style.top = `${tipTop}px`;
+
+  if (step.isFinal) {
+    tip.innerHTML = `<span class="lobby-tut-tip-text">👆 ${_escHtml(step.label)}</span>`;
+    target.style.position = 'relative';
+    target.style.zIndex = '863';
+    target._lobbyTutRaised = true;
+
+    const onFinalTap = () => {
+      State._lobbyTutorialGuideDone = true;
+      _clearLobbyTutorialGuide();
+      target.removeEventListener('click', onFinalTap, true);
+      _lobbyTutFinalCleanup = null;
+    };
+    _lobbyTutFinalCleanup = { target, onFinalTap };
+    target.addEventListener('click', onFinalTap, true);
+  } else {
+    tip.innerHTML = `
+      <span class="lobby-tut-tip-text">${_escHtml(step.label)}</span>
+      <button class="lobby-tut-tip-btn">NEXT</button>`;
+    tip.querySelector('button')?.addEventListener('click', (e) => {
+      Sound.click();
+      e.stopPropagation();
+      _runLobbyTutorialStep(index + 1);
+    });
+  }
+}
+
+function _clearLobbyTutorialGuide() {
+  const overlay = document.getElementById('lobby-tutorial-overlay');
+  const ring = document.getElementById('lobby-tutorial-ring');
+  const tip = document.getElementById('lobby-tutorial-tip');
+  if (overlay) {
+    overlay.style.display = 'none';
+    overlay.onclick = null;
+  }
+  if (ring) ring.style.display = 'none';
+  if (tip) {
+    tip.style.display = 'none';
+    tip.innerHTML = '';
+  }
+
+  if (_lobbyTutFinalCleanup?.target) {
+    const t = _lobbyTutFinalCleanup.target;
+    t.removeEventListener('click', _lobbyTutFinalCleanup.onFinalTap, true);
+  }
+  _lobbyTutFinalCleanup = null;
+
+  const raised = document.querySelector('#btn-start-classic');
+  if (raised && raised._lobbyTutRaised) {
+    raised.style.position = '';
+    raised.style.zIndex = '';
+    delete raised._lobbyTutRaised;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────── */
@@ -1276,6 +1439,11 @@ function _updateStartBtns() {
 function lobbyStartClassic() {
   const topic = document.getElementById('input-topic')?.value.trim();
   if (!topic) { Toast.error('Enter a topic first!'); return; }
+  if (State._inTutorial) {
+    State._lobbyTutorialGuideDone = true;
+    State.mode = 'easy';
+    _clearLobbyTutorialGuide();
+  }
   const btn = document.getElementById('btn-start-classic');
   if (btn) { btn.textContent = '⏳ GENERATING...'; btn.disabled = true; }
   Sound.gameStart();
@@ -1437,6 +1605,7 @@ function lobbyCopyCode() {
 }
 function lobbyGoHome() {
   Sound.click();
+  _clearLobbyTutorialGuide();
   if (State.ws) { State.ws.close(); State.ws = null; }
   State.roomCode=''; State.isHost=false; State.playMode='classic'; State.players=[];
   WS.off('PLAYER_JOINED'); WS.off('GAME_STARTING'); WS.off('ERROR'); WS.off('LOBBY_MODE_CHANGED');

@@ -147,13 +147,11 @@ function tutContinueAsGuest() {
   _tutProceed();
 }
 
-/**
- * Stage 3 will insert the guided Custom Topic game BEFORE this — for
- * now (Stage 2), the intro screen leads straight into the mode-summary
- * cards + completion/reward screen, so that piece can be tested
- * standalone before the game-loop integration is built.
- */
 function _tutProceed() {
-  goTo('tutorial-summary', true);
+  // Start the guided tutorial flow from Home (mode highlight -> Solo tap).
+  // Reward is claimed only after that tutorial game ends.
+  State._lobbyTutorialGuideDone = false;
+  try { localStorage.setItem('forge_show_mode_highlight', '1'); } catch (_) {}
+  goTo('home', true);
 }
 </script>
