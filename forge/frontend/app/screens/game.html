@@ -1441,6 +1441,29 @@ function puUse(id) {
   Sound.click();
   _puUsedThisQuestion[id] = true;
   if (State.playMode === 'duel') _puUsedThisDuel.push(id);
+
+  // Tutorial demo power-ups were never granted server-side — using one
+  // must be simulated entirely client-side instead of round-tripping
+  // through use_powerup, which the backend would correctly reject since
+  // profiles.json genuinely has none on file for this account.
+  if (State._tutDemoPowerupsActive) {
+    if (State.user?.powerups) {
+      State.user.powerups[id] = Math.max(0, Number(State.user.powerups[id] || 0) - 1);
+    }
+    if (id === 'fifty_fifty') {
+      const question = State.currentQ;
+      if (question) {
+        const wrong = [0, 1, 2, 3].filter(i => i !== question.correct_index);
+        const remove = wrong.sort(() => Math.random() - 0.5).slice(0, 2);
+        _onPowerup5050({ remove });
+      }
+    } else if (id === 'time_freeze') {
+      _onPowerupFreeze({ seconds: 5 });
+    }
+    _puRenderBar();
+    return;
+  }
+
   // Optimistic decrement — server is authoritative; an ERROR reply just
   // means the effect never arrives and the shop resyncs the real count.
   if (State.user?.powerups) {

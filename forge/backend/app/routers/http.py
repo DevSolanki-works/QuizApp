@@ -480,6 +480,44 @@ async def sync_tickets_endpoint(
         raise HTTPException(status_code=500, detail="Ticket sync failed")
 
 
+@router.post("/tutorial/claim-reward")
+async def tutorial_claim_reward(
+    body: DeleteAccountRequest,  # reuses the simple {user_id} shape
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    One-time tutorial completion reward, gated server-side per account
+    (not per-device) so uninstall/reinstall cannot be used to farm this
+    repeatedly with the same Google account.
+    """
+    credential = ""
+    if authorization and authorization.startswith("Bearer "):
+        credential = authorization[len("Bearer "):]
+
+    verified_uid = _verify_google_token(credential)
+    if verified_uid != body.user_id:
+        raise HTTPException(status_code=403, detail="Token does not match the requested user account.")
+
+    try:
+        from app.services.profiles import get_profile, apply_delta
+
+        profile = get_profile(body.user_id)
+        if profile.get("tutorial_reward_claimed"):
+            return {"ok": False, "already_claimed": True, "coins": profile["coins"], "trophies": profile["trophies"]}
+
+        updated = apply_delta(body.user_id, coins_delta=20)
+        from app.services.profiles import _load_profiles, _save_profiles, _lock
+        with _lock:
+            store = _load_profiles()
+            store[body.user_id]["tutorial_reward_claimed"] = True
+            _save_profiles(store)
+
+        return {"ok": True, "already_claimed": False, "coins": updated["coins"], "trophies": updated["trophies"]}
+    except Exception as e:
+        logger.error("Tutorial reward claim failed: %s", e)
+        raise HTTPException(status_code=500, detail="Reward claim failed")
+
+
 @router.post("/economy/reward")
 async def ad_coin_reward(
     body: RewardRequest,

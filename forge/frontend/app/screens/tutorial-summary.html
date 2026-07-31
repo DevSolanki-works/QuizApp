@@ -71,35 +71,42 @@ async function _tsumGrantRewardIfSignedIn() {
 
   try {
     const credential = State.user._credential;
-    const res = await fetch(`${API_BASE}/economy/reward`, {
+    const res = await fetch(`${API_BASE}/tutorial/claim-reward`, {
       method : 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
-      body   : JSON.stringify({ user_id: State.user.id, coins_delta: 20 }),
+      body   : JSON.stringify({ user_id: State.user.id }),
     });
     if (res.ok) {
       const data = await res.json();
+      if (data.already_claimed) {
+        // Reinstalled after already claiming once — no new reward,
+        // server-side guard already prevented a second grant.
+        _tsumMarkCompleted();
+        return;
+      }
       State.user.coins = data.coins;
       Session.save();
       if (typeof _markLocalEconomyWrite === 'function') _markLocalEconomyWrite();
+
+      try {
+        const ticketState = await API.getTickets(State.user.id);
+        await API.syncTickets(
+          State.user.id,
+          Number(ticketState.tickets_today || 0) + 1,
+          ticketState.ad_tickets_used_today || 0,
+          ticketState.last_ticket_date || ''
+        );
+        State.user.tickets_today = Number(ticketState.tickets_today || 0) + 1;
+        Session.save();
+      } catch (e) {
+        console.warn('[Tutorial] Ticket reward grant failed (non-fatal):', e);
+      }
+      if (typeof lbUpsertPlayer === 'function') {
+        lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies).catch(() => {});
+      }
+      if (rewardBox) rewardBox.style.display = 'flex';
+      Toast.success('Tutorial reward claimed!');
     }
-    try {
-      const ticketState = await API.getTickets(State.user.id);
-      await API.syncTickets(
-        State.user.id,
-        Number(ticketState.tickets_today || 0) + 1,
-        ticketState.ad_tickets_used_today || 0,
-        ticketState.last_ticket_date || ''
-      );
-      State.user.tickets_today = Number(ticketState.tickets_today || 0) + 1;
-      Session.save();
-    } catch (e) {
-      console.warn('[Tutorial] Ticket reward grant failed (non-fatal):', e);
-    }
-    if (typeof lbUpsertPlayer === 'function') {
-      lbUpsertPlayer(State.user.id, State.user.name, State.user.coins, State.user.trophies).catch(() => {});
-    }
-    if (rewardBox) rewardBox.style.display = 'flex';
-    Toast.success('Tutorial reward claimed!');
   } catch (e) {
     console.warn('[Tutorial] Reward grant failed (non-fatal):', e);
   }
