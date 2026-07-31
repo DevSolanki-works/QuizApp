@@ -531,7 +531,7 @@ const IS_LOCAL_DEV = !!PLATFORM.isLocalDev;
 
 const API_BASE = PLATFORM.backendHttp || (
   IS_LOCAL_DEV
-    ? 'http://127.0.0.1:8000'
+    ? 'http://127.0.0.1:8080'
     : 'https://forge-backend-878124462453.us-central1.run.app'
 );
 const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');

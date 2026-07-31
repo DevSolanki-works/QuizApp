@@ -15,8 +15,8 @@
 // ─── Config ───────────────────────────────────────────────
 // Update BACKEND_URL before deploying. Use ws:// locally, wss:// on Cloud Run.
 const CONFIG = {
-  BACKEND_HTTP: "http://localhost:8000",
-  BACKEND_WS:   "ws://localhost:8000",
+  BACKEND_HTTP: "http://localhost:8080",
+  BACKEND_WS:   "ws://localhost:8080",
   // After deployment, these become:
   // BACKEND_HTTP: "https://your-cloud-run-url.run.app",
   // BACKEND_WS:   "wss://your-cloud-run-url.run.app",

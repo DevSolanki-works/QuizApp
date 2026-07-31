@@ -61,7 +61,7 @@
     monetization: target === "app" ? "admob" : "adsense",
     adsenseClient: ADSENSE_CLIENT,
     adsenseEnabled: isWebsite && !isLocalDev,
-    backendHttp: isLocalDev ? "http://127.0.0.1:8000" : PROD_BACKEND_HTTP,
+    backendHttp: isLocalDev ? "http://127.0.0.1:8080" : PROD_BACKEND_HTTP,
   };
 
   function installVisibilityStyles() {

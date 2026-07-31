@@ -5,5 +5,6 @@
     }
   },
   "terminal.integrated.defaultProfile.windows": "WSL",
-  "java.configuration.updateBuildConfiguration": "disabled"
+  "java.configuration.updateBuildConfiguration": "disabled",
+  "python-envs.defaultEnvManager": "ms-python.python:system"
 }
