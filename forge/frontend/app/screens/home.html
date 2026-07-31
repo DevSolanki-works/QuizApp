@@ -1013,6 +1013,7 @@ function _hRunHighlightStep(index) {
     // the instant Solo is actually tapped, then lets the normal
     // hStartSolo() flow continue as if the tour was never there.
     const onSoloTap = () => {
+      alert('[DEBUG] Solo tapped from tutorial tour — State._inTutorial set to true.');
       State._inTutorial = true;
       _hClearHighlight();
       target.removeEventListener('click', onSoloTap, true);

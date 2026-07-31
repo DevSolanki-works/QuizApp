@@ -288,6 +288,11 @@
       <button class="btn btn-primary" id="solo-double-btn" onclick="doubleSoloCoins()">🎥 &nbsp;2X COINS</button>
       <button class="btn btn-secondary" id="solo-secondary-btn" onclick="soloSecondaryAction()">NO THANKS</button>
     </div>
+    <div id="results-actions-custom-bonus" style="display:none;margin-top:10px;">
+      <button class="btn btn-secondary" style="height:44px;font-size:8px;" onclick="customTopicWatchForBonus()">
+        🎥 &nbsp;WATCH AD FOR +1 FREE GENERATION
+      </button>
+    </div>
     <button class="btn btn-secondary" id="challenge-friend-btn" style="display:none;margin-top:2px;" onclick="resultsChallengeFriend()">
       🎯 &nbsp;CHALLENGE A FRIEND
     </button>
@@ -422,6 +427,7 @@ function onResultsShow() {
     if (State.ws) { State.ws.close(); State.ws = null; }
   }
   _renderEconomyResult();
+  _maybeShowCustomBonusOffer();
   setTimeout(() => Sound.startBgMusic(), 1200);
 }
 
@@ -528,6 +534,57 @@ async function resultsBackToHome() {
     decline-counter rewarded-interstitial system anymore). */
 function soloSecondaryAction() {
   resultsBackToHome();
+}
+
+/* ── CUSTOM TOPIC BONUS GENERATION (opt-in, tap-driven) ────────────────
+   Restored as a simple opt-in offer — no decline counter, no forced
+   auto-show. Shown once per Custom Topic Solo game as an additional
+   button alongside the normal exit actions; ignoring it does nothing
+   and never affects future games. */
+function _maybeShowCustomBonusOffer() {
+  const wrap = document.getElementById('results-actions-custom-bonus');
+  if (!wrap) return;
+  const isSolo = State.playMode === 'solo';
+  const isCustom = isSolo && typeof isQuickPickTopic === 'function' && !isQuickPickTopic(State.topic || '');
+  const canShow = isCustom && State.user
+    && typeof RewardedInterstitial !== 'undefined'
+    && window.Capacitor?.isNativePlatform?.();
+  wrap.style.display = canShow ? 'block' : 'none';
+}
+
+async function customTopicWatchForBonus() {
+  if (!State.user?.id) return;
+  if (typeof _isSessionLikelyStale === 'function' && _isSessionLikelyStale()) {
+    _promptReauth();
+    return;
+  }
+  const btn = document.querySelector('#results-actions-custom-bonus button');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ LOADING AD...'; }
+
+  const rewarded = await RewardedInterstitial.show();
+  if (!rewarded) {
+    Toast.error('Ad was not completed — no bonus generation granted.');
+    if (btn) { btn.disabled = false; btn.textContent = '🎥 WATCH AD FOR +1 FREE GENERATION'; }
+    return;
+  }
+
+  try {
+    const data = await API.grantBonusGeneration(State.user.id);
+    if (data) {
+      State.user.free_generations_used_today = data.free_generations_used_today;
+      Session.save();
+      if (typeof Analytics !== 'undefined') {
+        Analytics.track('ad_reward_granted', { trigger: 'custom_topic_bonus_generation', amount: 1 });
+      }
+      Toast.success('+1 free generation granted!');
+      _playRewardChimeOverBgm();
+    }
+  } catch (e) {
+    console.warn('[CustomBonus] Grant failed:', e);
+    Toast.error('Ad completed, but the bonus failed to apply.');
+  }
+  const wrap = document.getElementById('results-actions-custom-bonus');
+  if (wrap) wrap.style.display = 'none';
 }
 
 function _renderEconomyResult() {

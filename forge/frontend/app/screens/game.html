@@ -1625,6 +1625,7 @@ async function _onGameOver(data) {
   if (data.teams)        State.teams       = data.teams;
 
   if (_tutIsActive()) {
+    alert('[DEBUG] _tutFinishGame fired — questions answered so far: ' + _qIndex);
     _tutFinishGame();
     return;
   }
