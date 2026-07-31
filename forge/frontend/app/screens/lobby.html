@@ -700,6 +700,15 @@ const LOBBY_TUTORIAL_STEPS = [
 function onLobbyShow() {
   if (Sound.bgmEnabled) Sound.startBgMusic();
   // Tutorial flag survives the lobby screen untouched — just passing through.
+  // Defensive cleanup: the Home highlight tour's dim/ring/tooltip overlay
+  // elements are appended directly to document.body, not scoped to the
+  // home screen's container — if a stray one ever survives the
+  // navigation to Lobby (e.g. a race between the Solo tap handler and
+  // the screen transition), it would sit on top of the topic input and
+  // block typing. Belt-and-suspenders removal here costs nothing.
+  document.getElementById('h-highlight-dim')?.remove();
+  document.getElementById('h-highlight-ring')?.remove();
+  document.getElementById('h-highlight-tooltip')?.remove();
   const starsEl = document.getElementById('lobby-stars');
   if (starsEl) { starsEl.innerHTML = ''; spawnStars(starsEl); }
 
@@ -856,8 +865,14 @@ function _runLobbyTutorialStep(index) {
 
   const rect = target.getBoundingClientRect();
   overlay.style.display = 'block';
-  overlay.style.pointerEvents = step.isFinal ? 'none' : 'auto';
-  if (!step.isFinal) overlay.onclick = () => _runLobbyTutorialStep(index + 1);
+  // The dim layer must never sit ON TOP of the real element being
+  // highlighted — every step (not just the final one) needs its target
+  // raised above it, or taps/typing on that element just hit the dim
+  // background instead (this was the actual bug: #input-topic sat
+  // BELOW the dim overlay on step 0, so tapping it advanced the
+  // tutorial step instead of focusing the field).
+  overlay.style.pointerEvents = 'auto';
+  overlay.onclick = () => _runLobbyTutorialStep(index + 1);
 
   ring.style.display = 'block';
   ring.style.top = `${rect.top - 6}px`;
@@ -869,11 +884,15 @@ function _runLobbyTutorialStep(index) {
   tip.style.display = 'flex';
   tip.style.top = `${tipTop}px`;
 
+  // Elevate the real target above the dim overlay on EVERY step, so it
+  // stays genuinely interactive (typeable/tappable) the whole way
+  // through, not just on the final "tap Start" step.
+  target.style.position = 'relative';
+  target.style.zIndex = '863';
+  target._lobbyTutRaised = true;
+
   if (step.isFinal) {
     tip.innerHTML = `<span class="lobby-tut-tip-text">👆 ${_escHtml(step.label)}</span>`;
-    target.style.position = 'relative';
-    target.style.zIndex = '863';
-    target._lobbyTutRaised = true;
 
     const onFinalTap = () => {
       State._lobbyTutorialGuideDone = true;
@@ -915,12 +934,17 @@ function _clearLobbyTutorialGuide() {
   }
   _lobbyTutFinalCleanup = null;
 
-  const raised = document.querySelector('#btn-start-classic');
-  if (raised && raised._lobbyTutRaised) {
-    raised.style.position = '';
-    raised.style.zIndex = '';
-    delete raised._lobbyTutRaised;
-  }
+  // Un-raise whichever element the just-finished step elevated — every
+  // step (not only the final one) can now raise its own target, so this
+  // must search generically rather than hardcode #btn-start-classic.
+  LOBBY_TUTORIAL_STEPS.forEach((step) => {
+    const el = document.querySelector(step.sel);
+    if (el && el._lobbyTutRaised) {
+      el.style.position = '';
+      el.style.zIndex = '';
+      delete el._lobbyTutRaised;
+    }
+  });
 }
 
 /* ─────────────────────────────────────────────────────────── */
