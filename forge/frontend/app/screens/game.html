@@ -1512,19 +1512,18 @@ function puUse(id) {
 }
 
 function _onPowerup5050(d) {
+  // Defense in depth: never hide the correct answer, even if a bad
+  // payload arrives (e.g. a stale State.currentQ during the tutorial's
+  // client-side demo path, or any future server-payload edge case).
   const correctIdx = Number(State.currentQ?.correct_index);
-  const candidates = (d.remove || [])
-    .map(i => Number(i))
-    .filter(i => Number.isInteger(i) && i >= 0 && i < 4 && i !== correctIdx);
-  const toHide = candidates.length >= 2
-    ? candidates.slice(0, 2)
-    : [...new Set(candidates.concat([0, 1, 2, 3].filter(i => i !== correctIdx)))].slice(0, 2);
+  const safeRemove = (d.remove || []).filter(idx => idx !== correctIdx);
 
-  // Hide only wrong options; never touch the correct answer even if a bad
-  // payload arrives from the server or a stale client-side demo event.
-  toHide.forEach(i => {
-    const btn = document.querySelector(`#game-options-grid .option-btn[data-idx="${i}"]`);
-    if (btn) { btn.style.opacity = '0.15'; btn.style.pointerEvents = 'none'; }
+  document.querySelectorAll('.option-btn').forEach((btn) => {
+    const idx = Number(btn.dataset.idx);
+    if (safeRemove.includes(idx)) {
+      btn.style.opacity = '0.15';
+      btn.style.pointerEvents = 'none';
+    }
   });
   Toast.success('50/50 — two wrong answers removed!');
 }
