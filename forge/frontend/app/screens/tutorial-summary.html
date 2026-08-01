@@ -38,8 +38,8 @@
 
 <div class="tsum-wrap">
   <span class="tsum-complete-icon">🏆</span>
-  <p class="tsum-complete-title">YOU'RE ALL SET!</p>
-  <p class="tsum-complete-sub">That's the basics — jump in and start climbing the leaderboard.</p>
+  <p class="tsum-complete-title">YOU'RE A FORGE PLAYER NOW!</p>
+  <p class="tsum-complete-sub">Every game makes you sharper. Every win puts you higher on the board. Let's see what you've got.</p>
 
   <div class="tsum-reward-box" id="tsum-reward-box" style="display:none;">
     <span style="font-family:var(--font-pixel);font-size:7px;color:rgba(255,255,255,0.5);">TUTORIAL REWARD</span>
@@ -50,7 +50,7 @@
   </p>
 
   <button class="btn btn-primary" style="width:100%;max-width:320px;" onclick="tsumGoHome()">
-    🏠 &nbsp;START PLAYING
+    ⚡ &nbsp;LET'S PLAY FOR REAL
   </button>
 </div>
 
@@ -65,6 +65,7 @@ async function _tsumGrantRewardIfSignedIn() {
 
   if (!State.user?.id) {
     if (guestNote) guestNote.style.display = 'block';
+    Sound.gameStart();
     _tsumMarkCompleted();
     return;
   }
@@ -106,6 +107,7 @@ async function _tsumGrantRewardIfSignedIn() {
       }
       if (rewardBox) rewardBox.style.display = 'flex';
       Toast.success('Tutorial reward claimed!');
+      Sound.correct();
     }
   } catch (e) {
     console.warn('[Tutorial] Reward grant failed (non-fatal):', e);

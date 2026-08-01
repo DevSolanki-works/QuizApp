@@ -479,7 +479,15 @@ function _lbApplyTabStyles(tab) {
 
 async function _lbLoad(tab) {
   _lbLoaded[tab] = true;
-  _lbShowLoading();
+
+  // Only touch the loading UI if this is still the tab the player is
+  // actually looking at — an earlier, slower fetch (e.g. the initial
+  // 'coins' load fired on screen open) can resolve AFTER the player has
+  // already tapped a different tab. Without this guard, that stale
+  // response silently overwrites whatever the player switched to,
+  // making it look like tab switching "doesn't work" / "reverts back
+  // to coins" — exactly the symptom this fixes.
+  if (tab === _lbActiveTab) _lbShowLoading();
 
   // Give Supabase's SDK a brief window to finish initializing if the
   // screen was opened in rapid succession right after another screen's
@@ -488,7 +496,7 @@ async function _lbLoad(tab) {
   const ready = typeof waitForSupabase === 'function' ? await waitForSupabase(2000) : true;
   const db = ready && _initSupabase ? _initSupabase() : null;
   if (!db) {
-    _lbShowEmpty('COULD NOT CONNECT\nTAP REFRESH TO TRY AGAIN');
+    if (tab === _lbActiveTab) _lbShowEmpty('COULD NOT CONNECT\nTAP REFRESH TO TRY AGAIN');
     return;
   }
 
@@ -504,19 +512,25 @@ async function _lbLoad(tab) {
       .limit(50);
 
     if (error) throw error;
+
+    // Cache the result regardless of whether this tab is still active
+    // (so switching back to it later is instant), but only touch the
+    // visible DOM if the player hasn't already moved to another tab.
     if (!data || data.length === 0) {
       _lbCache[tab] = [];
-      _lbShowEmpty('NO PLAYERS YET\nBE THE FIRST ON THE BOARD!');
+      if (tab === _lbActiveTab) _lbShowEmpty('NO PLAYERS YET\nBE THE FIRST ON THE BOARD!');
       return;
     }
 
     _lbCache[tab] = data;
-    _lbRender(data, tab);
-    _lbRenderMyCard(tab);
+    if (tab === _lbActiveTab) {
+      _lbRender(data, tab);
+      _lbRenderMyCard(tab);
+    }
 
   } catch (e) {
     console.error('[Leaderboard] Load failed:', e);
-    _lbShowEmpty('FAILED TO LOAD\nCHECK YOUR CONNECTION');
+    if (tab === _lbActiveTab) _lbShowEmpty('FAILED TO LOAD\nCHECK YOUR CONNECTION');
   }
 }
 
