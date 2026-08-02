@@ -1634,12 +1634,18 @@ async function _onGameOver(data) {
 
   if (typeof Analytics !== 'undefined') {
     const myScore = (data.final_scores && data.final_scores[State.playerName]) || 0;
+    // Firebase Analytics event params only support String/Number — a raw
+    // boolean (or null) here can cause the native SDK to silently drop
+    // the WHOLE event, not just this one field. Send "true"/"false" as
+    // strings instead, which is Firebase's own recommended pattern.
+    const isQuickPick = typeof isQuickPickTopic === 'function' ? isQuickPickTopic(State.topic || '') : false;
     Analytics.track('game_completed', {
       play_mode: State.playMode,
       score: myScore,
       total_questions: data.total_questions || State.totalQ,
-      is_quick_pick: typeof isQuickPickTopic === 'function' ? isQuickPickTopic(State.topic || '') : null,
+      is_quick_pick: isQuickPick ? 'true' : 'false',
     });
+    console.log('[Analytics] game_completed fired:', { play_mode: State.playMode, score: myScore, is_quick_pick: isQuickPick });
   }
   if (data.economy && data.economy[State.playerName]) {
     try {
