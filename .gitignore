@@ -17,4 +17,7 @@ android/app/src/main/assets/public/
 android/app/src/main/assets/capacitor.config.json
 android/app/src/main/assets/capacitor.plugins.json
 android/app/capacitor.build.gradle
-android/capacitor-cordova-android-plugins/
+android/capacitor-cordova-android-plugins/.venv/
+.venv/
+node_modules/
+__pycache__/
