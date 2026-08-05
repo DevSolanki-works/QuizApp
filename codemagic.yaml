@@ -7,7 +7,7 @@ workflows:
       app_store_connect: Forge
     environment:
       xcode: latest
-      node: 20.11.0
+      node: 22.11.0
       vars:
         XCODE_SCHEME: "App"
         XCODE_PROJECT: "App.xcodeproj"
