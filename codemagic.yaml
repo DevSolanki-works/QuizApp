@@ -32,9 +32,18 @@ workflows:
           gem install xcodeproj --no-document
           ruby ../register_plist.rb
 
-      - name: Fetch and apply signing certificates/profiles
+      - name: Initialize Keychain and fetch signing files
         script: |
-          xcode-project use-profiles --project "forge/ios/App/App.xcodeproj"
+          keychain initialize
+          app-store-connect fetch-signing-files "com.devsolanki.forge" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+
+      - name: Set up code signing settings on Xcode project
+        script: |
+          cd forge/ios/App
+          xcode-project use-profiles
 
       - name: Build signed .ipa
         script: |
