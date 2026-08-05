@@ -1,0 +1,53 @@
+workflows:
+  ios-testflight:
+    name: Forge — iOS TestFlight Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: forge_ios_asc   # ← match the integration name you set in Codemagic
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.devsolanki.forge
+      xcode: latest
+      node: 20.11.0
+      vars:
+        XCODE_SCHEME: "App"
+        XCODE_PROJECT: "App.xcodeproj"
+
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          cd forge
+          npm install
+
+      - name: Sync Capacitor iOS platform
+        script: |
+          cd forge
+          npx cap sync ios
+
+      - name: Register GoogleService-Info.plist into the Xcode project
+        script: |
+          cd forge/ios/App
+          gem install xcodeproj --no-document
+          ruby ../register_plist.rb
+
+      - name: Fetch and apply signing certificates/profiles
+        script: |
+          xcode-project use-profiles
+
+      - name: Build signed .ipa
+        script: |
+          cd forge/ios/App
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - forge/ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
