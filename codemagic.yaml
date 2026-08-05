@@ -6,9 +6,6 @@ workflows:
     integrations:
       app_store_connect: Forge
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.devsolanki.forge
       xcode: latest
       node: 20.11.0
       vars:
