@@ -52,8 +52,14 @@
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-4922314688440658~9734257469</string>
 
-	<!-- Google Sign-In — URL scheme so Safari/Google's auth flow can hand
-	     control back to the app after login (reversed iOS client ID). -->
+	<!-- Google Sign-In — client ID + URL scheme so Safari/Google's auth
+	     flow can hand control back to the app after login. Both keys are
+	     required by @capawesome/capacitor-google-sign-in on iOS; the
+	     GIDClientID was missing here, which is why sign-in failed
+	     immediately on every attempt. -->
+	<key>GIDClientID</key>
+	<string>878124462453-0sl2g1ikoanbgihhb9cirv4fg3fjddht.apps.googleusercontent.com</string>
+
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
