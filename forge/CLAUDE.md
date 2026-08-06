@@ -284,20 +284,26 @@ forge/
 | 71 | **First-Time Tutorial (LIVE)** — Full guided onboarding: `tutorial-intro.html` (sign-in-or-guest choice, reward disclosed upfront) → Home's one-time spotlight tour (Leaderboards → Shop → Create → Team → Duel → ends on the real Solo card) → a genuine guided Custom Topic Solo game (`game.html` gains `State._inTutorial` awareness: contextual tooltips, two demo-only power-ups granted client-side only, per-step skip that completes just the current game step) → `tutorial-summary.html` completion screen granting +20 coins/+1 ticket via the new account-gated `/tutorial/claim-reward` endpoint (prevents uninstall/reinstall farming — guests get no reward, just a "sign in anytime" note). `forge_tutorial_completed` in localStorage is the single source of truth for "has this device seen the tutorial," set only on real completion | **Done — device-tested, confirmed working** |
 | 72 | **Ad logic simplification** — Replaced three overlapping, independently-triggered interstitial/rewarded systems (Quick-Pick-only interstitial, multiplayer 2nd-exit counter, Custom Topic decline-counter rewarded interstitial) that could fire near-simultaneously with a single rule: one plain interstitial on every Results exit, any mode, any topic, skipped only if a rewarded ad already played on that same screen. Custom Topic's "watch ad for +1 free generation" restored as a simple always-visible opt-in button (`customTopicWatchForBonus()`), no decline counter | Done |
 | 73 | **Leaderboard tab-switch race condition (fixed)** — A slow initial 'coins' fetch could resolve *after* the player had already switched to Trophies/Streak, silently overwriting the newer tab's data back to coins. Fixed by checking `tab === _lbActiveTab` before touching the DOM in `_lbLoad()`'s every branch — same "is this response still relevant" pattern as `refreshUserProfile()`'s existing de-duplication guard | Done |
+| 74 | **iOS TestFlight pipeline live** — Apple Developer Program approved, Codemagic wired up, first signed build confirmed installable and working on a real device via Internal Testing | Done — device-tested |
+| 75 | **iOS Google Sign-In fixed** — missing `GIDClientID` in `Info.plist`, then a Supabase iOS-Client-ID allow-list gap, both found and fixed (see Decisions Log) | Done — device-tested |
+| 76 | **Unity Ads mediation — root cause found, now live** — 0% match rate for 15+ days despite correct Gradle/mapping/SDK config; actual cause was an incomplete payout profile withholding real bidding demand account-wide (see Decisions Log) | Done — awaiting 24-48h confirmation of non-zero match rate |
+| 77 | Fix Home mode-highlight tour re-triggering `State._inTutorial` after tutorial completion (root cause identified, see Decisions Log) | Not started |
+| 78 | Fix tutorial demo 50/50 power-up occasionally hiding the correct answer (root cause identified, see Decisions Log) | Not started |
+| 79 | Diagnose + fix leaderboard blank-screen bug after finishing a game | Not started — root cause not yet confirmed |
 ---
 
-## 📱 iOS — Planned, No Mac Required (via Codemagic)
+## 📱 iOS — LIVE on TestFlight (Internal Testing)
 
-**Status: In progress, blocked on Apple Developer Program approval.** Dev has no Mac; using Codemagic (cloud macOS CI) instead of a local/GitHub Actions build, and a borrowed iPhone (parent's) for Apple ID 2FA + TestFlight testing only — never for building.
+**Status: Apple Developer Program approved. Codemagic pipeline built and working end-to-end. First real build confirmed installable and functional on a real device (borrowed iPhone) via TestFlight Internal Testing.** Dev still has no Mac — Codemagic (cloud macOS CI) does all building/signing; the borrowed iPhone is used for Apple ID 2FA and TestFlight install-testing only, never for building. Work merged to `main` — `IOS_Setup` was temporary.
 
-**Completed so far (on branch `IOS_Setup`, not yet merged):**
-- iOS platform added via `npx cap add ios` + `npx cap sync ios` — all 7 existing Capacitor plugins detected and synced for iOS
-- Firebase iOS app registered, `GoogleService-Info.plist` placed at `ios/App/App/GoogleService-Info.plist` (not yet registered into the Xcode `.pbxproj` build target — deferred to a Codemagic pre-build script, since that step needs real Xcode/Mac tooling)
-- Google Sign-In iOS OAuth client created (separate from the Android client), wired into `capacitor.config.json` (`GoogleSignIn.iosClientId`) and `Info.plist` (`CFBundleURLTypes` reversed-client-ID scheme)
-- AdMob iOS App ID created and added to `Info.plist` (`GADApplicationIdentifier`), plus Google's baseline `SKAdNetworkItems` list added (⚠️ not yet cross-checked against Apple's current live requirements before real App Store submission — see Known Issues)
-- Codemagic account created, GitHub repo linked
-
-**Blocked on:** Apple Developer Program enrollment ($99/yr) approval — required before the App Store Connect API key (Issuer ID + Key ID + `.p8` file) can be generated, which Codemagic needs to auto-manage signing certs/provisioning profiles. Nothing further can proceed until this clears.
+**Completed:**
+- iOS platform added via `npx cap add ios` + `npx cap sync ios` — all 7 Capacitor plugins synced (Capacitor 7 / SPM-based, no CocoaPods)
+- `codemagic.yaml` (repo root) + `forge/ios/register_plist.rb` written and working — registers `GoogleService-Info.plist` into the Xcode project's build target programmatically at CI time (no Mac/Xcode needed by hand)
+- App Store Connect API key generated and wired into Codemagic's integration settings
+- iOS App ID (`com.devsolanki.forge`) and app record created in App Store Connect
+- AdMob iOS App ID in `Info.plist` (`GADApplicationIdentifier`)
+- Google Sign-In iOS — fully working and device-tested (two real bugs found + fixed, see Decisions Log: missing `GIDClientID` key, and Supabase's Google provider not allow-listing the iOS Client ID)
+- First signed build uploaded to TestFlight and installed via **Internal Testing** (chosen over External Testing specifically to skip Apple's review wait during active dev/test — External Testing still needs the Beta App Review Information fields filled in App Store Connect before it'll work, not yet done)
 
 ### Real requirements (cost + hardware honesty)
 - **Apple Developer Program: $99/year, mandatory.** No workaround exists.
@@ -305,25 +311,25 @@ forge/
 - **A Mac is never touched directly** — Codemagic's cloud macOS runners do all compiling/signing. `npx cap add ios` and `npx cap sync ios` both run fine from the existing WSL/Windows setup, since they only generate/copy project template files, not compile anything.
 
 ### Plan, in order
-1. **Enroll in Apple Developer Program** (developer.apple.com) — pay $99/yr, use borrowed iPhone for 2FA during account setup.
-2. **Add the iOS platform**: `npx cap add ios` + `npx cap sync ios`, run locally from WSL — safe, does not require macOS.
-3. **Per-plugin native iOS config** (the part most often underestimated — each plugin needs separate iOS-side setup, distinct from its Android config):
-   - `GoogleService-Info.plist` (Firebase iOS equivalent of `google-services.json`)
-   - iOS AdMob App ID in `Info.plist`
-   - Separate Google Sign-In iOS OAuth client (distinct from the existing Android client ID)
-   - `@capawesome/capacitor-app-update` is **Android/Play-Store-only** — needs a conditional no-op guard on iOS (Apple has no equivalent in-app-update API; App Store's own update prompting is OS-level and outside app control)
-   - Various `Info.plist` usage-description strings, required by Apple review even for permissions the app doesn't actively use
-4. **Codemagic setup**: connect GitHub repo, generate an App Store Connect API key (done entirely via browser, no Mac) so Codemagic can auto-manage signing certificates without manual cert/profile handling.
-5. **First build → TestFlight**: Codemagic builds + signs + uploads to TestFlight automatically; install TestFlight on the borrowed iPhone to verify a real build.
-6. **App Store submission**: once TestFlight testing passes, submit via App Store Connect for review.
+1. ~~Enroll in Apple Developer Program~~ — **done, approved.**
+2. ~~Add the iOS platform~~ — **done.**
+3. **Per-plugin native iOS config — mostly done, two items still unverified:**
+   - ~~`GoogleService-Info.plist` registration~~ — **done** via `register_plist.rb`.
+   - ~~AdMob iOS App ID~~ — **done.**
+   - ~~Google Sign-In iOS~~ — **done, device-tested working.**
+   - `@capawesome/capacitor-app-update`'s iOS no-op guard — **unverified on a real device**, hasn't been deliberately exercised yet.
+   - `Info.plist` usage-description strings — **not confirmed present**, audit before real App Store submission (Apple review rejects without these even for lightly-used permissions).
+4. ~~Codemagic setup~~ — **done, working end-to-end.**
+5. ~~First build → TestFlight~~ — **done**, confirmed working on the borrowed iPhone (launch, Google Sign-In, core Solo gameplay all verified).
+6. **App Store submission** — not started. Needs: screenshots (all required sizes), description/keywords, App Privacy nutrition label, age rating questionnaire, plus the `Info.plist` audit from step 3.
 
 ### Explicitly not decided yet
 - Whether iOS ships with full feature parity on day one, or a reduced scope (e.g., AdMob mediation partners may have separate iOS SDK integration work not yet scoped) — decide once Phase 3-4 above are underway and the real plugin-by-plugin iOS gap list is known.
 - Pricing/monetization parity — Apple's 30% IAP cut (if ever adding IAP) vs Android's Play Billing terms differ; not relevant yet since Forge has no IAP, only AdMob, but worth remembering if that changes.
 
 ### Known gaps to close before real App Store submission (not blocking TestFlight/internal testing)
-- `SKAdNetworkItems` in `Info.plist` currently only lists AdMob's own baseline set — Unity Ads and (once approved) AppLovin MAX each publish their own SKAdNetwork IDs for iOS attribution that haven't been added yet. Ads will still serve without these; this only affects Apple's ad-attribution measurement accuracy. Cross-check Google's live AdMob iOS docs for the current authoritative baseline list too, since Apple/Google update these periodically and the set added here is from a point-in-time reference, not guaranteed current at submission time.
-- `GoogleService-Info.plist` is placed in the correct folder but not yet registered into the Xcode project's build target (`.pbxproj`) — this requires either manual Xcode drag-and-drop (no Mac available) or a Codemagic pre-build script step, planned but not yet written into `codemagic.yaml`.
+- `SKAdNetworkItems` in `Info.plist` currently only lists AdMob's own baseline set — Unity Ads and (once approved) AppLovin MAX each publish their own SKAdNetwork IDs for iOS attribution that haven't been added yet. Ads will still serve without these; this only affects Apple's ad-attribution measurement accuracy.
+- See Plan step 3 above for the remaining unverified per-plugin config items (AppUpdate iOS no-op guard, `Info.plist` usage-description strings).
 
 ---
 
@@ -351,6 +357,9 @@ forge/
   **Two real bugs surfaced building #3, both fixed:** (a) the backend's `_verify_google_token()` was initially written to verify Supabase's JWT using `HS256` with the dashboard's "Legacy JWT Secret" — this silently failed every single Bearer-gated call (401 on everything: Shop, Daily Reward, Lucky Draw, ticket sync) because the project's tokens were actually signed with **ES256 asymmetric keys**, discoverable only by decoding a real token's header (`alg` field) rather than trusting the dashboard label. Fixed via `PyJWKClient` fetching Supabase's public JWKS endpoint. (b) Shop's power-up loader had no recovery path on an auth error — stuck permanently on "LOADING…" with no retry.
   **Lesson, the big one:** when an external system's exact behavior/capability is uncertain (a plugin's real methods, a token's actual signing algorithm, whether a refresh grant will be reissued), get empirical proof from a real, live artifact (decode the actual token, read the actual type defs, run the actual curl call) BEFORE writing verification/integration code against an assumption — twice in this saga, code was written against a plausible-but-wrong assumption, and both times the fix was to actually look at the real data first. This is now the standing practice for any future auth/token work.
 - **Tutorial overlay z-index bug (found + fixed):** the guided-lobby tutorial only elevated the real target element above the dim overlay on its FINAL step (`btn-start-classic`) — every earlier step (including the topic input) sat visually highlighted but functionally UNDERNEATH the dim layer, so tapping/typing on it just advanced the tutorial step instead of interacting with the real element. Fixed by raising every step's target, not just the last one, and generalizing the cleanup to un-raise whichever element the current step raised (was hardcoded to one selector). **Lesson: an overlay highlighting a "live" interactive element (vs. a purely illustrative one) must always raise that real element's z-index — treating the last step as a special case and forgetting earlier ones is an easy, easy-to-miss mistake.**
+- **⚠️ OPEN BUG (root cause found on iOS testing, fix not yet applied) — Home mode-highlight tour loops `State._inTutorial` after tutorial completion:** the tour (Ranks→Shop→Create→Team→Duel→tap Solo) is triggered via the `forge_show_mode_highlight` flag from TWO places — `tutorial-intro.html`'s `_tutProceed()` (its real, intended entry point, where tapping Solo sets `State._inTutorial = true` and hands off into the guided game) AND `tutorial-summary.html`'s `_tsumMarkCompleted()` (fires again right after the guided game ends). The second trigger re-shows the same tour; tapping Solo in it sets `_inTutorial = true` a second time, with nothing to ever set it back false outside `_tutFinishGame()`. Any later Solo game — including a real custom-topic game — then incorrectly routes through `_tutFinishGame()` → tutorial-summary instead of results, and re-sets the flag again, looping until the app is force-closed (resets in-memory `State`). **Fix: remove the `forge_show_mode_highlight` flag-set from `_tsumMarkCompleted()` — the tour should only ever fire from its one real entry point in `tutorial-intro.html`.**
+- **⚠️ OPEN BUG (root cause found on iOS testing, fix not yet applied) — Tutorial demo 50/50 can hide the correct answer:** `puUse()`'s tutorial-only demo path simulates 50/50 using `State.currentQ.correct_index` — but the server deliberately never includes `correct_index` in the live `QUESTION` broadcast for ANY mode (anti-cheat, see `websocket.py`), only in `ANSWER_REVEAL`. So the demo's "exclude the correct answer" filter runs against `undefined`, picking 2 fully random options — sometimes the real correct one. `_onPowerup5050()`'s "defense in depth" filter is also silently broken: `Number(undefined)` is `NaN`, and `idx !== NaN` is always `true`, so it never actually filters anything. **Fix: since the tutorial reward is a flat grant (not score-based), there's no real stake in tutorial correctness — stop the demo path from touching real option buttons at all (a toast explaining the mechanic instead), and separately fix `_onPowerup5050()`'s comparison to only filter when `correct_index` is a real known integer (`Number.isInteger()` check).**
+- **⚠️ OPEN BUG (reported on iOS testing, root cause NOT yet confirmed) — Leaderboard screen sometimes shows fully blank instead of data or an error state**, after finishing a game and navigating to it. `_lbLoad()`'s existing try/catch should surface `'FAILED TO LOAD'` on any thrown error, so a truly blank screen suggests either an exception outside that try block, or a hang inside `waitForSupabase()`/`_initSupabase()`. Not yet reproduced with visible error output — next step: capture via wireless `adb logcat` (already set up from Unity Ads debugging) or a temporary on-screen `Toast.error(e.message)` fallback.
 - (All `lbUpsertPlayer`, `.single()` vs `.maybeSingle()`, Gradle/AGP, and Play Store questionnaire lessons from prior sessions remain valid and unchanged — see earlier CLAUDE.md revisions if needed for full detail, condensed here for length.)
 - **Backend libraries:** `pyjwt[crypto]`, `PyJWKClient` (for Supabase ES256 JWT verification), `google-generativeai`, Firebase Admin SDK (FCM)
 
