@@ -37,6 +37,11 @@ workflows:
           cd forge/ios/App
           xcode-project use-profiles
 
+      - name: Set build number
+        script: |
+          cd forge/ios/App
+          agvtool new-version -all $BUILD_NUMBER
+
       - name: Build signed .ipa
         script: |
           cd forge/ios/App
