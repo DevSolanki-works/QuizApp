@@ -199,6 +199,11 @@
     to   { transform: translate(-50%, -140px) scale(1.25); opacity: 0; }
   }
   .duel-rematch-note { font-family: var(--font-pixel); font-size: 7px; color: rgba(255,255,255,0.5); text-align: center; letter-spacing: 0.5px; line-height: 2; }
+  .btn-challenge {
+    border-color: rgba(255,217,61,0.4) !important;
+    background: rgba(255,217,61,0.08) !important;
+    color: var(--yellow) !important;
+  }
 </style>
 
 <div class="results-wrap" id="results-wrap">
@@ -288,7 +293,7 @@
       <button class="btn btn-primary" id="solo-double-btn" onclick="doubleSoloCoins()">🎥 &nbsp;2X COINS</button>
       <button class="btn btn-secondary" id="solo-secondary-btn" onclick="soloSecondaryAction()">NO THANKS</button>
     </div>
-    <button class="btn btn-secondary" id="challenge-friend-btn" style="display:none;margin-top:2px;" onclick="resultsChallengeFriend()"></button>
+    <button class="btn btn-secondary btn-challenge" id="challenge-friend-btn" style="display:none;" onclick="resultsChallengeFriend()">
       🎯 &nbsp;CHALLENGE A FRIEND
     </button>
   </div>

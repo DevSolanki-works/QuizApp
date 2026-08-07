@@ -40,6 +40,7 @@
   var target = isNativeApp || override === "app" ? "app" : "web";
   var isWebsite = target === "web";
 
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   var isFireOS = false;
   try {
     // Fire tablets report manufacturer as "Amazon" via the user agent
@@ -93,6 +94,7 @@
 
   document.documentElement.dataset.forgeTarget = target;
   document.documentElement.dataset.forgeMonetization = config.monetization;
+  document.documentElement.dataset.forgeOs = isIOS ? 'ios' : 'other';
   installVisibilityStyles();
 
   window.FORGE_PLATFORM = config;

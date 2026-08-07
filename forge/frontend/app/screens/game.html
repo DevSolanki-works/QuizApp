@@ -856,6 +856,15 @@ function _tutBlocksAds() {
 
 /** Called by router when screen becomes active */
 function onGameShow() {
+  // Defensive guard (belt-and-suspenders for the Milestone 77 tutorial-
+  // loop bug): if a stray demo power-up grant ever survived into this
+  // screen because State._inTutorial was incorrectly left true from a
+  // previous screen, strip it before this game starts — real games must
+  // never show phantom power-ups the player doesn't actually own.
+  if (!_tutIsActive() && State._tutDemoPowerupsActive) {
+    _tutRevokeDemoPowerups();
+  }
+
   // Stop any stale interval from a previous game session.
   // On Android/Capacitor, screen scripts persist in memory across games,
   // so _timerInterval from game 1 is still live when game 2 starts unless
@@ -1492,8 +1501,7 @@ function puUse(id) {
       // The tutorial reward is a flat grant either way, so there's no
       // real stake in demo correctness — explain the mechanic instead of
       // touching real option buttons.
-      Toast.info('➗ 50/50 removes two wrong answers on a real question — nothing to click here, just showing you it exists!');
-    } else if (id === 'time_freeze') {
+      Toast.info('➗ 50/50 — try it in a real game!');    } else if (id === 'time_freeze') {
       _onPowerupFreeze({ seconds: 5 });
     }
     _puRenderBar();

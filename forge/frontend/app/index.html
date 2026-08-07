@@ -178,6 +178,15 @@
     .screen.active { display: flex; }
     .screen:not(.active) { pointer-events: none; }
 
+    /* EXPERIMENTAL — iOS text/UI scale-up. WKWebView renders this app's
+       fixed-px layout noticeably smaller/crisper than Android's Chrome
+       WebView at identical CSS values. Tune this single number and
+       rebuild to test; 1.0 = fully off/reverted. Not verified visually
+       yet — report back what value (if any) looks right. */
+    html[data-forge-os="ios"] .screen {
+      zoom: 1.12;
+    }
+
     /* ── BUTTONS ─────────────────────────────────────────── */
     .btn {
       display: flex; align-items: center; justify-content: center;

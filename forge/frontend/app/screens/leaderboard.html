@@ -477,27 +477,12 @@ function _lbApplyTabStyles(tab) {
 
 /* ── LOAD DATA ────────────────────────────────────────────── */
 
+// REPLACE the entire _lbLoad function with:
 async function _lbLoad(tab) {
   _lbLoaded[tab] = true;
 
-  // Only touch the loading UI if this is still the tab the player is
-  // actually looking at — an earlier, slower fetch (e.g. the initial
-  // 'coins' load fired on screen open) can resolve AFTER the player has
-  // already tapped a different tab. Without this guard, that stale
-  // response silently overwrites whatever the player switched to,
-  // making it look like tab switching "doesn't work" / "reverts back
-  // to coins" — exactly the symptom this fixes.
   if (tab === _lbActiveTab) _lbShowLoading();
 
-  // Milestone 79 fix: waitForSupabase()/_initSupabase() previously sat
-  // OUTSIDE this function's try/catch. If waitForSupabase() ever threw
-  // (rather than its own internal timeout resolving false) or
-  // _initSupabase() threw synchronously, that exception was completely
-  // uncaught — nothing would replace the "LOADING RANKINGS..." dots
-  // with an error state, which can present as an effectively dead/blank
-  // screen after the dots' own CSS animation is the only thing still
-  // running. Both calls now live inside the same try block as the rest
-  // of the fetch, so every failure path reaches _lbShowEmpty().
   try {
     const ready = typeof waitForSupabase === 'function' ? await waitForSupabase(2000) : true;
     const db = ready && _initSupabase ? _initSupabase() : null;
@@ -505,21 +490,27 @@ async function _lbLoad(tab) {
       if (tab === _lbActiveTab) _lbShowEmpty('COULD NOT CONNECT\nTAP REFRESH TO TRY AGAIN');
       return;
     }
+
     const col = tab === 'coins'    ? 'coins'
               : tab === 'trophies' ? 'trophies'
               :                      'daily_streak';
 
-    const { data, error } = await db
+    const queryPromise = db
       .from('leaderboard')
       .select('google_id, display_name, coins, trophies, daily_streak, last_played_date, updated_at')
       .order(col, { ascending: false })
       .limit(50);
 
+    // Hard timeout — a stalled request must never leave the screen stuck
+    // on the loading dots forever with no way out except Refresh.
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('TIMED OUT — CHECK YOUR CONNECTION')), 8000)
+    );
+
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
     if (error) throw error;
 
-    // Cache the result regardless of whether this tab is still active
-    // (so switching back to it later is instant), but only touch the
-    // visible DOM if the player hasn't already moved to another tab.
     if (!data || data.length === 0) {
       _lbCache[tab] = [];
       if (tab === _lbActiveTab) _lbShowEmpty('NO PLAYERS YET\nBE THE FIRST ON THE BOARD!');
@@ -534,10 +525,6 @@ async function _lbLoad(tab) {
 
   } catch (e) {
     console.error('[Leaderboard] Load failed:', e);
-    // Surface the real error text (not just a generic message) so a
-    // future recurrence is diagnosable from the screen itself, without
-    // needing adb logcat — the previous generic-only message was part of
-    // why the root cause was never confirmed.
     const detail = (e && e.message) ? String(e.message).toUpperCase().slice(0, 80) : 'CHECK YOUR CONNECTION';
     if (tab === _lbActiveTab) _lbShowEmpty(`FAILED TO LOAD\n${detail}`);
   }
