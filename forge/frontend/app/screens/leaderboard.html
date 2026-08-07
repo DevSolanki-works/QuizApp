@@ -489,18 +489,22 @@ async function _lbLoad(tab) {
   // to coins" — exactly the symptom this fixes.
   if (tab === _lbActiveTab) _lbShowLoading();
 
-  // Give Supabase's SDK a brief window to finish initializing if the
-  // screen was opened in rapid succession right after another screen's
-  // own async work (e.g. straight from Results after a game) — avoids
-  // a false "not available" on a client that's simply not ready yet.
-  const ready = typeof waitForSupabase === 'function' ? await waitForSupabase(2000) : true;
-  const db = ready && _initSupabase ? _initSupabase() : null;
-  if (!db) {
-    if (tab === _lbActiveTab) _lbShowEmpty('COULD NOT CONNECT\nTAP REFRESH TO TRY AGAIN');
-    return;
-  }
-
+  // Milestone 79 fix: waitForSupabase()/_initSupabase() previously sat
+  // OUTSIDE this function's try/catch. If waitForSupabase() ever threw
+  // (rather than its own internal timeout resolving false) or
+  // _initSupabase() threw synchronously, that exception was completely
+  // uncaught — nothing would replace the "LOADING RANKINGS..." dots
+  // with an error state, which can present as an effectively dead/blank
+  // screen after the dots' own CSS animation is the only thing still
+  // running. Both calls now live inside the same try block as the rest
+  // of the fetch, so every failure path reaches _lbShowEmpty().
   try {
+    const ready = typeof waitForSupabase === 'function' ? await waitForSupabase(2000) : true;
+    const db = ready && _initSupabase ? _initSupabase() : null;
+    if (!db) {
+      if (tab === _lbActiveTab) _lbShowEmpty('COULD NOT CONNECT\nTAP REFRESH TO TRY AGAIN');
+      return;
+    }
     const col = tab === 'coins'    ? 'coins'
               : tab === 'trophies' ? 'trophies'
               :                      'daily_streak';
@@ -530,7 +534,12 @@ async function _lbLoad(tab) {
 
   } catch (e) {
     console.error('[Leaderboard] Load failed:', e);
-    if (tab === _lbActiveTab) _lbShowEmpty('FAILED TO LOAD\nCHECK YOUR CONNECTION');
+    // Surface the real error text (not just a generic message) so a
+    // future recurrence is diagnosable from the screen itself, without
+    // needing adb logcat — the previous generic-only message was part of
+    // why the root cause was never confirmed.
+    const detail = (e && e.message) ? String(e.message).toUpperCase().slice(0, 80) : 'CHECK YOUR CONNECTION';
+    if (tab === _lbActiveTab) _lbShowEmpty(`FAILED TO LOAD\n${detail}`);
   }
 }
 

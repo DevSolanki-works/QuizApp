@@ -118,9 +118,14 @@ async function _tsumGrantRewardIfSignedIn() {
 
 function _tsumMarkCompleted() {
   try { localStorage.setItem('forge_tutorial_completed', '1'); } catch (_) {}
-  // Signal to home.html that the one-time mode-highlight overlay should
-  // run on this next Home landing — cleared immediately after it shows.
-  try { localStorage.setItem('forge_show_mode_highlight', '1'); } catch (_) {}
+  // NOTE (Milestone 77 fix): forge_show_mode_highlight is NOT set here.
+  // tutorial-intro.html's _tutProceed() already set it once, on entry
+  // into the guided tutorial. Setting it again here caused the Home
+  // highlight tour to fire a SECOND time right after this screen,
+  // re-arming State._inTutorial with nothing to ever clear it — any
+  // later Solo game (including real games) then incorrectly routed
+  // through the tutorial-finish path. This is the tour's only trigger
+  // point now.
   if (typeof Analytics !== 'undefined') {
     Analytics.track('tutorial_completed', { signed_in: !!State.user?.id });
   }

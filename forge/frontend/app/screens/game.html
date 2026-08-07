@@ -1485,12 +1485,14 @@ function puUse(id) {
       State.user.powerups[id] = Math.max(0, Number(State.user.powerups[id] || 0) - 1);
     }
     if (id === 'fifty_fifty') {
-      const question = State.currentQ;
-      if (question) {
-        const wrong = [0, 1, 2, 3].filter(i => i !== question.correct_index);
-        const remove = wrong.sort(() => Math.random() - 0.5).slice(0, 2);
-        _onPowerup5050({ remove });
-      }
+      // Milestone 78 fix: the server never sends correct_index on a live
+      // QUESTION broadcast (anti-cheat), so State.currentQ.correct_index
+      // is always unknown here — any attempt to compute which 2 options
+      // are "wrong" client-side risked hiding the actual correct answer.
+      // The tutorial reward is a flat grant either way, so there's no
+      // real stake in demo correctness — explain the mechanic instead of
+      // touching real option buttons.
+      Toast.info('➗ 50/50 removes two wrong answers on a real question — nothing to click here, just showing you it exists!');
     } else if (id === 'time_freeze') {
       _onPowerupFreeze({ seconds: 5 });
     }
@@ -1512,11 +1514,16 @@ function puUse(id) {
 }
 
 function _onPowerup5050(d) {
-  // Defense in depth: never hide the correct answer, even if a bad
-  // payload arrives (e.g. a stale State.currentQ during the tutorial's
-  // client-side demo path, or any future server-payload edge case).
-  const correctIdx = Number(State.currentQ?.correct_index);
-  const safeRemove = (d.remove || []).filter(idx => idx !== correctIdx);
+  // Defense in depth: only filter out the correct answer if we actually
+  // KNOW it as a real integer. State.currentQ.correct_index is normally
+  // undefined on a live question (server never sends it — anti-cheat),
+  // so Number(undefined) === NaN and the old `idx !== NaN` check was
+  // always true, silently filtering nothing (Milestone 78 fix).
+  const correctIdxRaw = State.currentQ?.correct_index;
+  const correctIdx = Number.isInteger(correctIdxRaw) ? correctIdxRaw : null;
+  const safeRemove = correctIdx === null
+    ? (d.remove || [])
+    : (d.remove || []).filter(idx => idx !== correctIdx);
 
   document.querySelectorAll('.option-btn').forEach((btn) => {
     const idx = Number(btn.dataset.idx);
