@@ -874,6 +874,20 @@ function _paintLobbyTutorialStep(step, target, index) {
   const tip = document.getElementById('lobby-tutorial-tip');
   if (!overlay || !ring || !tip) return;
 
+  // These three elements are defined as static HTML inside #screen-lobby,
+  // which now carries iOS's `zoom` CSS property. WebKit computes
+  // position:fixed inconsistently for elements nested inside a zoomed
+  // ancestor — coordinates end up relative to the zoomed container
+  // instead of the real viewport, throwing every measurement off. The
+  // Home screen tour never had this problem because it creates its
+  // overlay elements fresh and appends them straight to document.body.
+  // Reparenting these out of the zoomed screen (once — appendChild moves
+  // rather than clones, so this is a no-op on subsequent calls) fixes it
+  // the same way.
+  if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
+  if (ring.parentElement !== document.body) document.body.appendChild(ring);
+  if (tip.parentElement !== document.body) document.body.appendChild(tip);
+
   const rect = target.getBoundingClientRect();
   overlay.style.display = 'block';
   // The dim layer must never sit ON TOP of the real element being
