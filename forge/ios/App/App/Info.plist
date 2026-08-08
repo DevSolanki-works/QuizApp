@@ -52,6 +52,10 @@
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-4922314688440658~9734257469</string>
 
+	<!-- ATT — iOS tracking disclosure required before the system prompt -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Forge uses this to show you more relevant ads and measure ad performance. You can decline and still play normally.</string>
+
 	<!-- Google Sign-In — client ID + URL scheme so Safari/Google's auth
 	     flow can hand control back to the app after login. Both keys are
 	     required by @capawesome/capacitor-google-sign-in on iOS; the
