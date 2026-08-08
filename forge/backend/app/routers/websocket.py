@@ -83,6 +83,7 @@ from app.services.profiles import (
     apply_delta,
     apply_batch_deltas,
     can_afford_entry,
+    get_profile,
     solo_rewards,
 )
 from app.services.powerups import (
@@ -1360,18 +1361,38 @@ async def websocket_endpoint(
                         })
                         continue
 
-                # Server-authoritative inventory spend (same trust model as the
-                # rest of the user_id-keyed API surface).
+                # Tutorial demo bypass: free, one-shot-per-question,
+                # server-computed exactly like a real paid use — this is
+                # what lets 50/50 in the tutorial be genuinely correct
+                # (never hides the real answer) instead of a client-side
+                # guess with no way to know correct_index safely.
+                # Restricted to the two types the guided tutorial coaches,
+                # never Duel, and only before the account has finished
+                # onboarding (signed-in users) — guests have no persisted
+                # profile/economy to protect so it's always allowed for
+                # them, bounded naturally by one game's 10 questions.
+                is_tutorial_demo = (
+                    bool(msg.get("tutorial_demo"))
+                    and room.play_mode == PlayMode.SOLO
+                    and pid in ("fifty_fifty", "time_freeze")
+                )
                 uid = room.players[player_name].user_id
                 if not uid:
                     raw_uid = msg.get("user_id")
                     uid = raw_uid if isinstance(raw_uid, str) and raw_uid else None
-                if not uid or not consume_powerup(uid, pid):
-                    await send_to(websocket, {
-                        "type": "ERROR",
-                        "data": {"message": "You don't own that power-up — grab it in the Shop!"},
-                    })
-                    continue
+                if is_tutorial_demo and uid and get_profile(uid).get("tutorial_reward_claimed"):
+                    is_tutorial_demo = False  # onboarding already finished — no more free demo uses
+
+                # Server-authoritative inventory spend (same trust model as the
+                # rest of the user_id-keyed API surface). Tutorial demo uses
+                # skip the spend entirely — nothing is deducted.
+                if not is_tutorial_demo:
+                    if not uid or not consume_powerup(uid, pid):
+                        await send_to(websocket, {
+                            "type": "ERROR",
+                            "data": {"message": "You don't own that power-up — grab it in the Shop!"},
+                        })
+                        continue
 
                 room.round_powerups_used.add(round_key)
                 if room.play_mode == PlayMode.DUEL:

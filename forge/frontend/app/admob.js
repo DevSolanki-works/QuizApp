@@ -289,3 +289,108 @@ const RewardedInterstitial = {
 };
 
 window.RewardedInterstitial = RewardedInterstitial;
+
+/**
+ * ATT — App Tracking Transparency flow (iOS only).
+ *
+ * WHY THIS EXISTS SEPARATELY FROM RewardedAd/Interstitial:
+ *   ATT is a one-time, OS-level permission (like notifications), not an
+ *   ad-format wrapper — but it gates whether ad SDKs can request
+ *   IDFA-personalized ads at all, so it must resolve before any ad
+ *   init/preload happens on iOS. Android has no ATT equivalent and
+ *   always no-ops through isIOSNative().
+ *
+ * FLOW:
+ *   1. First-ever app open on iOS: show our own neutral pre-explainer
+ *      (index.html #att-explainer-modal) BEFORE the real system prompt —
+ *      Apple explicitly permits this ("soft ask" screens), provided the
+ *      CTA doesn't imply tracking is required and the real system
+ *      dialog still appears afterward untouched.
+ *   2. Tapping Continue calls the real requestTrackingAuthorization().
+ *   3. Every later app open: skip our explainer (already shown once,
+ *      tracked in localStorage) and call requestTrackingAuthorization()
+ *      directly — iOS returns the already-decided status silently with
+ *      no repeat prompt, which is standard ATT behavior, not a bug.
+ */
+const ATT = {
+  STORAGE_KEY: 'forge_att_explainer_shown_v1',
+
+  get _plugin() {
+    return window.Capacitor?.Plugins?.AdMob || null;
+  },
+
+  isIOSNative() {
+    return !!window.Capacitor?.isNativePlatform?.()
+      && document.documentElement.dataset.forgeOs === 'ios';
+  },
+
+  /**
+   * Calls the real native tracking-authorization prompt.
+   * Resolves to the status string ('authorized'|'denied'|'restricted'|
+   * 'notDetermined'|'unavailable'|'error') — never throws, since a
+   * failure here must never block app boot.
+   */
+  async requestAuthorization() {
+    const plugin = this._plugin;
+    if (!plugin || typeof plugin.requestTrackingAuthorization !== 'function') {
+      console.warn('[ATT] requestTrackingAuthorization not available on this plugin version.');
+      return 'unavailable';
+    }
+    try {
+      const result = await plugin.requestTrackingAuthorization();
+      return result?.status || 'unknown';
+    } catch (e) {
+      console.warn('[ATT] requestTrackingAuthorization failed:', e);
+      return 'error';
+    }
+  },
+};
+
+window.ATT = ATT;
+
+/**
+ * Boot-sequence entry point. Resolves once it's safe to proceed to
+ * AdMob init — either because ATT doesn't apply (Android/web), or
+ * because the user has responded to tracking authorization (via our
+ * pre-explainer on first run, or silently on every run after).
+ */
+async function _maybeRunATTFlow() {
+  if (!window.ATT || !ATT.isIOSNative()) return; // Android/web — no-op
+
+  let alreadyShown = false;
+  try { alreadyShown = localStorage.getItem(ATT.STORAGE_KEY) === '1'; } catch (_) {}
+
+  if (alreadyShown) {
+    // Already asked before — request again silently. iOS returns the
+    // existing decision with no UI shown a second time; this just keeps
+    // the SDK's own state in sync every session.
+    await ATT.requestAuthorization();
+    return;
+  }
+
+  await new Promise((resolve) => {
+    const modal = document.getElementById('att-explainer-modal');
+    if (!modal) { resolve(); return; } // defensive — never block boot on a missing element
+    modal.style.display = 'flex';
+    window._attResolveBoot = resolve;
+  });
+}
+
+/** Called when the user taps "Continue" on the pre-explainer. */
+async function _attContinue() {
+  const modal = document.getElementById('att-explainer-modal');
+  if (modal) modal.style.display = 'none';
+  try { localStorage.setItem(ATT.STORAGE_KEY, '1'); } catch (_) {}
+
+  const status = await ATT.requestAuthorization();
+  if (typeof Analytics !== 'undefined') {
+    Analytics.logEvent?.('att_prompt_responded', { status }).catch?.(() => {});
+  }
+
+  if (window._attResolveBoot) {
+    window._attResolveBoot();
+    window._attResolveBoot = null;
+  }
+}
+window._maybeRunATTFlow = _maybeRunATTFlow;
+window._attContinue = _attContinue;

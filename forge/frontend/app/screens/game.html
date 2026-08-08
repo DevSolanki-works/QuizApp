@@ -1481,10 +1481,13 @@ function puUse(id) {
   _puUsedThisQuestion[id] = true;
   if (State.playMode === 'duel') _puUsedThisDuel.push(id);
 
-  // Tutorial demo power-ups were never granted server-side — using one
-  // must be simulated entirely client-side instead of round-tripping
-  // through use_powerup, which the backend would correctly reject since
-  // profiles.json genuinely has none on file for this account.
+  // Tutorial demo power-ups are now REAL, server-authoritative uses —
+  // free and one-shot-per-question (gated server-side to before
+  // onboarding completes), not a client-side simulation. This is what
+  // makes 50/50 actually safe: the server (the only place correct_index
+  // is known pre-reveal) decides which two WRONG options to remove,
+  // exactly like a paid use — it can never hide the real answer the way
+  // a client-side guess could.
   if (State._tutDemoPowerupsActive) {
     if (_tutPowerupCoachTimers[id]) {
       clearTimeout(_tutPowerupCoachTimers[id]);
@@ -1493,17 +1496,7 @@ function puUse(id) {
     if (State.user?.powerups) {
       State.user.powerups[id] = Math.max(0, Number(State.user.powerups[id] || 0) - 1);
     }
-    if (id === 'fifty_fifty') {
-      // Milestone 78 fix: the server never sends correct_index on a live
-      // QUESTION broadcast (anti-cheat), so State.currentQ.correct_index
-      // is always unknown here — any attempt to compute which 2 options
-      // are "wrong" client-side risked hiding the actual correct answer.
-      // The tutorial reward is a flat grant either way, so there's no
-      // real stake in demo correctness — explain the mechanic instead of
-      // touching real option buttons.
-      Toast.info('➗ 50/50 — try it in a real game!');    } else if (id === 'time_freeze') {
-      _onPowerupFreeze({ seconds: 5 });
-    }
+    WS.send({ action: 'use_powerup', powerup_id: id, tutorial_demo: true, user_id: State.user?.id });
     _puRenderBar();
     return;
   }

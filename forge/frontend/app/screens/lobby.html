@@ -858,6 +858,17 @@ function _runLobbyTutorialStep(index) {
   const target = document.querySelector(step.sel);
   if (!target) { _runLobbyTutorialStep(index + 1); return; }
 
+  // Wait two animation frames so iOS's CSS `zoom` scaling has fully
+  // settled before measuring the target's position. Measuring in the
+  // same frame as a screen transition can grab stale/pre-zoom
+  // coordinates — this is what threw the ring/tooltip out of alignment
+  // specifically on the zoomed iOS build.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    _paintLobbyTutorialStep(step, target, index);
+  }));
+}
+
+function _paintLobbyTutorialStep(step, target, index) {
   const overlay = document.getElementById('lobby-tutorial-overlay');
   const ring = document.getElementById('lobby-tutorial-ring');
   const tip = document.getElementById('lobby-tutorial-tip');

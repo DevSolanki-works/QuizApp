@@ -1011,6 +1011,15 @@ function _hRunHighlightStep(index) {
   const target = document.querySelector(step.sel);
   if (!target) { _hRunHighlightStep(index + 1); return; } // skip missing targets gracefully
 
+  // Same double-rAF fix as the lobby tutorial — ensures iOS's zoomed
+  // layout has settled before we measure, so the ring/tooltip land in
+  // the right place instead of a stale pre-zoom position.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    _hPaintHighlightStep(step, target, index);
+  }));
+}
+
+function _hPaintHighlightStep(step, target, index) {
   const rect = target.getBoundingClientRect();
 
   const dim = document.createElement('div');

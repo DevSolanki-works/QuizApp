@@ -184,7 +184,7 @@
        rebuild to test; 1.0 = fully off/reverted. Not verified visually
        yet — report back what value (if any) looks right. */
     html[data-forge-os="ios"] .screen {
-      zoom: 1.12;
+      zoom: 1.2;
     }
 
     /* ── BUTTONS ─────────────────────────────────────────── */
@@ -593,6 +593,40 @@
       <div class="notif-close" onclick="_notifModalDismiss(false)">
         NOT NOW — I'LL ENABLE IN SETTINGS
       </div>
+    </div>
+  </div>
+
+  <!-- ATT PRE-EXPLAINER — iOS only. A compliant "soft ask" shown once,
+       before the real system tracking prompt. Neutral CTA per Apple's
+       guidelines — never implies tracking is required or that declining
+       breaks the app. -->
+  <div id="att-explainer-modal" style="
+    display:none; position:fixed; inset:0; z-index:8100;
+    background:rgba(9,15,80,0.97); backdrop-filter:blur(10px);
+    align-items:flex-end; justify-content:center;
+  ">
+    <div class="notif-sheet" style="animation: sheet-up 0.35s cubic-bezier(0.22,1,0.36,1) both;">
+
+      <p class="notif-sheet-title">🎯 KEEPING FORGE FREE</p>
+
+      <div class="notif-perks">
+        <div class="notif-perk">
+          <span class="notif-perk-icon">💛</span>
+          <span class="notif-perk-text">Forge is free to play, funded entirely by ads — no subscriptions, no paywalls</span>
+        </div>
+        <div class="notif-perk">
+          <span class="notif-perk-icon">🎯</span>
+          <span class="notif-perk-text">Personalized ads tend to be more relevant and help support future updates</span>
+        </div>
+        <div class="notif-perk">
+          <span class="notif-perk-icon">🔒</span>
+          <span class="notif-perk-text">The next screen is Apple's own permission prompt — your choice is entirely yours</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="_attContinue()">
+        CONTINUE
+      </button>
     </div>
   </div>
 </div>
@@ -1961,6 +1995,14 @@ const CookieConsent = {
   getDecision() { try { return localStorage.getItem(this.STORAGE_KEY); } catch { return null; } },
   setDecision(v) { try { localStorage.setItem(this.STORAGE_KEY, v); } catch {} },
   init() {
+    // Web-only: this banner exists for AdSense/GDPR cookie consent on
+    // forgetrivia.online. The native app uses AdMob (not AdSense) and
+    // has no cookies at all — the banner had zero functional effect
+    // in-app (its accept/decline only ever toggled __adsenseNPA, which
+    // nothing in the app reads) while still confusing/alarming first-
+    // time installers. iOS's real ad-tracking consent is the ATT flow
+    // (see admob.js / _maybeRunATTFlow) instead.
+    if (!PLATFORM.isWebsite) return;
     if (this.getDecision()) return;
     setTimeout(() => {
       const el = document.getElementById(this.BANNER_ID);
@@ -2224,9 +2266,20 @@ function waitForSupabase(timeoutMs = 3000) {
     // friend's result that came in since the player last opened the app.
     checkPendingChallenges().catch(() => {});
 
-    // AdMob — fire-and-forget init + preload. If this races the deferred
-    // admob.js script and misses, show() self-heals by preloading on its
-    // own first call, so a missed early init here is non-fatal.
+    // ── ATT (iOS only) — must resolve BEFORE any AdMob init/ad request. ──
+    // On Android or web this is an instant no-op (see _maybeRunATTFlow).
+    // Splash is already dismissed by this point (above), so this can take
+    // as long as it needs — including waiting on our own pre-explainer
+    // tap and Apple's real system prompt — without blocking app usability.
+    if (typeof _maybeRunATTFlow === 'function') {
+      await _maybeRunATTFlow();
+    }
+
+    // AdMob — fire-and-forget init + preload, now guaranteed to run AFTER
+    // the user has responded to tracking authorization (or on Android,
+    // where ATT doesn't apply). If this races the deferred admob.js
+    // script and misses, show() self-heals by preloading on its own
+    // first call, so a missed early init here is non-fatal.
     if (typeof RewardedAd !== 'undefined') RewardedAd.init().catch(() => {});
     if (typeof Interstitial !== 'undefined') Interstitial._preload().catch(() => {});
     // RewardedInterstitial is intentionally NOT preloaded at boot — the
