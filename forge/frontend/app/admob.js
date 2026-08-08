@@ -314,10 +314,6 @@ window.RewardedInterstitial = RewardedInterstitial;
  */
 const ATT = {
   STORAGE_KEY: 'forge_att_explainer_shown_v1',
-  // TEMPORARY testing aid — shows the real returned status as a toast so
-  // we can see what iOS/the plugin actually reported without needing
-  // Xcode's device console. Set to false before App Store submission.
-  DEBUG: true,
 
   get _plugin() {
     return window.Capacitor?.Plugins?.AdMob || null;
@@ -387,10 +383,6 @@ async function _attContinue() {
   try { localStorage.setItem(ATT.STORAGE_KEY, '1'); } catch (_) {}
 
   const status = await ATT.requestAuthorization();
-  console.log('[ATT] requestTrackingAuthorization resolved with status:', status);
-  if (ATT.DEBUG && typeof Toast !== 'undefined') {
-    Toast.info(`[DEBUG] ATT status: ${status}`, 5000);
-  }
   if (typeof Analytics !== 'undefined') {
     Analytics.logEvent?.('att_prompt_responded', { status }).catch?.(() => {});
   }
