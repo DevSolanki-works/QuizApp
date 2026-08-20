@@ -425,7 +425,10 @@
 
   /* Google Sign-In button wrapper */
   .h-google-btn-wrap {
-    display: flex; justify-content: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
   }
 
   /* Native app fallback button */
@@ -452,7 +455,6 @@
     box-shadow: 0 4px 0 rgba(0,0,0,0.55);
     -webkit-tap-highlight-color: transparent;
     transition: transform 0.1s, box-shadow 0.1s;
-    margin-bottom: 10px;
   }
   .h-native-apple-btn:active {
     transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.55);

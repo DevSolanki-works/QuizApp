@@ -45,7 +45,13 @@
     font-family: var(--font-body); font-size: 13px; font-weight: 700;
     color: rgba(255,255,255,0.8); line-height: 1.4;
   }
-  .tut-google-btn-wrap { display: flex; justify-content: center; margin-top: 4px; }
+  .tut-google-btn-wrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 4px;
+  }
   .tut-native-google-btn {
     width: 100%; height: 52px; border-radius: var(--radius-pill);
     background: #FFFFFF; border: none; cursor: pointer;
@@ -64,7 +70,6 @@
     box-shadow: 0 4px 0 rgba(0,0,0,0.55);
     -webkit-tap-highlight-color: transparent;
     transition: transform 0.1s, box-shadow 0.1s;
-    margin-bottom: 10px;
   }
   .tut-native-apple-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.55); }
   .tut-guest-btn {

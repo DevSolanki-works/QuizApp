@@ -2439,14 +2439,6 @@ function waitForSupabase(timeoutMs = 3000) {
 
     _dismissSplash();
 
-    // Notification permission — fire-and-forget, shown (if needed) on top
-    // of the already-visible home screen. Never blocks boot again.
-    _maybeShowNotifPermission().catch(() => {});
-
-    // Pending challenge completion check — fire-and-forget, surfaces any
-    // friend's result that came in since the player last opened the app.
-    checkPendingChallenges().catch(() => {});
-
     // ── ATT (iOS only) — must resolve BEFORE any AdMob init/ad request. ──
     // On Android or web this is an instant no-op (see _maybeRunATTFlow).
     // Splash is already dismissed by this point (above), so this can take
@@ -2455,6 +2447,14 @@ function waitForSupabase(timeoutMs = 3000) {
     if (typeof _maybeRunATTFlow === 'function') {
       await _maybeRunATTFlow();
     }
+
+    // Notification permission comes after ATT on first iOS install so the
+    // tracking prompt cannot be crowded out during App Review or onboarding.
+    _maybeShowNotifPermission().catch(() => {});
+
+    // Pending challenge completion check — fire-and-forget, surfaces any
+    // friend's result that came in since the player last opened the app.
+    checkPendingChallenges().catch(() => {});
 
     // AdMob — fire-and-forget init + preload, now guaranteed to run AFTER
     // the user has responded to tracking authorization (or on Android,

@@ -380,9 +380,11 @@ async function _maybeRunATTFlow() {
 async function _attContinue() {
   const modal = document.getElementById('att-explainer-modal');
   if (modal) modal.style.display = 'none';
-  try { localStorage.setItem(ATT.STORAGE_KEY, '1'); } catch (_) {}
 
   const status = await ATT.requestAuthorization();
+  if (status && status !== 'error' && status !== 'unavailable' && status !== 'notDetermined') {
+    try { localStorage.setItem(ATT.STORAGE_KEY, '1'); } catch (_) {}
+  }
   if (typeof Analytics !== 'undefined') {
     Analytics.logEvent?.('att_prompt_responded', { status }).catch?.(() => {});
   }
