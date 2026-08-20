@@ -140,14 +140,27 @@ def _verify_google_token(credential: str) -> str:
             algorithms=["ES256"],
             audience="authenticated",
         )
-        google_sub = (
-            payload.get("user_metadata", {}).get("sub")
-            or payload.get("user_metadata", {}).get("provider_id")
-        )
-        if not google_sub:
-            logger.warning("Supabase token verified but no Google sub found in user_metadata.")
+        user_metadata = payload.get("user_metadata", {}) or {}
+        app_metadata = payload.get("app_metadata", {}) or {}
+        provider = str(app_metadata.get("provider") or "").lower()
+
+        raw_sub = user_metadata.get("sub") or user_metadata.get("provider_id")
+        if not raw_sub:
+            logger.warning("Supabase token verified but no provider sub found in user_metadata.")
             raise HTTPException(status_code=401, detail="Token missing account identity.")
-        return google_sub
+
+        # Apple Sign-In accounts get a distinct, prefixed ID namespace so
+        # they can never collide with an existing Google-sub-keyed profile
+        # (Google subs are pure digits; this makes the two spaces provably
+        # disjoint regardless). Every downstream store — profiles.json,
+        # Supabase leaderboard.google_id, challenges, push_tokens — is
+        # keyed on whatever string this function returns, so this is the
+        # ONLY place that needs to know about the distinction. Deliberately
+        # not merged with a same-email Google account — see resubmission
+        # plan doc for why.
+        if provider == "apple":
+            return f"apple:{raw_sub}"
+        return raw_sub
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Invalid or expired authentication token.")
     except pyjwt.InvalidTokenError as e:

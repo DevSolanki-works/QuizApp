@@ -56,6 +56,17 @@
     transition: transform 0.1s, box-shadow 0.1s;
   }
   .tut-native-google-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.25); }
+  .tut-native-apple-btn {
+    width: 100%; height: 52px; border-radius: var(--radius-pill);
+    background: #000000; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-family: var(--font-body); font-size: 15px; font-weight: 800; color: #FFFFFF;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.55);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s, box-shadow 0.1s;
+    margin-bottom: 10px;
+  }
+  .tut-native-apple-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.55); }
   .tut-guest-btn {
     font-family: var(--font-pixel); font-size: 7px;
     color: rgba(255,255,255,0.4); background: none; border: none;
@@ -105,7 +116,14 @@ function _tutRenderSigninButton() {
   }
 
   if (IS_NATIVE_APP) {
+    const appleBtnHtml = (typeof _isNativeIOS === 'function' && _isNativeIOS())
+      ? `<button class="tut-native-apple-btn" onclick="_tutNativeAppleSignIn()">
+           <span style="font-size:20px;line-height:1;">&#63743;</span>
+           Sign in with Apple
+         </button>`
+      : '';
     container.innerHTML = `
+      ${appleBtnHtml}
       <button class="tut-native-google-btn" onclick="_tutNativeSignIn()">
         <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width:22px;height:22px;" />
         Continue with Google
@@ -139,6 +157,15 @@ async function _tutNativeSignIn() {
     if (State.user) _tutProceed();
   } catch (e) {
     console.error('[Tutorial] Native sign-in failed:', e);
+  }
+}
+
+async function _tutNativeAppleSignIn() {
+  try {
+    await nativeAppleSignIn();
+    if (State.user) _tutProceed();
+  } catch (e) {
+    console.error('[Tutorial] Apple sign-in failed:', e);
   }
 }
 

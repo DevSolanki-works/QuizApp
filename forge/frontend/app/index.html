@@ -63,6 +63,8 @@
        (not real network requests), so dropping `defer` costs nothing. -->
   <script src="app-update.js"></script>
   <script src="admob.js"></script>
+    <!-- Sign in with Apple wrapper — Guideline 4.8 -->
+  <script src="appleauth.js"></script>
   <script src="analytics.js"></script>
   <script src="push.js"></script>
 
@@ -2147,8 +2149,131 @@ async function handleGoogleLogin(response) {
   if (typeof Push !== 'undefined') Push.initAndRegister().catch(() => {});
 }
 
-let _googleNativeInitialized = false;
-async function nativeGoogleSignIn() {
+async function handleAppleLogin({ identityToken, rawNonce, email, fullName }) {
+  let freshProfile = null;
+  try {
+    const ready = await waitForSupabase();
+    if (!ready || typeof _initSupabase !== 'function') {
+      throw new Error('Supabase SDK is unavailable');
+    }
+    const db = _initSupabase();
+
+    const { data: authData, error: authError } = await db.auth.signInWithIdToken({
+      provider: 'apple',
+      token: identityToken,
+      nonce: rawNonce,
+    });
+    if (authError || !authData?.session) {
+      throw new Error(authError?.message || 'Supabase Apple sign-in failed');
+    }
+
+    const supaUser = authData.user;
+    const appleSub = supaUser?.user_metadata?.sub || supaUser?.user_metadata?.provider_id;
+    if (!appleSub) {
+      throw new Error('Could not resolve Apple account ID from session');
+    }
+    // Namespaced so an Apple account can never collide with an existing
+    // Google-sub-keyed profile — see backend _verify_google_token() for
+    // the matching prefix logic. Deliberately NOT merged with any Google
+    // account sharing the same email (see plan doc — email/private-relay
+    // is not a reliable identity signal).
+    const googleSub = `apple:${appleSub}`;
+
+    const displayName = fullName
+      || supaUser.user_metadata?.full_name
+      || supaUser.user_metadata?.name
+      || 'Player';
+
+    const user = {
+      id:      googleSub,
+      name:    displayName,
+      email:   supaUser.email || email || '',
+      picture: '',
+      _credential:   authData.session.access_token,
+      _refreshToken: authData.session.refresh_token,
+      _signedInAt:   Date.now(),
+    };
+    if (typeof lbFetchProfile !== 'function' || typeof lbUpsertPlayer !== 'function') {
+      throw new Error('Supabase profile service is unavailable');
+    }
+
+    let fresh = await lbFetchProfile(user.id);
+    if (!fresh) {
+      await lbUpsertPlayer(user.id, user.name || 'PLAYER', 200, 50);
+      fresh = await lbFetchProfile(user.id);
+      if (!fresh) {
+        throw new Error('Supabase profile fetch failed after create');
+      }
+    }
+
+    const freshCoins    = _safeEconomyNumber(fresh?.coins);
+    const freshTrophies = _safeEconomyNumber(fresh?.trophies);
+    if (freshCoins === null || freshTrophies === null) {
+      throw new Error('Supabase profile is missing economy values');
+    }
+    user.coins            = freshCoins;
+    user.trophies         = freshTrophies;
+    user.last_reward_date = fresh.last_reward_date || '';
+    user.reward_day       = fresh.reward_day        || 0;
+    user.tickets_today            = fresh.tickets_today;
+    user.ad_tickets_used_today    = fresh.ad_tickets_used_today;
+    user.last_ticket_date         = fresh.last_ticket_date || '';
+    if (fresh.display_name) user.name = fresh.display_name;
+
+    State.user = user;
+    State.playerName = user.name;
+    freshProfile = fresh;
+    if (typeof Analytics !== 'undefined') Analytics.identify(user.id).catch(() => {});
+    Session.save();
+    Toast.success(`Signed in as ${user.name}`);
+  } catch (e) {
+    console.error(e);
+    const msg = String(e?.message || e || '');
+    if (msg.includes('Supabase profile service is unavailable')) {
+      Toast.error('Supabase SDK did not load. Check your connection and refresh.');
+    } else if (msg.includes('missing economy values')) {
+      Toast.error('Your saved profile has invalid coin/trophy data. Contact support.');
+    } else if (msg.includes('profile fetch failed after create')) {
+      Toast.error('Could not read your Supabase profile after sign-in. Please try again.');
+    } else {
+      Toast.error('Apple sign-in failed. Please try again.');
+    }
+    return;
+  }
+
+  try {
+    await syncBackendFromTrustedProfile(freshProfile);
+    await syncTicketsForUser();
+  } catch (e) {
+    console.warn('[AppleLogin] Backend sync failed:', e);
+    Toast.error('Signed in, but syncing your saved data failed. Some balances may look out of date until this succeeds.');
+  }
+  if (typeof _hRenderCurrency === 'function') _hRenderCurrency();
+  if (typeof Push !== 'undefined') Push.initAndRegister().catch(() => {});
+}
+
+async function nativeAppleSignIn() {
+  if (!AppleAuth.isAvailable()) {
+    Toast.error('Sign in with Apple is unavailable on this build.');
+    return;
+  }
+  try {
+    const result = await AppleAuth.signIn();
+    await handleAppleLogin(result);
+  } catch (e) {
+    console.error('[AppleAuth] native sign-in failed:', e);
+    // ASAuthorizationErrorCanceled — user dismissed the sheet, not a real error.
+    const msg = String(e?.message || e || '');
+    if (!/cancel/i.test(msg)) Toast.error('Sign in with Apple failed.');
+  }
+}
+window.nativeAppleSignIn = nativeAppleSignIn;
+window.handleAppleLogin = handleAppleLogin;
+
+function _isNativeIOS() {
+  return IS_NATIVE_APP && document.documentElement.dataset.forgeOs === 'ios';
+}
+window._isNativeIOS = _isNativeIOS;
   if (IS_FIRE_OS) {
     Toast.info('Google Sign-In is not available on Fire OS. Play as a guest!');
     return;
