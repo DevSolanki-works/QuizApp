@@ -2,6 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <script>
+    /* TEMPORARY DEBUG AID — no Mac/Web Inspector needed. Only ever prints
+       anything if boot actually fails; invisible otherwise. Safe to leave
+       in, or strip out once the splash hang is confirmed fixed. */
+    window.__forgeBootErrors = [];
+    window.addEventListener('error', function (e) {
+      var msg = 'ERROR: ' + (e.message || (e.error && e.error.message) || 'unknown')
+        + ' @ ' + (e.filename || '?') + ':' + (e.lineno || '?');
+      window.__forgeBootErrors.push(msg);
+      console.error('[BootCatch]', msg);
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      var msg = 'UNHANDLED PROMISE: ' + ((e.reason && e.reason.message) || e.reason || 'unknown');
+      window.__forgeBootErrors.push(msg);
+      console.error('[BootCatch]', msg);
+    });
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
   <meta name="theme-color" content="#1B2EAD" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2325,12 +2342,41 @@ function waitForSupabase(timeoutMs = 3000) {
    4. Sync Supabase profile in background (never blocks render)
    ══════════════════════════════════════════════════════════ */
 (async () => {
+  let _bootFinished = false;
+
   function _dismissSplash() {
+    _bootFinished = true;
     const splash = document.getElementById('forge-splash');
     if (!splash) return;
     splash.classList.add('splash-out');
     setTimeout(() => splash.remove(), 550);
   }
+
+  // Safety net — if boot hasn't finished within 8s for ANY reason (a
+  // thrown error, a hung fetch, a bad script), force the splash away and
+  // print whatever was caught directly on screen.
+  setTimeout(() => {
+    if (_bootFinished) return;
+    const errors = window.__forgeBootErrors || [];
+    console.error('[Boot] Timed out after 8s.', errors);
+    _dismissSplash();
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const homeEl = document.getElementById('screen-home');
+    if (homeEl) {
+      homeEl.classList.add('active');
+      if (!homeEl.dataset.loaded) goTo('home', true).catch(() => {});
+    }
+    const box = document.createElement('div');
+    box.style.cssText =
+      'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.92);' +
+      'color:#FFD93D;font-family:monospace;font-size:12px;padding:20px;' +
+      'overflow:auto;white-space:pre-wrap;';
+    box.textContent = 'Boot timed out.\n\n' +
+      (errors.length ? errors.join('\n\n') : 'No JS errors were caught — likely a hung network/fetch call.') +
+      '\n\nTap anywhere to dismiss.';
+    box.onclick = () => box.remove();
+    document.body.appendChild(box);
+  }, 8000);
 
   try {
     API.health().catch(() => {});
