@@ -40,7 +40,29 @@
   var target = isNativeApp || override === "app" ? "app" : "web";
   var isWebsite = target === "web";
 
-  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // Capacitor's own getPlatform() is authoritative and immune to user-agent
+  // spoofing entirely — checked first. The UA regex is kept as a fallback
+  // for the web build. The final clause exists because iPadOS 13+ reports a
+  // desktop "Macintosh" user agent by default (no "iPad" substring at all),
+  // which is what caused ATT to silently never fire on iPad during Apple's
+  // review (Guideline 2.1, Aug 2026 — confirmed via their stated review
+  // device: iPad Air 11-inch M3). Real Macs never report multi-touch
+  // support, so MacIntel + maxTouchPoints > 1 reliably means "this is
+  // actually an iPad."
+  var capacitorPlatform = "";
+  try {
+    capacitorPlatform =
+      typeof window.Capacitor !== "undefined" &&
+      typeof window.Capacitor.getPlatform === "function"
+        ? window.Capacitor.getPlatform()
+        : "";
+  } catch (_) {
+    capacitorPlatform = "";
+  }
+  var isIOS =
+    capacitorPlatform === "ios" ||
+    (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   var isFireOS = false;
   try {
     // Fire tablets report manufacturer as "Amazon" via the user agent

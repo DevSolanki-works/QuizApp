@@ -50,14 +50,21 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <!-- Forge Supabase helpers — defer so it doesn't block render -->
   <script src="supabase-client.js" defer></script>
-  <!-- In-app update wrapper — defer so it doesn't block render -->
-  <script src="app-update.js" defer></script>
-  <!-- AdMob rewarded-ad wrapper — defer so it doesn't block render -->
-  <script src="admob.js" defer></script>
-  <!-- PostHog analytics wrapper — defer so it doesn't block render -->
-  <script src="analytics.js" defer></script>
-  <!-- Firebase Cloud Messaging wrapper — defer so it doesn't block render -->
-  <script src="push.js" defer></script>
+  <!-- app-update.js / admob.js / analytics.js / push.js — loaded
+       SYNCHRONOUSLY (no `defer`). The inline boot script further down in
+       <body> is itself never deferred (inline scripts without `src` never
+       are per spec), so it can execute — and call functions these files
+       define on `window` — before deferred <head> scripts have run at
+       all. That race is what let the ATT prompt sometimes never fire at
+       all (Apple Guideline 2.1 rejection, Aug 2026): `_maybeRunATTFlow`
+       could still be `undefined` at the exact moment boot's
+       `typeof _maybeRunATTFlow === 'function'` check ran, which silently
+       no-ops with zero error output. These are small local bundle files
+       (not real network requests), so dropping `defer` costs nothing. -->
+  <script src="app-update.js"></script>
+  <script src="admob.js"></script>
+  <script src="analytics.js"></script>
+  <script src="push.js"></script>
 
   <style>
     /* ══════════════════════════════════════════════════════
