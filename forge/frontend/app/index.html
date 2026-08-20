@@ -675,6 +675,7 @@ const API_BASE = PLATFORM.backendHttp || (
 const WS_BASE = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 
 const GOOGLE_CLIENT_ID = '878124462453-g7skbojds4uqg442hb9d31ftrlll095r.apps.googleusercontent.com';
+let _googleNativeInitialized = false;
 
 /* ══════════════════════════════════════════════════════════
    SESSION PERSISTENCE
@@ -2291,6 +2292,8 @@ function _isNativeIOS() {
   return IS_NATIVE_APP && document.documentElement.dataset.forgeOs === 'ios';
 }
 window._isNativeIOS = _isNativeIOS;
+
+async function nativeGoogleSignIn() {
   if (IS_FIRE_OS) {
     Toast.info('Google Sign-In is not available on Fire OS. Play as a guest!');
     return;
