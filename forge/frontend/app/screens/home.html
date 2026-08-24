@@ -1038,6 +1038,54 @@ function _hRunHighlightStep(index) {
   }));
 }
 
+function _hGetViewportInsets() {
+  const vv = window.visualViewport;
+  const topInset = Math.max(12, vv?.offsetTop || 0);
+  const bottomInset = Math.max(12, window.innerHeight - ((vv?.height || window.innerHeight) + (vv?.offsetTop || 0)));
+  return { topInset, bottomInset };
+}
+
+function _hPlaceTooltip(rect, tooltip) {
+  const margin = 16;
+  const gap = 14;
+  const { topInset, bottomInset } = _hGetViewportInsets();
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  const topLimit = topInset + margin;
+  const bottomLimit = viewportHeight - bottomInset - margin;
+  const tooltipHeight = Math.ceil(tooltip.getBoundingClientRect().height || tooltip.offsetHeight || 0);
+  const spaceBelow = bottomLimit - (rect.bottom + gap);
+  const spaceAbove = (rect.top - gap) - topLimit;
+
+  let top;
+  if (spaceBelow >= tooltipHeight || spaceBelow >= spaceAbove) {
+    top = rect.bottom + gap;
+  } else {
+    top = rect.top - gap - tooltipHeight;
+  }
+
+  if (top + tooltipHeight > bottomLimit) top = bottomLimit - tooltipHeight;
+  if (top < topLimit) top = topLimit;
+  tooltip.style.top = `${Math.round(top)}px`;
+}
+
+function _hBindHighlightInteractionGuard(target, allowedExtras = []) {
+  const allowed = [target, ...allowedExtras].filter(Boolean);
+  const block = (event) => {
+    const insideAllowed = allowed.some((node) => node && (node === event.target || node.contains(event.target)));
+    if (insideAllowed) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  };
+
+  const events = ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend'];
+  events.forEach((type) => document.addEventListener(type, block, true));
+
+  return () => {
+    events.forEach((type) => document.removeEventListener(type, block, true));
+  };
+}
+
 function _hPaintHighlightStep(step, target, index) {
   const rect = target.getBoundingClientRect();
 
@@ -1046,22 +1094,7 @@ function _hPaintHighlightStep(step, target, index) {
   dim.style.cssText = `
     position:fixed; inset:0; z-index:850; background:rgba(9,15,80,0.72);
   `;
-  // Non-final steps: tapping anywhere dimmed advances. Final step
-  // (Solo) deliberately has NO dim-tap-to-advance — it should only
-  // advance via the real Solo card tap itself, underneath the ring.
-  if (!step.isFinal) {
-    dim.onclick = () => _hRunHighlightStep(index + 1);
-  } else {
-    // Keep the dim layer intercepting taps everywhere EXCEPT the
-    // elevated Solo card. pointer-events:none here let taps fall
-    // through to whatever was underneath ANYWHERE on screen (bottom
-    // nav, other mode cards) — not just Solo — which is how tapping
-    // HOME/SHOP/etc. during this step could silently navigate away
-    // mid-tutorial with State._inTutorial never getting set. Swallow
-    // the tap instead; only the Solo card (z-index 852, above this
-    // layer's 850) stays reachable.
-    dim.onclick = (e) => { e.stopPropagation(); };
-  }
+  dim.onclick = (e) => { e.preventDefault(); e.stopPropagation(); };
 
   const ring = document.createElement('div');
   ring.id = 'h-highlight-ring';
@@ -1075,9 +1108,9 @@ function _hPaintHighlightStep(step, target, index) {
 
   const tooltip = document.createElement('div');
   tooltip.id = 'h-highlight-tooltip';
-  const tooltipTop = rect.bottom + 14 < window.innerHeight - 80 ? rect.bottom + 14 : rect.top - 70;
   tooltip.style.cssText = `
-    position:fixed; z-index:852; left:16px; right:16px; top:${tooltipTop}px;
+    position:fixed; z-index:852; left:16px; right:16px;
+    max-width:min(calc(100vw - 32px), 420px); margin:0 auto;
     background:var(--bg-mid); border:1.5px solid rgba(255,217,61,0.4);
     border-radius:var(--radius-md); padding:14px 16px;
     display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -1109,6 +1142,13 @@ function _hPaintHighlightStep(step, target, index) {
   document.body.appendChild(dim);
   document.body.appendChild(ring);
   document.body.appendChild(tooltip);
+  _hPlaceTooltip(rect, tooltip);
+
+  // While the tour is active, only the highlighted control itself and
+  // the tutorial bubble stay interactive. This prevents accidental taps
+  // on other modes or nav items on smaller iPhones where controls sit
+  // closer together.
+  const releaseGuard = _hBindHighlightInteractionGuard(target, [tooltip]);
 
   if (step.isFinal) {
     // Elevate the real target above the dim overlay so it stays fully
@@ -1128,6 +1168,17 @@ function _hPaintHighlightStep(step, target, index) {
       target.removeEventListener('click', onSoloTap, true);
     };
     target.addEventListener('click', onSoloTap, true);
+    target._highlightReleaseGuard = releaseGuard;
+  } else {
+    tooltip.onclick = (e) => { e.stopPropagation(); };
+    const onStepTap = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      _hRunHighlightStep(index + 1);
+    };
+    target.addEventListener('click', onStepTap, { capture: true, once: true });
+    target._highlightReleaseGuard = releaseGuard;
   }
 }
 
@@ -1141,6 +1192,13 @@ function _hClearHighlight() {
     solo.style.zIndex = '';
     delete solo._highlightCleanupZ;
   }
+  HOME_HIGHLIGHT_STEPS.forEach((step) => {
+    const el = document.querySelector(step.sel);
+    if (el && typeof el._highlightReleaseGuard === 'function') {
+      el._highlightReleaseGuard();
+      delete el._highlightReleaseGuard;
+    }
+  });
 }
 
 /* ── PROFILE RENDERING ────────────────────────────────────── */
