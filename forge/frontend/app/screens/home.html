@@ -1126,8 +1126,8 @@ function _hTrackHighlightViewport(target, ring, tooltip) {
   };
 }
 
-function _hBindHighlightInteractionGuard(target, allowedExtras = []) {
-  const allowed = [target, ...allowedExtras].filter(Boolean);
+function _hBindHighlightInteractionGuard(allowedTargets = []) {
+  const allowed = allowedTargets.filter(Boolean);
   const block = (event) => {
     const insideAllowed = allowed.some((node) => node && (node === event.target || node.contains(event.target)));
     if (insideAllowed) return;
@@ -1144,6 +1144,13 @@ function _hBindHighlightInteractionGuard(target, allowedExtras = []) {
   };
 }
 
+function _hStartTutorialSoloFromHighlight() {
+  State._inTutorial = true;
+  State._lobbyTutorialGuideDone = false;
+  _hClearHighlight();
+  hStartSolo();
+}
+
 function _hPaintHighlightStep(step, target, index) {
   const rect = _hMeasureTarget(target);
   const { ringInset, tooltipMargin, tooltipMaxWidth, rectRadius } = _hGetHighlightMetrics(rect);
@@ -1153,7 +1160,15 @@ function _hPaintHighlightStep(step, target, index) {
   dim.style.cssText = `
     position:fixed; inset:0; z-index:850; background:rgba(9,15,80,0.72);
   `;
-  dim.onclick = (e) => { e.preventDefault(); e.stopPropagation(); };
+  dim.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (step.isFinal) {
+      _hStartTutorialSoloFromHighlight();
+    } else {
+      _hRunHighlightStep(index + 1);
+    }
+  };
 
   const ring = document.createElement('div');
   ring.id = 'h-highlight-ring';
@@ -1207,17 +1222,20 @@ function _hPaintHighlightStep(step, target, index) {
   // the tutorial bubble stay interactive. This prevents accidental taps
   // on other modes or nav items on smaller iPhones where controls sit
   // closer together.
-  const releaseGuard = _hBindHighlightInteractionGuard(target, [tooltip]);
+  const releaseGuard = step.isFinal
+    ? _hBindHighlightInteractionGuard([target, tooltip, dim])
+    : _hBindHighlightInteractionGuard([tooltip, dim]);
   const releaseViewportTracking = _hTrackHighlightViewport(target, ring, tooltip);
 
-  // Keep the real highlighted element above the dim layer on every
-  // step, so users can only interact inside the spotlight area.
-  target.style.position = 'relative';
-  target.style.zIndex = '852';
-  target._highlightCleanupZ = true;
   target._highlightReleaseViewportTracking = releaseViewportTracking;
 
   if (step.isFinal) {
+    // Only Solo becomes a live control. Earlier steps stay visual-only,
+    // so tapping a highlighted mode card cannot enter that mode by accident.
+    target.style.position = 'relative';
+    target.style.zIndex = '852';
+    target._highlightCleanupZ = true;
+
     // Wrap the target's own click so the highlight tears down cleanly
     // the instant Solo is actually tapped, then lets the normal
     // hStartSolo() flow continue as if the tour was never there.
@@ -1231,13 +1249,6 @@ function _hPaintHighlightStep(step, target, index) {
     target._highlightReleaseGuard = releaseGuard;
   } else {
     tooltip.onclick = (e) => { e.stopPropagation(); };
-    const onStepTap = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      _hRunHighlightStep(index + 1);
-    };
-    target.addEventListener('click', onStepTap, { capture: true, once: true });
     target._highlightReleaseGuard = releaseGuard;
   }
 }
