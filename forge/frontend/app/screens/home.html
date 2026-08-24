@@ -986,7 +986,9 @@ function onHomeShow() {
     try { return localStorage.getItem('forge_show_mode_highlight') === '1'; }
     catch (_) { return false; }
   })();
-  if (!tutorialPending && !State._inTutorial) {
+  const skipDailyRewardOnce = !!State._skipDailyRewardOnce;
+  if (skipDailyRewardOnce) State._skipDailyRewardOnce = false;
+  if (!tutorialPending && !State._inTutorial && !skipDailyRewardOnce) {
     checkAndShowDailyReward();
   }
 
@@ -1050,7 +1052,15 @@ function _hPaintHighlightStep(step, target, index) {
   if (!step.isFinal) {
     dim.onclick = () => _hRunHighlightStep(index + 1);
   } else {
-    dim.style.pointerEvents = 'none';
+    // Keep the dim layer intercepting taps everywhere EXCEPT the
+    // elevated Solo card. pointer-events:none here let taps fall
+    // through to whatever was underneath ANYWHERE on screen (bottom
+    // nav, other mode cards) — not just Solo — which is how tapping
+    // HOME/SHOP/etc. during this step could silently navigate away
+    // mid-tutorial with State._inTutorial never getting set. Swallow
+    // the tap instead; only the Solo card (z-index 852, above this
+    // layer's 850) stays reachable.
+    dim.onclick = (e) => { e.stopPropagation(); };
   }
 
   const ring = document.createElement('div');

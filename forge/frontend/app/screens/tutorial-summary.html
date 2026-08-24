@@ -133,6 +133,11 @@ function _tsumMarkCompleted() {
 
 function tsumGoHome() {
   Sound.click();
+  // Don't let Daily Reward interrupt the very next Home landing right
+  // after finishing the guided tutorial — same onboarding moment, reads
+  // as the tutorial itself breaking. It shows normally on any later
+  // Home visit.
+  State._skipDailyRewardOnce = true;
   goTo('home', true);
 }
 </script>
