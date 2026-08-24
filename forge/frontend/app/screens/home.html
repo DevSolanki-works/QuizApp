@@ -1045,9 +1045,34 @@ function _hGetViewportInsets() {
   return { topInset, bottomInset };
 }
 
+function _hClamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function _hMeasureTarget(target) {
+  const rect = target.getBoundingClientRect();
+  return { ...rect, target };
+}
+
+function _hGetHighlightMetrics(rect) {
+  const viewportWidth = window.visualViewport?.width || window.innerWidth || 390;
+  const ringInset = Math.round(_hClamp(viewportWidth * 0.016, 4, 8));
+  const tooltipMargin = Math.round(_hClamp(viewportWidth * 0.035, 10, 18));
+  const tooltipGap = Math.round(_hClamp(viewportWidth * 0.03, 10, 16));
+  const tooltipMaxWidth = Math.round(Math.min(420, viewportWidth - (tooltipMargin * 2)));
+  const styles = window.getComputedStyle(rect.target);
+  const targetRadius = Math.max(
+    parseFloat(styles.borderTopLeftRadius) || 0,
+    parseFloat(styles.borderTopRightRadius) || 0,
+    parseFloat(styles.borderBottomLeftRadius) || 0,
+    parseFloat(styles.borderBottomRightRadius) || 0
+  );
+  const rectRadius = Math.max(14, Math.round(targetRadius + ringInset));
+  return { ringInset, tooltipMargin, tooltipGap, tooltipMaxWidth, rectRadius };
+}
+
 function _hPlaceTooltip(rect, tooltip) {
-  const margin = 16;
-  const gap = 14;
+  const { tooltipMargin: margin, tooltipGap: gap } = _hGetHighlightMetrics(rect);
   const { topInset, bottomInset } = _hGetViewportInsets();
   const viewportHeight = window.visualViewport?.height || window.innerHeight;
   const topLimit = topInset + margin;
@@ -1066,6 +1091,39 @@ function _hPlaceTooltip(rect, tooltip) {
   if (top + tooltipHeight > bottomLimit) top = bottomLimit - tooltipHeight;
   if (top < topLimit) top = topLimit;
   tooltip.style.top = `${Math.round(top)}px`;
+}
+
+function _hSyncHighlightLayout(target, ring, tooltip) {
+  if (!target?.isConnected || !ring?.isConnected || !tooltip?.isConnected) return;
+  const rect = _hMeasureTarget(target);
+  const { ringInset, tooltipMargin, tooltipMaxWidth, rectRadius } = _hGetHighlightMetrics(rect);
+  ring.style.top = `${Math.round(rect.top - ringInset)}px`;
+  ring.style.left = `${Math.round(rect.left - ringInset)}px`;
+  ring.style.width = `${Math.round(rect.width + (ringInset * 2))}px`;
+  ring.style.height = `${Math.round(rect.height + (ringInset * 2))}px`;
+  ring.style.borderRadius = `${rectRadius}px`;
+  tooltip.style.left = `${tooltipMargin}px`;
+  tooltip.style.right = `${tooltipMargin}px`;
+  tooltip.style.maxWidth = `${tooltipMaxWidth}px`;
+  _hPlaceTooltip(rect, tooltip);
+}
+
+function _hTrackHighlightViewport(target, ring, tooltip) {
+  const sync = () => _hSyncHighlightLayout(target, ring, tooltip);
+  const vv = window.visualViewport;
+  const events = [
+    [window, 'resize', sync],
+    [window, 'orientationchange', sync],
+  ];
+  if (vv) {
+    events.push([vv, 'resize', sync]);
+    events.push([vv, 'scroll', sync]);
+  }
+  events.forEach(([node, type, handler]) => node.addEventListener(type, handler));
+  requestAnimationFrame(sync);
+  return () => {
+    events.forEach(([node, type, handler]) => node.removeEventListener(type, handler));
+  };
 }
 
 function _hBindHighlightInteractionGuard(target, allowedExtras = []) {
@@ -1087,7 +1145,8 @@ function _hBindHighlightInteractionGuard(target, allowedExtras = []) {
 }
 
 function _hPaintHighlightStep(step, target, index) {
-  const rect = target.getBoundingClientRect();
+  const rect = _hMeasureTarget(target);
+  const { ringInset, tooltipMargin, tooltipMaxWidth, rectRadius } = _hGetHighlightMetrics(rect);
 
   const dim = document.createElement('div');
   dim.id = 'h-highlight-dim';
@@ -1100,19 +1159,19 @@ function _hPaintHighlightStep(step, target, index) {
   ring.id = 'h-highlight-ring';
   ring.style.cssText = `
     position:fixed; z-index:851; pointer-events:none;
-    top:${rect.top - 6}px; left:${rect.left - 6}px;
-    width:${rect.width + 12}px; height:${rect.height + 12}px;
-    border-radius:16px; box-shadow:0 0 0 4px var(--yellow), 0 0 24px rgba(255,217,61,0.5);
+    top:${Math.round(rect.top - ringInset)}px; left:${Math.round(rect.left - ringInset)}px;
+    width:${Math.round(rect.width + (ringInset * 2))}px; height:${Math.round(rect.height + (ringInset * 2))}px;
+    border-radius:${rectRadius}px; box-shadow:0 0 0 4px var(--yellow), 0 0 24px rgba(255,217,61,0.5);
     transition:all 0.25s ease;
   `;
 
   const tooltip = document.createElement('div');
   tooltip.id = 'h-highlight-tooltip';
   tooltip.style.cssText = `
-    position:fixed; z-index:852; left:16px; right:16px;
-    max-width:min(calc(100vw - 32px), 420px); margin:0 auto;
+    position:fixed; z-index:852; left:${tooltipMargin}px; right:${tooltipMargin}px;
+    max-width:${tooltipMaxWidth}px; margin:0 auto;
     background:var(--bg-mid); border:1.5px solid rgba(255,217,61,0.4);
-    border-radius:var(--radius-md); padding:14px 16px;
+    border-radius:var(--radius-md); padding:clamp(12px, 3.6vw, 14px) clamp(14px, 4.2vw, 16px);
     display:flex; align-items:center; justify-content:space-between; gap:12px;
   `;
   if (step.isFinal) {
@@ -1142,22 +1201,23 @@ function _hPaintHighlightStep(step, target, index) {
   document.body.appendChild(dim);
   document.body.appendChild(ring);
   document.body.appendChild(tooltip);
-  _hPlaceTooltip(rect, tooltip);
+  _hSyncHighlightLayout(target, ring, tooltip);
 
   // While the tour is active, only the highlighted control itself and
   // the tutorial bubble stay interactive. This prevents accidental taps
   // on other modes or nav items on smaller iPhones where controls sit
   // closer together.
   const releaseGuard = _hBindHighlightInteractionGuard(target, [tooltip]);
+  const releaseViewportTracking = _hTrackHighlightViewport(target, ring, tooltip);
+
+  // Keep the real highlighted element above the dim layer on every
+  // step, so users can only interact inside the spotlight area.
+  target.style.position = 'relative';
+  target.style.zIndex = '852';
+  target._highlightCleanupZ = true;
+  target._highlightReleaseViewportTracking = releaseViewportTracking;
 
   if (step.isFinal) {
-    // Elevate the real target above the dim overlay so it stays fully
-    // tappable — this is what makes "tap the actual Solo card" work
-    // instead of a fake highlighted duplicate.
-    target.style.position = 'relative';
-    target.style.zIndex = '852';
-    target._highlightCleanupZ = true;
-
     // Wrap the target's own click so the highlight tears down cleanly
     // the instant Solo is actually tapped, then lets the normal
     // hStartSolo() flow continue as if the tour was never there.
@@ -1186,17 +1246,20 @@ function _hClearHighlight() {
   document.getElementById('h-highlight-dim')?.remove();
   document.getElementById('h-highlight-ring')?.remove();
   document.getElementById('h-highlight-tooltip')?.remove();
-  const solo = document.querySelector('.h-solo-card');
-  if (solo && solo._highlightCleanupZ) {
-    solo.style.position = '';
-    solo.style.zIndex = '';
-    delete solo._highlightCleanupZ;
-  }
   HOME_HIGHLIGHT_STEPS.forEach((step) => {
     const el = document.querySelector(step.sel);
+    if (el && typeof el._highlightReleaseViewportTracking === 'function') {
+      el._highlightReleaseViewportTracking();
+      delete el._highlightReleaseViewportTracking;
+    }
     if (el && typeof el._highlightReleaseGuard === 'function') {
       el._highlightReleaseGuard();
       delete el._highlightReleaseGuard;
+    }
+    if (el && el._highlightCleanupZ) {
+      el.style.position = '';
+      el.style.zIndex = '';
+      delete el._highlightCleanupZ;
     }
   });
 }
