@@ -1063,44 +1063,8 @@ function _hClamp(value, min, max) {
 }
 
 function _hMeasureTarget(target) {
-  const screenEl = target.closest('.screen');
-  const isZoomedIOS = document.documentElement.dataset.forgeOs === 'ios' && !!screenEl;
-
-  if (!isZoomedIOS) {
-    const rect = _lobbyMeasureTarget(target);
-    return { ...rect, target };
-  }
-
-  // WebKit's non-standard `zoom` on `.screen` has proven unreliable for
-  // getBoundingClientRect() on elements several layers deep inside it —
-  // the reported rect doesn't match the real on-screen position (same
-  // quirk class as the position:fixed bug fixed in Milestone 81, just
-  // hitting a different API this time). Work around it by temporarily
-  // disabling the zoom, measuring the target's position RELATIVE to
-  // .screen's own box in that reliable unzoomed state, then scaling
-  // that relative offset back up and re-anchoring it to .screen's real
-  // (zoomed) rect — captured BEFORE the toggle, so it's unaffected by
-  // any layout shift the temporary toggle itself causes (e.g. #app
-  // re-centering a narrower unzoomed screen). Toggle + measure +
-  // restore all happen synchronously before the browser paints, so
-  // there's no visible flicker.
-  const trueScreenRect = screenEl.getBoundingClientRect();
-  const zoomFactor = parseFloat(getComputedStyle(screenEl).zoom) || 1;
-  const prevZoom = screenEl.style.zoom;
-
-  screenEl.style.zoom = '1';
-  const tempScreenRect = screenEl.getBoundingClientRect();
-  const tempTargetRect = target.getBoundingClientRect();
-  screenEl.style.zoom = prevZoom;
-
-  const relTop  = tempTargetRect.top  - tempScreenRect.top;
-  const relLeft = tempTargetRect.left - tempScreenRect.left;
-  const width   = tempTargetRect.width  * zoomFactor;
-  const height  = tempTargetRect.height * zoomFactor;
-  const top     = trueScreenRect.top  + relTop  * zoomFactor;
-  const left    = trueScreenRect.left + relLeft * zoomFactor;
-
-  return { top, left, width, height, right: left + width, bottom: top + height, target };
+  const rect = target.getBoundingClientRect();
+  return { ...rect, target };
 }
 
 function _hGetHighlightMetrics(rect) {
@@ -1145,6 +1109,13 @@ function _hPlaceTooltip(rect, tooltip) {
 function _hSyncHighlightLayout(target, ring, tooltip) {
   if (!target?.isConnected || !ring?.isConnected || !tooltip?.isConnected) return;
   const rect = _hMeasureTarget(target);
+
+  // --- TEMPORARY DEBUG LINE ---
+  if (typeof Toast !== 'undefined') {
+    Toast.info(`rect: t ${Math.round(rect.top)} l ${Math.round(rect.left)} w ${Math.round(rect.width)} h ${Math.round(rect.height)} | vw ${window.innerWidth} vh ${window.innerHeight}`, 6000);
+  }
+  // ----------------------------
+
   const { ringInset, tooltipMargin, tooltipMaxWidth, rectRadius } = _hGetHighlightMetrics(rect);
   ring.style.top = `${Math.round(rect.top - ringInset)}px`;
   ring.style.left = `${Math.round(rect.left - ringInset)}px`;

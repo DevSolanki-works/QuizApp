@@ -880,27 +880,7 @@ function _runLobbyTutorialStep(index) {
  * itself causes. All synchronous, so there's no visible flicker.
  */
 function _lobbyMeasureTarget(target) {
-  const screenEl = target.closest('.screen');
-  const isZoomedIOS = document.documentElement.dataset.forgeOs === 'ios' && !!screenEl;
-  if (!isZoomedIOS) return target.getBoundingClientRect();
-
-  const trueScreenRect = screenEl.getBoundingClientRect();
-  const zoomFactor = parseFloat(getComputedStyle(screenEl).zoom) || 1;
-  const prevZoom = screenEl.style.zoom;
-
-  screenEl.style.zoom = '1';
-  const tempScreenRect = screenEl.getBoundingClientRect();
-  const tempTargetRect = target.getBoundingClientRect();
-  screenEl.style.zoom = prevZoom;
-
-  const relTop  = tempTargetRect.top  - tempScreenRect.top;
-  const relLeft = tempTargetRect.left - tempScreenRect.left;
-  const width   = tempTargetRect.width  * zoomFactor;
-  const height  = tempTargetRect.height * zoomFactor;
-  const top     = trueScreenRect.top  + relTop  * zoomFactor;
-  const left    = trueScreenRect.left + relLeft * zoomFactor;
-
-  return { top, left, width, height, right: left + width, bottom: top + height };
+  return target.getBoundingClientRect();
 }
 
   // These three elements are defined as static HTML inside #screen-lobby,
