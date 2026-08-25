@@ -777,7 +777,7 @@ function _tutShowTooltip(key, targetSel, text, anchorBelow = true) {
   _tutTooltipsShown[key] = true;
   const target = document.querySelector(targetSel);
   if (!target) return;
-  const rect = target.getBoundingClientRect();
+  const rect = _lobbyMeasureTarget(target);
   const tip = document.createElement('div');
   tip.className = 'tut-inline-tooltip';
   const top = anchorBelow ? rect.bottom + 10 : Math.max(10, rect.top - 60);

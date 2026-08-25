@@ -1067,7 +1067,7 @@ function _hMeasureTarget(target) {
   const isZoomedIOS = document.documentElement.dataset.forgeOs === 'ios' && !!screenEl;
 
   if (!isZoomedIOS) {
-    const rect = target.getBoundingClientRect();
+    const rect = _lobbyMeasureTarget(target);
     return { ...rect, target };
   }
 

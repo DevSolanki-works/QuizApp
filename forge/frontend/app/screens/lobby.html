@@ -868,11 +868,40 @@ function _runLobbyTutorialStep(index) {
   }));
 }
 
-function _paintLobbyTutorialStep(step, target, index) {
-  const overlay = document.getElementById('lobby-tutorial-overlay');
-  const ring = document.getElementById('lobby-tutorial-ring');
-  const tip = document.getElementById('lobby-tutorial-tip');
-  if (!overlay || !ring || !tip) return;
+/**
+ * Zoom-safe target measurement — same fix as Home's _hMeasureTarget().
+ * WebKit's non-standard `zoom` on `.screen` doesn't reliably report the
+ * true on-screen position via getBoundingClientRect() for elements
+ * nested several layers deep inside it. Work around it by temporarily
+ * disabling the zoom, measuring the target RELATIVE to `.screen`'s own
+ * box in that reliable unzoomed state, then scaling that relative
+ * offset back up against `.screen`'s real (zoomed) rect — captured
+ * BEFORE the toggle so it's unaffected by any layout shift the toggle
+ * itself causes. All synchronous, so there's no visible flicker.
+ */
+function _lobbyMeasureTarget(target) {
+  const screenEl = target.closest('.screen');
+  const isZoomedIOS = document.documentElement.dataset.forgeOs === 'ios' && !!screenEl;
+  if (!isZoomedIOS) return target.getBoundingClientRect();
+
+  const trueScreenRect = screenEl.getBoundingClientRect();
+  const zoomFactor = parseFloat(getComputedStyle(screenEl).zoom) || 1;
+  const prevZoom = screenEl.style.zoom;
+
+  screenEl.style.zoom = '1';
+  const tempScreenRect = screenEl.getBoundingClientRect();
+  const tempTargetRect = target.getBoundingClientRect();
+  screenEl.style.zoom = prevZoom;
+
+  const relTop  = tempTargetRect.top  - tempScreenRect.top;
+  const relLeft = tempTargetRect.left - tempScreenRect.left;
+  const width   = tempTargetRect.width  * zoomFactor;
+  const height  = tempTargetRect.height * zoomFactor;
+  const top     = trueScreenRect.top  + relTop  * zoomFactor;
+  const left    = trueScreenRect.left + relLeft * zoomFactor;
+
+  return { top, left, width, height, right: left + width, bottom: top + height };
+}
 
   // These three elements are defined as static HTML inside #screen-lobby,
   // which now carries iOS's `zoom` CSS property. WebKit computes
@@ -888,7 +917,7 @@ function _paintLobbyTutorialStep(step, target, index) {
   if (ring.parentElement !== document.body) document.body.appendChild(ring);
   if (tip.parentElement !== document.body) document.body.appendChild(tip);
 
-  const rect = target.getBoundingClientRect();
+  const rect = _lobbyMeasureTarget(target);
   overlay.style.display = 'block';
   // The dim layer must never sit ON TOP of the real element being
   // highlighted — every step (not just the final one) needs its target
