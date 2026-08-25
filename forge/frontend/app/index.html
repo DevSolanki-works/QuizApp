@@ -1004,6 +1004,14 @@ const SCREEN_GUARDS = {
 };
 
 async function goTo(name, skipHash = false) {
+  // Any screen navigation, no matter what triggered it, must tear down
+  // the Home highlight tour's overlay + global click-blocker. Without
+  // this, a stray tap during the tour's step-to-step transition can
+  // leave the blocker permanently attached to a screen it no longer
+  // applies to — which is what made Back stop responding entirely.
+  if (typeof _hClearHighlight === 'function') {
+    try { _hClearHighlight(); } catch (_) {}
+  }
   const guard = SCREEN_GUARDS[name];
   if (guard && !guard()) {
     console.warn(`[Router] Guard blocked '${name}' → redirecting to 'home'`);

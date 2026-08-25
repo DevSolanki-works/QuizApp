@@ -1030,6 +1030,11 @@ function _hMaybeShowModeHighlight() {
  * ever rendered — which looks exactly like "no boxes show up at all."
  */
 function _hFindHighlightTarget(step, index, attempt = 0) {
+  const homeEl = document.getElementById('screen-home');
+  if (!homeEl || !homeEl.classList.contains('active')) {
+    _hClearHighlight();
+    return;
+  }
   const target = document.querySelector(step.sel);
   if (target) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -1073,7 +1078,7 @@ function _hMeasureTarget(target) {
     height: rect.height,
     x: rect.x,
     y: rect.y,
-    target,
+    target
   };
 }
 
@@ -1120,17 +1125,11 @@ function _hSyncHighlightLayout(target, ring, tooltip) {
   if (!target?.isConnected || !ring?.isConnected || !tooltip?.isConnected) return;
   const rect = _hMeasureTarget(target);
 
+  if (typeof Toast !== 'undefined') {
+    Toast.info(`top: ${Math.round(rect.top)} left: ${Math.round(rect.left)} w: ${Math.round(rect.width)} h: ${Math.round(rect.height)} | vw: ${window.innerWidth} vh: ${window.innerHeight}`, 8000);
+  }
+
   const { ringInset, tooltipMargin, tooltipMaxWidth, rectRadius } = _hGetHighlightMetrics(rect);
-  ring.style.top = `${Math.round(rect.top - ringInset)}px`;
-  ring.style.left = `${Math.round(rect.left - ringInset)}px`;
-  ring.style.width = `${Math.round(rect.width + (ringInset * 2))}px`;
-  ring.style.height = `${Math.round(rect.height + (ringInset * 2))}px`;
-  ring.style.borderRadius = `${rectRadius}px`;
-  tooltip.style.left = `${tooltipMargin}px`;
-  tooltip.style.right = `${tooltipMargin}px`;
-  tooltip.style.maxWidth = `${tooltipMaxWidth}px`;
-  _hPlaceTooltip(rect, tooltip);
-}
 
 function _hTrackHighlightViewport(target, ring, tooltip) {
   const sync = () => _hSyncHighlightLayout(target, ring, tooltip);
@@ -1176,6 +1175,11 @@ function _hStartTutorialSoloFromHighlight() {
 }
 
 function _hPaintHighlightStep(step, target, index) {
+  const homeEl = document.getElementById('screen-home');
+  if (!homeEl || !homeEl.classList.contains('active') || !target.isConnected) {
+    _hClearHighlight();
+    return;
+  }
   const rect = _hMeasureTarget(target);
   const { ringInset, tooltipMargin, tooltipMaxWidth, rectRadius } = _hGetHighlightMetrics(rect);
 
