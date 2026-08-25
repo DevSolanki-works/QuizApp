@@ -1064,7 +1064,17 @@ function _hClamp(value, min, max) {
 
 function _hMeasureTarget(target) {
   const rect = target.getBoundingClientRect();
-  return { ...rect, target };
+  return {
+    top: rect.top,
+    left: rect.left,
+    bottom: rect.bottom,
+    right: rect.right,
+    width: rect.width,
+    height: rect.height,
+    x: rect.x,
+    y: rect.y,
+    target,
+  };
 }
 
 function _hGetHighlightMetrics(rect) {
@@ -1109,12 +1119,6 @@ function _hPlaceTooltip(rect, tooltip) {
 function _hSyncHighlightLayout(target, ring, tooltip) {
   if (!target?.isConnected || !ring?.isConnected || !tooltip?.isConnected) return;
   const rect = _hMeasureTarget(target);
-
-  // --- TEMPORARY DEBUG LINE ---
-  if (typeof Toast !== 'undefined') {
-    Toast.info(`rect: t ${Math.round(rect.top)} l ${Math.round(rect.left)} w ${Math.round(rect.width)} h ${Math.round(rect.height)} | vw ${window.innerWidth} vh ${window.innerHeight}`, 6000);
-  }
-  // ----------------------------
 
   const { ringInset, tooltipMargin, tooltipMaxWidth, rectRadius } = _hGetHighlightMetrics(rect);
   ring.style.top = `${Math.round(rect.top - ringInset)}px`;
@@ -1211,9 +1215,8 @@ function _hPaintHighlightStep(step, target, index) {
   `;
   if (step.isFinal) {
     // Final step: no Next/Done button at all — the real Solo card
-    // itself (left clickable via a cutout, see below) is the only way
-    // forward, keeping the tour feeling like "now go do it" rather than
-    // "keep clicking Next."
+    // itself (left clickable via a cutout) is the primary way forward,
+    // keeping the tour feeling like "now go do it".
     tooltip.innerHTML = `
       <span style="font-family:var(--font-body);font-size:13px;font-weight:700;color:var(--yellow);flex:1;">👆 ${step.label}</span>
     `;
@@ -1238,10 +1241,6 @@ function _hPaintHighlightStep(step, target, index) {
   document.body.appendChild(tooltip);
   _hSyncHighlightLayout(target, ring, tooltip);
 
-  // While the tour is active, only the highlighted control itself and
-  // the tutorial bubble stay interactive. This prevents accidental taps
-  // on other modes or nav items on smaller iPhones where controls sit
-  // closer together.
   const releaseGuard = step.isFinal
     ? _hBindHighlightInteractionGuard([target, tooltip, dim])
     : _hBindHighlightInteractionGuard([tooltip, dim]);
@@ -1250,26 +1249,38 @@ function _hPaintHighlightStep(step, target, index) {
   target._highlightReleaseViewportTracking = releaseViewportTracking;
 
   if (step.isFinal) {
-    // Only Solo becomes a live control. Earlier steps stay visual-only,
-    // so tapping a highlighted mode card cannot enter that mode by accident.
     target.style.position = 'relative';
     target.style.zIndex = '852';
     target._highlightCleanupZ = true;
 
-    // Wrap the target's own click so the highlight tears down cleanly
-    // the instant Solo is actually tapped, then lets the normal
-    // hStartSolo() flow continue as if the tour was never there.
-    const onSoloTap = () => {
-      State._inTutorial = true;
-      State._lobbyTutorialGuideDone = false;
-      _hClearHighlight();
+    const onSoloTap = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      _hStartTutorialSoloFromHighlight();
       target.removeEventListener('click', onSoloTap, true);
     };
     target.addEventListener('click', onSoloTap, true);
-    target._highlightReleaseGuard = releaseGuard;
+    target._highlightReleaseGuard = () => {
+      target.removeEventListener('click', onSoloTap, true);
+      releaseGuard();
+    };
   } else {
     tooltip.onclick = (e) => { e.stopPropagation(); };
-    target._highlightReleaseGuard = releaseGuard;
+
+    // Capturing click listener on target during non-final steps:
+    // Prevents target's native mode action (e.g. hCreateRoom -> Room Code)
+    // and advances the tutorial tour instead.
+    const onTargetTap = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      _hRunHighlightStep(index + 1);
+      target.removeEventListener('click', onTargetTap, true);
+    };
+    target.addEventListener('click', onTargetTap, true);
+    target._highlightReleaseGuard = () => {
+      target.removeEventListener('click', onTargetTap, true);
+      releaseGuard();
+    };
   }
 }
 
