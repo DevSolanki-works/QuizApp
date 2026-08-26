@@ -883,6 +883,12 @@ function _lobbyMeasureTarget(target) {
   return target.getBoundingClientRect();
 }
 
+function _paintLobbyTutorialStep(step, target, index) {
+  const overlay = document.getElementById('lobby-tutorial-overlay');
+  const ring = document.getElementById('lobby-tutorial-ring');
+  const tip = document.getElementById('lobby-tutorial-tip');
+  if (!overlay || !ring || !tip) return;
+
   // These three elements are defined as static HTML inside #screen-lobby,
   // which now carries iOS's `zoom` CSS property. WebKit computes
   // position:fixed inconsistently for elements nested inside a zoomed

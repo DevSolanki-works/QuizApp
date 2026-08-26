@@ -1125,11 +1125,17 @@ function _hSyncHighlightLayout(target, ring, tooltip) {
   if (!target?.isConnected || !ring?.isConnected || !tooltip?.isConnected) return;
   const rect = _hMeasureTarget(target);
 
-  if (typeof Toast !== 'undefined') {
-    Toast.info(`top: ${Math.round(rect.top)} left: ${Math.round(rect.left)} w: ${Math.round(rect.width)} h: ${Math.round(rect.height)} | vw: ${window.innerWidth} vh: ${window.innerHeight}`, 8000);
-  }
-
   const { ringInset, tooltipMargin, tooltipMaxWidth, rectRadius } = _hGetHighlightMetrics(rect);
+  ring.style.top = `${Math.round(rect.top - ringInset)}px`;
+  ring.style.left = `${Math.round(rect.left - ringInset)}px`;
+  ring.style.width = `${Math.round(rect.width + (ringInset * 2))}px`;
+  ring.style.height = `${Math.round(rect.height + (ringInset * 2))}px`;
+  ring.style.borderRadius = `${rectRadius}px`;
+  tooltip.style.left = `${tooltipMargin}px`;
+  tooltip.style.right = `${tooltipMargin}px`;
+  tooltip.style.maxWidth = `${tooltipMaxWidth}px`;
+  _hPlaceTooltip(rect, tooltip);
+}
 
 function _hTrackHighlightViewport(target, ring, tooltip) {
   const sync = () => _hSyncHighlightLayout(target, ring, tooltip);
