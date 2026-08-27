@@ -29,12 +29,21 @@ const RewardedAd = {
   // Swap PROD_AD_UNIT_ID in once you create a real ad unit in AdMob.
   // Never ship IS_TESTING as true.
   TEST_AD_UNIT_ID: 'ca-app-pub-3940256099942544/5224354917',
+  TEST_AD_UNIT_ID_IOS: 'ca-app-pub-3940256099942544/1712485313',
   PROD_AD_UNIT_ID: 'ca-app-pub-4922314688440658/3665918421',
+  PROD_AD_UNIT_ID_IOS: 'ca-app-pub-4922314688440658/4481125854',
 
   IS_TESTING: false,
 
+  get _isIOS() {
+    return window.Capacitor?.getPlatform?.() === 'ios';
+  },
+
   get _adUnitId() {
-    return this.IS_TESTING ? this.TEST_AD_UNIT_ID : this.PROD_AD_UNIT_ID;
+    if (this.IS_TESTING) {
+      return this._isIOS ? this.TEST_AD_UNIT_ID_IOS : this.TEST_AD_UNIT_ID;
+    }
+    return this._isIOS ? this.PROD_AD_UNIT_ID_IOS : this.PROD_AD_UNIT_ID;
   },
 
   get _plugin() {
@@ -139,11 +148,20 @@ const Interstitial = {
   _loaded: false,
   _loading: false,
   TEST_AD_UNIT_ID: 'ca-app-pub-3940256099942544/1033173712',
+  TEST_AD_UNIT_ID_IOS: 'ca-app-pub-3940256099942544/4411468910',
   PROD_AD_UNIT_ID: 'ca-app-pub-4922314688440658/3840946730',
+  PROD_AD_UNIT_ID_IOS: 'ca-app-pub-4922314688440658/1244965723',
   IS_TESTING: false,
 
+  get _isIOS() {
+    return window.Capacitor?.getPlatform?.() === 'ios';
+  },
+
   get _adUnitId() {
-    return this.IS_TESTING ? this.TEST_AD_UNIT_ID : this.PROD_AD_UNIT_ID;
+    if (this.IS_TESTING) {
+      return this._isIOS ? this.TEST_AD_UNIT_ID_IOS : this.TEST_AD_UNIT_ID;
+    }
+    return this._isIOS ? this.PROD_AD_UNIT_ID_IOS : this.PROD_AD_UNIT_ID;
   },
   get _plugin() {
     return window.Capacitor?.Plugins?.AdMob || null;
